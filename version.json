@@ -1,0 +1,74 @@
+{
+  "version": "2.0.0",
+  "build_date": "2025-11-10",
+  "python_version": "3.13+",
+  "app_name": "School Management System",
+  "organization": "Gaybeck Starkids School",
+  "features": [
+    "Student Management",
+    "Teacher Management",
+    "Attendance Tracking",
+    "Fee Collection",
+    "Grading System",
+    "AI-Powered Analytics",
+    "Financial Management",
+    "Report Generation",
+    "User Management",
+    "Backup & Restore"
+  ],
+  "changelog": {
+    "2.0.0": {
+      "date": "2025-11-10",
+      "changes": [
+        "Added comprehensive grading system with database persistence",
+        "Implemented AI-powered analytics and predictive insights",
+        "Added advanced student trend analysis and class comparisons",
+        "Enhanced teacher-class assignment with multi-level matching",
+        "Implemented working report generation for all report types",
+        "Fixed student name extraction from dropdown formats",
+        "Added responsive design across all interfaces",
+        "Improved database backup and restore functionality",
+        "Optimized database queries and structure",
+        "Added comprehensive test suite"
+      ],
+      "fixes": [
+        "Fixed 'student not found' error in grading system",
+        "Fixed 'no class assigned' error for teachers",
+        "Fixed report generation showing only success messages",
+        "Improved error handling and user feedback",
+        "Enhanced data validation throughout the system"
+      ]
+    },
+    "1.0.0": {
+      "date": "2024-10-26",
+      "changes": [
+        "Initial release",
+        "Core student and teacher management",
+        "Basic attendance and fee tracking",
+        "User authentication system",
+        "Financial transaction tracking"
+      ]
+    }
+  },
+  "system_requirements": {
+    "os": "Windows 10 or higher",
+    "python": "3.13.x",
+    "ram_min": "4GB",
+    "ram_recommended": "8GB",
+    "storage": "500MB",
+    "display": "1280x720 minimum, 1920x1080 recommended"
+  },
+  "dependencies": {
+    "required": [
+      "tkcalendar>=1.6.1",
+      "reportlab>=4.0.0",
+      "Pillow>=10.0.0"
+    ],
+    "optional": [
+      "scikit-learn>=1.3.0",
+      "pandas>=2.0.0",
+      "numpy>=1.24.0",
+      "opencv-python>=4.8.0"
+    ]
+  }
+}
