@@ -11,7 +11,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('database', 'database'),
-        ('docs', 'docs'),
+        ('logo.png', '.'),  # Include logo file
         ('version.json', '.'),
         ('README.md', '.'),
     ],
@@ -79,10 +79,6 @@ a = Analysis(
     noarchive=False,
 )
 
-# Collect all required data for sklearn
-a.datas += Tree('C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\sklearn',
-                prefix='sklearn', excludes=['*.pyc', '__pycache__'])
-
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
@@ -92,20 +88,20 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='SchoolManagementSystem',
+    name='GaybeckStarkidsAcademy',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Set to True for debugging
+    console=False,  # No console window
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None  # Add 'icon.ico' if you have an icon file
+    icon='logo.png'  # Use logo as icon (PyInstaller will convert)
 )
 
 # Optionally create a directory-based distribution (smaller file, faster startup)

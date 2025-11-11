@@ -1251,14 +1251,35 @@ class ResponsiveManager:
 class ScrollableFrame(tk.Frame):
     """A scrollable frame that can be used to make any content scrollable with mouse wheel support"""
     
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, *args, always_show_scrollbar=False, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.configure(relief=tk.FLAT, bd=0)
         
+        # Store configuration
+        self.always_show_scrollbar = always_show_scrollbar
+        
+        # Get background color from kwargs or use default
+        bg_color = kwargs.get('bg', 'white')
+        
         # Create canvas and scrollbar with clean styling
-        self.canvas = tk.Canvas(self, highlightthickness=0, bd=0, relief=tk.FLAT)
-        self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas, relief=tk.FLAT, bd=0)
+        self.canvas = tk.Canvas(self, highlightthickness=0, bd=0, relief=tk.FLAT, bg=bg_color)
+        
+        # Use tk.Scrollbar instead of ttk for better visibility with custom colors
+        # Determine if this is a dark theme based on background color
+        is_dark_bg = bg_color in ['#2c3e50', '#34495e', '#1a1a1a', 'black']
+        
+        if is_dark_bg:
+            # Light scrollbar for dark backgrounds
+            self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview,
+                                         bg='#34495e', troughcolor='#2c3e50', 
+                                         activebackground='#3498db', highlightthickness=0,
+                                         bd=1, relief=tk.FLAT, width=14)
+        else:
+            # Standard scrollbar for light backgrounds
+            self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview,
+                                         highlightthickness=0, bd=1, relief=tk.FLAT, width=14)
+        
+        self.scrollable_frame = tk.Frame(self.canvas, relief=tk.FLAT, bd=0, bg=bg_color)
         
         # Configure scrolling with overflow detection
         self.scrollable_frame.bind(
@@ -1270,14 +1291,22 @@ class ScrollableFrame(tk.Frame):
         self.canvas_frame = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Pack canvas first (scrollbar will be packed conditionally)
+        # Pack canvas first (scrollbar will be packed conditionally or always)
         self.canvas.pack(side="left", fill="both", expand=True)
         
         # Track if scrollbar is currently visible
         self.scrollbar_visible = False
         
+        # If always show scrollbar, pack it immediately
+        if self.always_show_scrollbar:
+            self.scrollbar.pack(side="right", fill="y")
+            self.scrollbar_visible = True
+        
         # Bind mouse wheel events
         self.bind_mouse_wheel()
+        
+        # Bind keyboard navigation for scrolling
+        self.bind_keyboard_navigation()
         
         # Bind canvas resize
         self.canvas.bind("<Configure>", self._on_canvas_configure)
@@ -1293,6 +1322,10 @@ class ScrollableFrame(tk.Frame):
         """Check if content overflows and show/hide scrollbar accordingly"""
         self.canvas.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        # If always show scrollbar, don't toggle it
+        if self.always_show_scrollbar:
+            return
         
         # Get canvas and content dimensions
         canvas_height = self.canvas.winfo_height()
@@ -1329,6 +1362,50 @@ class ScrollableFrame(tk.Frame):
                 bind_children(child)
         
         bind_children(self.scrollable_frame)
+        # Also rebind keyboard navigation
+        self._rebind_children_keyboard()
+    
+    def _rebind_children_keyboard(self):
+        """Re-bind keyboard navigation to all child widgets"""
+        def on_key_scroll(event):
+            if not self.canvas.winfo_exists():
+                return
+            
+            # Check if the event is from an Entry or Text widget
+            if event.widget.__class__.__name__ in ['Entry', 'Text', 'Spinbox', 'Combobox']:
+                return
+            
+            if event.keysym == 'Up':
+                self.canvas.yview_scroll(-1, "units")
+                return "break"
+            elif event.keysym == 'Down':
+                self.canvas.yview_scroll(1, "units")
+                return "break"
+            elif event.keysym == 'Prior':
+                self.canvas.yview_scroll(-1, "pages")
+                return "break"
+            elif event.keysym == 'Next':
+                self.canvas.yview_scroll(1, "pages")
+                return "break"
+            elif event.keysym == 'Home':
+                self.canvas.yview_moveto(0)
+                return "break"
+            elif event.keysym == 'End':
+                self.canvas.yview_moveto(1)
+                return "break"
+        
+        def bind_widget(widget):
+            widget.bind('<Up>', on_key_scroll, add='+')
+            widget.bind('<Down>', on_key_scroll, add='+')
+            widget.bind('<Prior>', on_key_scroll, add='+')
+            widget.bind('<Next>', on_key_scroll, add='+')
+            widget.bind('<Home>', on_key_scroll, add='+')
+            widget.bind('<End>', on_key_scroll, add='+')
+            
+            for child in widget.winfo_children():
+                bind_widget(child)
+        
+        bind_widget(self.scrollable_frame)
     
     def bind_mouse_wheel(self):
         """Bind mouse wheel events to canvas and all child widgets"""
@@ -1355,6 +1432,66 @@ class ScrollableFrame(tk.Frame):
         
         # Schedule binding of children after widget creation
         self.after(100, lambda: bind_children(self.scrollable_frame))
+    
+    def bind_keyboard_navigation(self):
+        """Bind keyboard events for scrolling without mouse"""
+        def on_key_scroll(event):
+            if not self.canvas.winfo_exists():
+                return
+            
+            # Check if the event is from an Entry or Text widget (don't intercept their navigation)
+            if event.widget.__class__.__name__ in ['Entry', 'Text', 'Spinbox', 'Combobox']:
+                return
+            
+            # Arrow keys - scroll by small increments
+            if event.keysym == 'Up':
+                self.canvas.yview_scroll(-1, "units")
+                return "break"  # Prevent default behavior
+            elif event.keysym == 'Down':
+                self.canvas.yview_scroll(1, "units")
+                return "break"
+            
+            # Page Up/Down - scroll by larger increments
+            elif event.keysym == 'Prior':  # Page Up
+                self.canvas.yview_scroll(-1, "pages")
+                return "break"
+            elif event.keysym == 'Next':  # Page Down
+                self.canvas.yview_scroll(1, "pages")
+                return "break"
+            
+            # Home/End - scroll to top/bottom
+            elif event.keysym == 'Home':
+                self.canvas.yview_moveto(0)
+                return "break"
+            elif event.keysym == 'End':
+                self.canvas.yview_moveto(1)
+                return "break"
+        
+        def bind_to_widget(widget):
+            """Bind keyboard events to a widget"""
+            widget.bind('<Up>', on_key_scroll, add='+')
+            widget.bind('<Down>', on_key_scroll, add='+')
+            widget.bind('<Prior>', on_key_scroll, add='+')  # Page Up
+            widget.bind('<Next>', on_key_scroll, add='+')   # Page Down
+            widget.bind('<Home>', on_key_scroll, add='+')
+            widget.bind('<End>', on_key_scroll, add='+')
+        
+        # Bind keyboard events to main widgets
+        bind_to_widget(self.canvas)
+        bind_to_widget(self)
+        bind_to_widget(self.scrollable_frame)
+        
+        # Bind to all child widgets recursively
+        def bind_children(widget):
+            bind_to_widget(widget)
+            for child in widget.winfo_children():
+                bind_children(child)
+        
+        # Schedule binding of children after widget creation
+        self.after(100, lambda: bind_children(self.scrollable_frame))
+        
+        # Make canvas focusable for keyboard events
+        self.canvas.config(takefocus=True)
     
     def get_frame(self):
         """Return the scrollable frame for adding widgets"""
@@ -1383,6 +1520,18 @@ class LoginWindow:
         # Create login window with responsive dimensions
         self.login_window = tk.Toplevel(self.root)
         self.login_window.title("Gaybeck Starkids Academy - Login")
+        
+        # Set window icon
+        try:
+            if os.path.exists('icon.ico'):
+                self.login_window.iconbitmap('icon.ico')
+            elif os.path.exists('logo.png'):
+                from PIL import Image
+                img = Image.open('logo.png')
+                img.save('temp_icon.ico', format='ICO')
+                self.login_window.iconbitmap('temp_icon.ico')
+        except Exception as e:
+            print(f"Could not set login window icon: {e}")
         
         # Calculate responsive window size
         login_width, login_height = ResponsiveManager.calculate_window_size(
@@ -1631,9 +1780,11 @@ class SchoolManagementSystem:
         self.root = root
         self.root.title("Gaybeck Starkids Academy - Management System")
         
-        # Try to set window icon if logo.png exists
+        # Try to set window icon
         try:
-            if os.path.exists('logo.png'):
+            if os.path.exists('icon.ico'):
+                self.root.iconbitmap('icon.ico')
+            elif os.path.exists('logo.png'):
                 # Convert PNG to ICO format for window icon (Windows)
                 from PIL import Image
                 img = Image.open('logo.png')
@@ -1708,6 +1859,9 @@ class SchoolManagementSystem:
         
         # Create status bar
         self.create_status_bar()
+        
+        # Bind global arrow key navigation for scrolling
+        self.bind_global_keyboard_navigation()
         
         # Initialize dashboard variables
         self.students_present_var = tk.StringVar(value="0")
@@ -1827,6 +1981,7 @@ class SchoolManagementSystem:
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS teachers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                teacher_id TEXT UNIQUE,
                 name TEXT NOT NULL,
                 hire_date DATE,
                 class_id INTEGER,
@@ -1919,10 +2074,19 @@ class SchoolManagementSystem:
             CREATE TABLE IF NOT EXISTS financial_categories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 category_name TEXT NOT NULL UNIQUE,
-                category_type TEXT NOT NULL CHECK (category_type IN ('income', 'expense')),
+                category_type TEXT NOT NULL CHECK (category_type IN ('income', 'expense', 'Income', 'Expense')),
                 description TEXT,
                 is_active BOOLEAN DEFAULT 1,
                 created_date DATE DEFAULT CURRENT_DATE
+            )
+        ''')
+        
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                description TEXT,
+                updated_date DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -2135,6 +2299,17 @@ class SchoolManagementSystem:
             except Exception as e:
                 print("Warning: could not insert default financial categories:", e)
         
+        # Set default system settings if not exists
+        try:
+            self.cursor.execute("INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)",
+                              ('currency', 'GHS', 'Default system currency'))
+            self.cursor.execute("INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)",
+                              ('school_name', 'Gaybeck Starkids Academy', 'School name'))
+            self.cursor.execute("INSERT OR IGNORE INTO system_settings (key, value, description) VALUES (?, ?, ?)",
+                              ('academic_year', '2024/2025', 'Current academic year'))
+        except Exception as e:
+            print("Warning: could not insert default system settings:", e)
+        
         # Create sample teacher record matching the teacher1 login user
         self.cursor.execute("SELECT COUNT(*) FROM teachers")
         if self.cursor.fetchone()[0] == 0:
@@ -2156,6 +2331,74 @@ class SchoolManagementSystem:
                 print("Warning: could not insert sample teacher:", e)
         
         self.conn.commit()
+    
+    def generate_student_id(self, year=None):
+        """
+        Generate automatic student ID with format: STU{YEAR}{SEQUENCE}
+        Example: STU202400001, STU202400002, etc.
+        """
+        from datetime import datetime
+        
+        if not year:
+            year = datetime.now().year
+        
+        # Get the maximum sequence number for this year
+        prefix = f"STU{year}"
+        self.cursor.execute('''
+            SELECT student_id FROM students 
+            WHERE student_id LIKE ? 
+            ORDER BY student_id DESC LIMIT 1
+        ''', (f"{prefix}%",))
+        
+        result = self.cursor.fetchone()
+        
+        if result:
+            # Extract sequence number and increment
+            last_id = result[0]
+            try:
+                sequence = int(last_id[8:]) + 1  # Extract last 5 digits and increment
+            except (ValueError, IndexError):
+                sequence = 1
+        else:
+            # First student for this year
+            sequence = 1
+        
+        # Format: STU + YEAR + 5-digit sequence
+        return f"{prefix}{sequence:05d}"
+    
+    def generate_teacher_id(self, year=None):
+        """
+        Generate automatic teacher ID with format: TCH{YEAR}{SEQUENCE}
+        Example: TCH202400001, TCH202400002, etc.
+        """
+        from datetime import datetime
+        
+        if not year:
+            year = datetime.now().year
+        
+        # Get the maximum sequence number for this year
+        prefix = f"TCH{year}"
+        self.cursor.execute('''
+            SELECT teacher_id FROM teachers 
+            WHERE teacher_id LIKE ? 
+            ORDER BY teacher_id DESC LIMIT 1
+        ''', (f"{prefix}%",))
+        
+        result = self.cursor.fetchone()
+        
+        if result:
+            # Extract sequence number and increment
+            last_id = result[0]
+            try:
+                sequence = int(last_id[8:]) + 1  # Extract last 5 digits and increment
+            except (ValueError, IndexError):
+                sequence = 1
+        else:
+            # First teacher for this year
+            sequence = 1
+        
+        # Format: TCH + YEAR + 5-digit sequence
+        return f"{prefix}{sequence:05d}"
     
     def has_permission(self, permission):
         """Check if current user has a specific permission"""
@@ -2593,10 +2836,13 @@ class SchoolManagementSystem:
                             font=('Segoe UI', 11, 'bold'), bg='#2c3e50', fg='#bdc3c7')
         nav_title.pack(pady=(25, 20), padx=20)
         
-        # Create scrollable container for navigation buttons
-        nav_scroll_container = ScrollableFrame(self.nav_frame, bg='#2c3e50')
-        nav_scroll_container.pack(fill=tk.BOTH, expand=True)
+        # Create scrollable container for navigation buttons with always-visible scrollbar
+        nav_scroll_container = ScrollableFrame(self.nav_frame, always_show_scrollbar=True, bg='#2c3e50')
+        nav_scroll_container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
         nav_buttons_container = nav_scroll_container.get_frame()
+        
+        # Set focus to canvas to enable keyboard scrolling
+        nav_scroll_container.canvas.focus_set()
         
         # Navigation buttons with permission checks
         buttons = [
@@ -2609,9 +2855,7 @@ class SchoolManagementSystem:
             ("📝   Attendance", self.show_attendance, "attendance", None),
             ("🤖   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
             ("�   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
-            ("�👤   User Management", self.show_user_management, "users", "admin"),  # Admin only
-            ("💾   Database View", self.show_database_view, "database", "admin"),  # Admin only
-            ("🔄   Backup & Restore", self.show_backup_restore_menu, "backup", "admin")  # Admin only
+            ("⚙️   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
         ]
         
         self.nav_buttons = []
@@ -2646,6 +2890,14 @@ class SchoolManagementSystem:
                 # Store command reference for later identification
                 btn.command_func = command
                 self.nav_buttons.append(btn)
+                
+                # Bind mouse wheel to scroll the navigation (propagate to parent canvas)
+                def on_nav_mousewheel(event):
+                    if nav_scroll_container.canvas.winfo_exists():
+                        nav_scroll_container.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+                
+                btn.bind("<MouseWheel>", on_nav_mousewheel)
+                btn_frame.bind("<MouseWheel>", on_nav_mousewheel)
                 
                 # Modern hover effects
                 btn.bind("<Enter>", lambda e, b=btn: b.configure(bg='#3498db', cursor='hand2'))
@@ -7853,6 +8105,61 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.status_var.set(message)
         # Auto clear after 3 seconds
         self.root.after(3000, lambda: self.status_var.set("Ready"))
+    
+    def bind_global_keyboard_navigation(self):
+        """Bind global keyboard shortcuts for scrolling across the app"""
+        def find_scrollable_canvas(widget):
+            """Recursively find ScrollableFrame canvas in widget tree"""
+            if hasattr(widget, 'canvas') and hasattr(widget, 'scrollbar'):
+                # This is a ScrollableFrame
+                return widget.canvas
+            
+            # Check in content_frame children
+            if hasattr(self, 'content_frame') and self.content_frame.winfo_exists():
+                for child in self.content_frame.winfo_children():
+                    if hasattr(child, 'canvas') and hasattr(child, 'scrollbar'):
+                        return child.canvas
+            
+            return None
+        
+        def on_global_key_scroll(event):
+            # Don't intercept if typing in Entry, Text, or similar widgets
+            focused = self.root.focus_get()
+            if focused and focused.__class__.__name__ in ['Entry', 'Text', 'Spinbox', 'Combobox']:
+                return
+            
+            # Find active scrollable canvas
+            canvas = find_scrollable_canvas(event.widget)
+            if not canvas or not canvas.winfo_exists():
+                return
+            
+            # Scroll based on key
+            if event.keysym == 'Up':
+                canvas.yview_scroll(-1, "units")
+                return "break"
+            elif event.keysym == 'Down':
+                canvas.yview_scroll(1, "units")
+                return "break"
+            elif event.keysym == 'Prior':  # Page Up
+                canvas.yview_scroll(-1, "pages")
+                return "break"
+            elif event.keysym == 'Next':  # Page Down
+                canvas.yview_scroll(1, "pages")
+                return "break"
+            elif event.keysym == 'Home':
+                canvas.yview_moveto(0)
+                return "break"
+            elif event.keysym == 'End':
+                canvas.yview_moveto(1)
+                return "break"
+        
+        # Bind to root window for global effect
+        self.root.bind('<Up>', on_global_key_scroll, add='+')
+        self.root.bind('<Down>', on_global_key_scroll, add='+')
+        self.root.bind('<Prior>', on_global_key_scroll, add='+')  # Page Up
+        self.root.bind('<Next>', on_global_key_scroll, add='+')   # Page Down
+        self.root.bind('<Home>', on_global_key_scroll, add='+')
+        self.root.bind('<End>', on_global_key_scroll, add='+')
 
     def show_student_management(self):
         self.clear_content_frame()
@@ -7989,8 +8296,17 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         tk.Label(personal_row1, text="Student ID:", font=('Segoe UI', 11, 'bold'), 
                 bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
         self.student_id = tk.Entry(personal_row1, width=25, font=('Segoe UI', 11), 
-                                  relief=tk.SOLID, bd=1)
-        self.student_id.pack(side=tk.LEFT, padx=(10, 40))
+                                  relief=tk.SOLID, bd=1, state='readonly', 
+                                  fg='#7f8c8d', bg='#ecf0f1')
+        self.student_id.pack(side=tk.LEFT, padx=(10, 10))
+        
+        # Auto-generate button for Student ID
+        auto_id_btn = tk.Button(personal_row1, text="🔄 Auto", 
+                                font=('Segoe UI', 9, 'bold'),
+                                bg='#3498db', fg='white', relief=tk.FLAT,
+                                cursor='hand2', padx=8, pady=2,
+                                command=self.auto_generate_student_id)
+        auto_id_btn.pack(side=tk.LEFT, padx=(0, 20))
         
         tk.Label(personal_row1, text="Full Name:*", font=('Segoe UI', 11, 'bold'), 
                 bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
@@ -9022,6 +9338,30 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 messagebox.showerror("Error", f"Failed to copy file: {str(e)}")
                 self.student_file_path_var.set("")
                 self.student_file_info.configure(text="Error uploading file", fg='#e74c3c')
+    
+    def auto_generate_student_id(self):
+        """Auto-generate student ID and populate the field"""
+        try:
+            # Get year of admission if date is set
+            year = None
+            try:
+                admission_date = self.date_of_admission.get_date()
+                year = admission_date.year
+            except:
+                pass
+            
+            # Generate new ID
+            new_id = self.generate_student_id(year)
+            
+            # Update the field (temporarily enable it)
+            self.student_id.config(state='normal')
+            self.student_id.delete(0, tk.END)
+            self.student_id.insert(0, new_id)
+            self.student_id.config(state='readonly')
+            
+            messagebox.showinfo("ID Generated", f"New Student ID: {new_id}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate ID: {str(e)}")
 
     def add_student(self):
         # Check permissions
@@ -9029,7 +9369,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             return
             
         # Get all form values
-        student_id = self.student_id.get()
+        student_id = self.student_id.get().strip()
         name = self.student_name.get()
         
         # Handle DateEntry widgets
@@ -9052,6 +9392,21 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         if not name or not date_of_admission or not current_class_name:
             messagebox.showerror("Error", "Please fill in all required fields (*)")
             return
+        
+        # Auto-generate Student ID if empty
+        if not student_id:
+            try:
+                year = self.date_of_admission.get_date().year
+                student_id = self.generate_student_id(year)
+                
+                # Update the display
+                self.student_id.config(state='normal')
+                self.student_id.delete(0, tk.END)
+                self.student_id.insert(0, student_id)
+                self.student_id.config(state='readonly')
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to generate Student ID: {str(e)}")
+                return
         
         # Get class ID
         class_id = self.class_dict.get(current_class_name)
@@ -12145,9 +12500,15 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                  relief='flat', padx=15, pady=8, cursor='hand2')
         edit_user_btn.pack(side='left', padx=(0, 5))
         
-        toggle_status_btn = tk.Button(users_btn_frame, text="🔄 Toggle Status", 
+        change_role_btn = tk.Button(users_btn_frame, text="🔄 Change Role", 
+                                   command=self.change_user_role,
+                                   bg='#9b59b6', fg='white', font=('Segoe UI', 10, 'bold'),
+                                   relief='flat', padx=15, pady=8, cursor='hand2')
+        change_role_btn.pack(side='left', padx=5)
+        
+        toggle_status_btn = tk.Button(users_btn_frame, text="⏸️ Activate/Deactivate", 
                                      command=self.toggle_user_status,
-                                     bg='#e74c3c', fg='white', font=('Segoe UI', 10, 'bold'),
+                                     bg='#e67e22', fg='white', font=('Segoe UI', 10, 'bold'),
                                      relief='flat', padx=15, pady=8, cursor='hand2')
         toggle_status_btn.pack(side='left', padx=5)
         
@@ -13025,6 +13386,116 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load user data: {str(e)}")
     
+    def change_user_role(self):
+        """Change the role of the selected user"""
+        selection = self.users_tree.selection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a user to change role!")
+            return
+        
+        values = self.users_tree.item(selection[0])['values']
+        user_id = values[0]
+        username = values[1]
+        current_role = values[3]
+        
+        # Don't allow changing the current user's role
+        if username == self.current_user.get('username'):
+            messagebox.showerror("Error", "You cannot change your own role!")
+            return
+        
+        # Don't allow changing the main admin role
+        if username == 'admin':
+            messagebox.showerror("Error", "The main admin account role cannot be changed!")
+            return
+        
+        # Create role change dialog
+        role_dialog = tk.Toplevel(self.root)
+        role_dialog.title("Change User Role")
+        role_dialog.geometry("400x300")
+        role_dialog.configure(bg='#ffffff')
+        role_dialog.transient(self.root)
+        role_dialog.grab_set()
+        
+        # Center the dialog
+        role_dialog.update_idletasks()
+        x = (role_dialog.winfo_screenwidth() // 2) - (400 // 2)
+        y = (role_dialog.winfo_screenheight() // 2) - (300 // 2)
+        role_dialog.geometry(f"400x300+{x}+{y}")
+        
+        # Dialog content
+        content_frame = tk.Frame(role_dialog, bg='#ffffff')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        
+        # Title
+        tk.Label(content_frame, text="Change User Role", 
+                font=('Segoe UI', 16, 'bold'), bg='#ffffff', fg='#2c3e50').pack(pady=(0, 10))
+        
+        # User info
+        info_frame = tk.Frame(content_frame, bg='#f8f9fa', relief=tk.SOLID, bd=1)
+        info_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        tk.Label(info_frame, text=f"User: {username}", 
+                font=('Segoe UI', 11), bg='#f8f9fa', fg='#34495e').pack(anchor='w', padx=15, pady=5)
+        tk.Label(info_frame, text=f"Current Role: {current_role.title()}", 
+                font=('Segoe UI', 11, 'bold'), bg='#f8f9fa', fg='#e74c3c').pack(anchor='w', padx=15, pady=5)
+        
+        # New role selection
+        tk.Label(content_frame, text="Select New Role:", 
+                font=('Segoe UI', 11, 'bold'), bg='#ffffff', fg='#2c3e50').pack(anchor='w', pady=(0, 10))
+        
+        new_role_var = tk.StringVar(value=current_role)
+        
+        roles = [
+            ('admin', 'Administrator - Full system access'),
+            ('accountant', 'Accountant - Financial management'),
+            ('teacher', 'Teacher - Class and student management'),
+            ('staff', 'Staff - Limited access'),
+            ('viewer', 'Viewer - Read-only access')
+        ]
+        
+        for role, description in roles:
+            rb = tk.Radiobutton(content_frame, text=f"{role.title()}", 
+                              variable=new_role_var, value=role,
+                              font=('Segoe UI', 10, 'bold'), bg='#ffffff',
+                              activebackground='#ffffff', cursor='hand2')
+            rb.pack(anchor='w', pady=2)
+            
+            tk.Label(content_frame, text=f"   {description}", 
+                    font=('Segoe UI', 9), bg='#ffffff', fg='#7f8c8d').pack(anchor='w', padx=(20, 0))
+        
+        # Buttons
+        btn_frame = tk.Frame(content_frame, bg='#ffffff')
+        btn_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(20, 0))
+        
+        def save_role_change():
+            new_role = new_role_var.get()
+            if new_role == current_role:
+                messagebox.showinfo("No Change", "The role hasn't changed.")
+                role_dialog.destroy()
+                return
+            
+            if messagebox.askyesno("Confirm", 
+                                  f"Change role of '{username}' from '{current_role}' to '{new_role}'?\n\n"
+                                  "This will affect their permissions and access level."):
+                try:
+                    self.cursor.execute("UPDATE users SET role=? WHERE id=?", (new_role, user_id))
+                    self.conn.commit()
+                    self.load_users_data()
+                    self.update_status(f"User '{username}' role changed to '{new_role}'")
+                    messagebox.showinfo("Success", f"Role changed successfully to '{new_role}'!")
+                    role_dialog.destroy()
+                    
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to change role: {str(e)}")
+        
+        tk.Button(btn_frame, text="Save Changes", command=save_role_change,
+                 bg='#27ae60', fg='white', font=('Segoe UI', 10, 'bold'),
+                 relief='flat', padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+        
+        tk.Button(btn_frame, text="Cancel", command=role_dialog.destroy,
+                 bg='#95a5a6', fg='white', font=('Segoe UI', 10, 'bold'),
+                 relief='flat', padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT)
+    
     def toggle_user_status(self):
         """Toggle active/inactive status of selected user"""
         selection = self.users_tree.selection()
@@ -13050,11 +13521,35 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         new_status = not (current_status == "Active")
         status_text = "activate" if new_status else "deactivate"
         
-        if messagebox.askyesno("Confirm", f"Are you sure you want to {status_text} user '{username}'?"):
+        # More detailed confirmation message
+        if new_status:
+            confirm_msg = (f"Activate user '{username}'?\n\n"
+                          f"This will allow the user to login and access the system.")
+        else:
+            confirm_msg = (f"Deactivate user '{username}'?\n\n"
+                          f"⚠️ WARNING: This will:\n"
+                          f"• Prevent the user from logging in\n"
+                          f"• Immediately revoke all system access\n"
+                          f"• Maintain user data for future reactivation\n\n"
+                          f"The user account can be reactivated later.")
+        
+        if messagebox.askyesno("Confirm Status Change", confirm_msg):
             try:
                 self.cursor.execute("UPDATE users SET is_active=? WHERE id=?", (new_status, user_id))
                 self.conn.commit()
                 self.load_users_data()
+                
+                # Show success message with instructions
+                if new_status:
+                    messagebox.showinfo("User Activated", 
+                                       f"✅ User '{username}' has been activated.\n\n"
+                                       f"The user can now login to the system.")
+                else:
+                    messagebox.showinfo("User Deactivated", 
+                                       f"⏸️ User '{username}' has been deactivated.\n\n"
+                                       f"The user cannot login until reactivated.\n"
+                                       f"All user data has been preserved.")
+                
                 self.update_status(f"User '{username}' {status_text}d successfully")
                 
             except Exception as e:
@@ -13070,6 +13565,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         values = self.users_tree.item(selection[0])['values']
         user_id = values[0]
         username = values[1]
+        user_role = values[3]
         
         # Don't allow deleting the current user
         if username == self.current_user.get('username'):
@@ -13081,17 +13577,38 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             messagebox.showerror("Error", "The main admin account cannot be deleted!")
             return
         
-        if messagebox.askyesno("Confirm Delete", 
-                              f"Are you sure you want to delete user '{username}'?\n\n"
-                              "This action cannot be undone!"):
-            try:
-                self.cursor.execute("DELETE FROM users WHERE id=?", (user_id,))
-                self.conn.commit()
-                self.load_users_data()
-                self.update_status(f"User '{username}' deleted successfully")
-                
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to delete user: {str(e)}")
+        # Enhanced confirmation with more details
+        confirm_msg = (f"⚠️ PERMANENT DELETION WARNING ⚠️\n\n"
+                      f"You are about to delete:\n"
+                      f"• Username: {username}\n"
+                      f"• Role: {user_role.title()}\n\n"
+                      f"This action will:\n"
+                      f"• Permanently remove the user account\n"
+                      f"• Delete all login credentials\n"
+                      f"• Remove all permissions\n"
+                      f"• Cannot be undone\n\n"
+                      f"💡 Alternative: Consider deactivating the user instead\n"
+                      f"   (preserves data for future reactivation)\n\n"
+                      f"Are you absolutely sure you want to DELETE this user?")
+        
+        if messagebox.askyesno("Confirm Permanent Deletion", confirm_msg):
+            # Second confirmation for safety
+            if messagebox.askyesno("Final Confirmation", 
+                                  f"This is your final confirmation.\n\n"
+                                  f"Permanently delete user '{username}'?"):
+                try:
+                    self.cursor.execute("DELETE FROM users WHERE id=?", (user_id,))
+                    self.conn.commit()
+                    self.load_users_data()
+                    
+                    messagebox.showinfo("User Deleted", 
+                                       f"🗑️ User '{username}' has been permanently deleted.\n\n"
+                                       f"The account cannot be recovered.")
+                    
+                    self.update_status(f"User '{username}' deleted successfully")
+                    
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to delete user: {str(e)}")
 
     # --- Simple Fees Management view (minimal implementation) ---
     def show_fees_management(self):
@@ -18205,6 +18722,595 @@ Financial Summary:
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to refresh dashboard: {str(e)}")
+    
+    def show_settings(self):
+        """Admin-only settings panel with tabs for different configurations"""
+        self.clear_content_frame()
+        
+        # Create scrollable main container
+        scrollable_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+        scrollable_frame.pack(fill='both', expand=True)
+        main_frame = scrollable_frame.scrollable_frame
+        
+        # Header
+        header_frame = tk.Frame(main_frame, bg='#34495e', height=120)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+        
+        header_content = tk.Frame(header_frame, bg='#34495e')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        
+        tk.Label(header_content, text="⚙️ System Settings", 
+                font=('Segoe UI', 24, 'bold'), fg='white', bg='#34495e').pack(anchor='w')
+        tk.Label(header_content, text="Admin Only: Configure system preferences and manage data", 
+                font=('Segoe UI', 12), fg='#ecf0f1', bg='#34495e').pack(anchor='w', pady=(5, 0))
+        
+        # Content area with tabs
+        content_area = tk.Frame(main_frame, bg='#f8f9fa')
+        content_area.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        
+        # Create notebook for tabs
+        notebook = ttk.Notebook(content_area)
+        notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Tab 1: Data Management
+        data_tab = tk.Frame(notebook, bg='white')
+        notebook.add(data_tab, text="🗑️ Data Management")
+        self.create_data_management_tab(data_tab)
+        
+        # Tab 2: Currency & Finance
+        finance_tab = tk.Frame(notebook, bg='white')
+        notebook.add(finance_tab, text="💱 Currency & Finance")
+        self.create_currency_finance_tab(finance_tab)
+        
+        # Tab 3: User Management
+        user_tab = tk.Frame(notebook, bg='white')
+        notebook.add(user_tab, text="👤 User Management")
+        self.create_user_management_tab(user_tab)
+        
+        # Tab 4: Database Management
+        db_tab = tk.Frame(notebook, bg='white')
+        notebook.add(db_tab, text="💾 Database")
+        self.create_database_management_tab(db_tab)
+        
+        # Tab 5: Backup & Restore
+        backup_tab = tk.Frame(notebook, bg='white')
+        notebook.add(backup_tab, text="🔄 Backup & Restore")
+        self.create_backup_restore_tab(backup_tab)
+    
+    def create_data_management_tab(self, parent):
+        """Create data management tab content"""
+        # Create scrollable frame
+        scrollable = ScrollableFrame(parent, bg='white')
+        scrollable.pack(fill='both', expand=True, padx=20, pady=20)
+        content = scrollable.scrollable_frame
+        
+        # Warning box
+        warning_frame = tk.Frame(content, bg='#fff3cd', relief=tk.SOLID, bd=2)
+        warning_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        warning_content = tk.Frame(warning_frame, bg='#fff3cd')
+        warning_content.pack(fill=tk.X, padx=20, pady=15)
+        
+        tk.Label(warning_content, text="⚠️ WARNING", 
+                font=('Segoe UI', 12, 'bold'), fg='#856404', bg='#fff3cd').pack(anchor='w')
+        tk.Label(warning_content, text="These operations cannot be undone. Please backup your database before clearing data.", 
+                font=('Segoe UI', 10), fg='#856404', bg='#fff3cd').pack(anchor='w', pady=(5, 0))
+        
+        # Clear options
+        clear_frame = tk.LabelFrame(content, text="Clear Data Options", 
+                                   font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50')
+        clear_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        clear_content = tk.Frame(clear_frame, bg='white')
+        clear_content.pack(fill=tk.X, padx=20, pady=15)
+        
+        # Option 1: Clear Students
+        self.create_clear_option(clear_content, 
+            "Clear All Students", 
+            "Remove all student records (includes attendance, fees, and grades)",
+            self.clear_all_students)
+        
+        # Option 2: Clear Attendance
+        self.create_clear_option(clear_content,
+            "Clear All Attendance",
+            "Remove all attendance records only",
+            self.clear_all_attendance)
+        
+        # Option 3: Clear Fees
+        self.create_clear_option(clear_content,
+            "Clear All Fees",
+            "Remove all fee records only",
+            self.clear_all_fees)
+        
+        # Option 4: Clear Grades
+        self.create_clear_option(clear_content,
+            "Clear All Grades",
+            "Remove all grade records only",
+            self.clear_all_grades)
+        
+        # Option 5: Clear All Test Data
+        danger_frame = tk.Frame(clear_content, bg='#f8d7da', relief=tk.SOLID, bd=2)
+        danger_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        danger_content = tk.Frame(danger_frame, bg='#f8d7da')
+        danger_content.pack(fill=tk.X, padx=15, pady=12)
+        
+        tk.Label(danger_content, text="🚨 DANGER ZONE", 
+                font=('Segoe UI', 11, 'bold'), fg='#721c24', bg='#f8d7da').pack(anchor='w')
+        tk.Label(danger_content, text="Clear ALL test data (keeps only users and class structure)", 
+                font=('Segoe UI', 10), fg='#721c24', bg='#f8d7da').pack(anchor='w', pady=(3, 8))
+        
+        tk.Button(danger_content, text="Clear All Test Data", 
+                 command=self.clear_all_test_data,
+                 bg='#dc3545', fg='white', font=('Segoe UI', 10, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=20, pady=8).pack(anchor='w')
+    
+    def create_clear_option(self, parent, title, description, command):
+        """Helper to create a clear data option"""
+        option_frame = tk.Frame(parent, bg='white')
+        option_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        tk.Label(option_frame, text=title, 
+                font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='white').pack(anchor='w')
+        tk.Label(option_frame, text=description, 
+                font=('Segoe UI', 9), fg='#7f8c8d', bg='white').pack(anchor='w', pady=(2, 5))
+        
+        tk.Button(option_frame, text=f"Clear {title.split()[-1]}", 
+                 command=command,
+                 bg='#e67e22', fg='white', font=('Segoe UI', 9, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=15, pady=5).pack(anchor='w')
+    
+    def create_currency_finance_tab(self, parent):
+        """Create currency and finance categories management tab"""
+        # Create scrollable frame
+        scrollable = ScrollableFrame(parent, bg='white')
+        scrollable.pack(fill='both', expand=True, padx=20, pady=20)
+        content = scrollable.scrollable_frame
+        
+        # Currency Settings Section
+        currency_frame = tk.LabelFrame(content, text="💱 Currency Settings", 
+                                      font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50')
+        currency_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        currency_content = tk.Frame(currency_frame, bg='white')
+        currency_content.pack(fill=tk.X, padx=20, pady=15)
+        
+        # Current currency display
+        tk.Label(currency_content, text="Default Currency:", 
+                font=('Segoe UI', 11, 'bold'), bg='white', fg='#34495e').grid(row=0, column=0, sticky='w', pady=5)
+        
+        # Get current currency from database
+        try:
+            self.cursor.execute("SELECT value FROM system_settings WHERE key = 'currency'")
+            result = self.cursor.fetchone()
+            current_currency = result[0] if result else "GHS"
+        except:
+            current_currency = "GHS"
+        
+        self.currency_var = tk.StringVar(value=current_currency)
+        
+        currency_options = [
+            "GHS (Ghanaian Cedi)",
+            "USD (US Dollar)",
+            "EUR (Euro)",
+            "GBP (British Pound)",
+            "NGN (Nigerian Naira)",
+            "ZAR (South African Rand)",
+            "KES (Kenyan Shilling)",
+            "UGX (Ugandan Shilling)"
+        ]
+        
+        currency_combo = ttk.Combobox(currency_content, textvariable=self.currency_var, 
+                                     values=currency_options, state='readonly', width=30)
+        currency_combo.grid(row=0, column=1, sticky='w', padx=(10, 20), pady=5)
+        
+        tk.Button(currency_content, text="Save Currency", 
+                 command=self.save_currency_setting,
+                 bg='#27ae60', fg='white', font=('Segoe UI', 10, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=20, pady=8).grid(row=0, column=2, sticky='w', pady=5)
+        
+        # Finance Categories Section
+        categories_frame = tk.LabelFrame(content, text="📁 Financial Categories", 
+                                        font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50')
+        categories_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        categories_content = tk.Frame(categories_frame, bg='white')
+        categories_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
+        
+        # Categories list
+        list_frame = tk.Frame(categories_content, bg='white')
+        list_frame.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
+        
+        tk.Label(list_frame, text="Income Categories:", 
+                font=('Segoe UI', 10, 'bold'), bg='white', fg='#27ae60').pack(anchor='w', pady=(0, 5))
+        
+        income_frame = tk.Frame(list_frame, bg='white')
+        income_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        self.income_categories_listbox = tk.Listbox(income_frame, height=6, font=('Segoe UI', 10))
+        income_scroll = tk.Scrollbar(income_frame, orient=tk.VERTICAL, command=self.income_categories_listbox.yview)
+        self.income_categories_listbox.config(yscrollcommand=income_scroll.set)
+        self.income_categories_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        income_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        tk.Label(list_frame, text="Expense Categories:", 
+                font=('Segoe UI', 10, 'bold'), bg='white', fg='#e74c3c').pack(anchor='w', pady=(0, 5))
+        
+        expense_frame = tk.Frame(list_frame, bg='white')
+        expense_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.expense_categories_listbox = tk.Listbox(expense_frame, height=6, font=('Segoe UI', 10))
+        expense_scroll = tk.Scrollbar(expense_frame, orient=tk.VERTICAL, command=self.expense_categories_listbox.yview)
+        self.expense_categories_listbox.config(yscrollcommand=expense_scroll.set)
+        self.expense_categories_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        expense_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Add/Delete categories controls
+        controls_frame = tk.Frame(categories_content, bg='white')
+        controls_frame.pack(fill=tk.Y, side=tk.RIGHT, padx=(20, 0))
+        
+        tk.Label(controls_frame, text="Add New Category", 
+                font=('Segoe UI', 10, 'bold'), bg='white', fg='#34495e').pack(anchor='w', pady=(0, 10))
+        
+        tk.Label(controls_frame, text="Category Name:", 
+                font=('Segoe UI', 9), bg='white', fg='#34495e').pack(anchor='w')
+        self.new_category_name = tk.Entry(controls_frame, width=25, font=('Segoe UI', 10))
+        self.new_category_name.pack(anchor='w', pady=(3, 10))
+        
+        tk.Label(controls_frame, text="Type:", 
+                font=('Segoe UI', 9), bg='white', fg='#34495e').pack(anchor='w')
+        self.category_type_var = tk.StringVar(value="Income")
+        tk.Radiobutton(controls_frame, text="Income", variable=self.category_type_var, 
+                      value="Income", bg='white', font=('Segoe UI', 9)).pack(anchor='w')
+        tk.Radiobutton(controls_frame, text="Expense", variable=self.category_type_var, 
+                      value="Expense", bg='white', font=('Segoe UI', 9)).pack(anchor='w', pady=(0, 10))
+        
+        tk.Button(controls_frame, text="Add Category", 
+                 command=self.add_financial_category,
+                 bg='#3498db', fg='white', font=('Segoe UI', 9, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=15, pady=6).pack(fill=tk.X, pady=(0, 15))
+        
+        tk.Button(controls_frame, text="Delete Selected", 
+                 command=self.delete_financial_category,
+                 bg='#e74c3c', fg='white', font=('Segoe UI', 9, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=15, pady=6).pack(fill=tk.X)
+        
+        # Load categories
+        self.load_financial_categories()
+    
+    def create_user_management_tab(self, parent):
+        """Embed the existing user management interface"""
+        # Simply call the existing show_user_management but render in this parent
+        # We'll create a frame and pack the user management content there
+        self.user_management_container = parent
+        
+        # Create scrollable frame
+        scrollable = ScrollableFrame(parent, bg='white')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+        
+        tk.Label(content, text="Use the 'User Management' section to manage users.", 
+                font=('Segoe UI', 11), bg='white', fg='#7f8c8d', 
+                wraplength=600).pack(pady=20, padx=20)
+        
+        tk.Button(content, text="Open User Management", 
+                 command=self.show_user_management,
+                 bg='#3498db', fg='white', font=('Segoe UI', 11, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=30, pady=12).pack(pady=10)
+    
+    def create_database_management_tab(self, parent):
+        """Embed the existing database view"""
+        scrollable = ScrollableFrame(parent, bg='white')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+        
+        tk.Label(content, text="Use the 'Database View' to inspect database tables.", 
+                font=('Segoe UI', 11), bg='white', fg='#7f8c8d', 
+                wraplength=600).pack(pady=20, padx=20)
+        
+        tk.Button(content, text="Open Database View", 
+                 command=self.show_database_view,
+                 bg='#3498db', fg='white', font=('Segoe UI', 11, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=30, pady=12).pack(pady=10)
+    
+    def create_backup_restore_tab(self, parent):
+        """Embed the existing backup & restore interface"""
+        scrollable = ScrollableFrame(parent, bg='white')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+        
+        tk.Label(content, text="Use 'Backup & Restore' to manage database backups.", 
+                font=('Segoe UI', 11), bg='white', fg='#7f8c8d', 
+                wraplength=600).pack(pady=20, padx=20)
+        
+        tk.Button(content, text="Open Backup & Restore", 
+                 command=self.show_backup_restore_menu,
+                 bg='#3498db', fg='white', font=('Segoe UI', 11, 'bold'),
+                 relief=tk.FLAT, cursor='hand2', padx=30, pady=12).pack(pady=10)
+    
+    def save_currency_setting(self):
+        """Save currency setting to database"""
+        try:
+            # Extract currency code (first 3 characters before space)
+            currency_full = self.currency_var.get()
+            currency_code = currency_full.split()[0] if currency_full else "GHS"
+            
+            # Create system_settings table if not exists
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_date DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Insert or update currency setting
+            self.cursor.execute('''
+                INSERT OR REPLACE INTO system_settings (key, value, updated_date)
+                VALUES ('currency', ?, CURRENT_TIMESTAMP)
+            ''', (currency_code,))
+            
+            self.conn.commit()
+            messagebox.showinfo("Success", f"Currency set to {currency_code}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save currency: {str(e)}")
+    
+    def load_financial_categories(self):
+        """Load financial categories from database"""
+        try:
+            # Clear existing items
+            self.income_categories_listbox.delete(0, tk.END)
+            self.expense_categories_listbox.delete(0, tk.END)
+            
+            # Load income categories
+            self.cursor.execute("SELECT category_name FROM financial_categories WHERE category_type = 'Income' ORDER BY category_name")
+            for row in self.cursor.fetchall():
+                self.income_categories_listbox.insert(tk.END, row[0])
+            
+            # Load expense categories
+            self.cursor.execute("SELECT category_name FROM financial_categories WHERE category_type = 'Expense' ORDER BY category_name")
+            for row in self.cursor.fetchall():
+                self.expense_categories_listbox.insert(tk.END, row[0])
+        except Exception as e:
+            print(f"Error loading categories: {e}")
+    
+    def add_financial_category(self):
+        """Add a new financial category"""
+        category_name = self.new_category_name.get().strip()
+        category_type = self.category_type_var.get()
+        
+        if not category_name:
+            messagebox.showerror("Error", "Please enter a category name")
+            return
+        
+        try:
+            self.cursor.execute('''
+                INSERT INTO financial_categories (category_name, category_type)
+                VALUES (?, ?)
+            ''', (category_name, category_type))
+            
+            self.conn.commit()
+            messagebox.showinfo("Success", f"Category '{category_name}' added successfully")
+            
+            # Clear input and reload
+            self.new_category_name.delete(0, tk.END)
+            self.load_financial_categories()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to add category: {str(e)}")
+    
+    def delete_financial_category(self):
+        """Delete selected financial category"""
+        # Check which listbox has selection
+        income_selection = self.income_categories_listbox.curselection()
+        expense_selection = self.expense_categories_listbox.curselection()
+        
+        if income_selection:
+            category_name = self.income_categories_listbox.get(income_selection[0])
+            category_type = "Income"
+        elif expense_selection:
+            category_name = self.expense_categories_listbox.get(expense_selection[0])
+            category_type = "Expense"
+        else:
+            messagebox.showerror("Error", "Please select a category to delete")
+            return
+        
+        # Confirm deletion
+        if not messagebox.askyesno("Confirm", f"Delete category '{category_name}'?"):
+            return
+        
+        try:
+            self.cursor.execute('''
+                DELETE FROM financial_categories 
+                WHERE category_name = ? AND category_type = ?
+            ''', (category_name, category_type))
+            
+            self.conn.commit()
+            messagebox.showinfo("Success", f"Category '{category_name}' deleted successfully")
+            
+            # Reload categories
+            self.load_financial_categories()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete category: {str(e)}")
+    
+    def show_data_management(self):
+        """Admin-only data management: clear test data"""
+        self.clear_content_frame()
+        
+        # Create scrollable main container
+        scrollable_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+        scrollable_frame.pack(fill='both', expand=True)
+        main_frame = scrollable_frame.scrollable_frame
+        
+        # Header
+        header_frame = tk.Frame(main_frame, bg='#e74c3c', height=120)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+        
+        header_content = tk.Frame(header_frame, bg='#e74c3c')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        
+        tk.Label(header_content, text="🗑️ Data Management", 
+                font=('Segoe UI', 24, 'bold'), fg='white', bg='#e74c3c').pack(anchor='w')
+        tk.Label(header_content, text="Admin Only: Clear test data and manage database records", 
+                font=('Segoe UI', 12), fg='#fff', bg='#e74c3c').pack(anchor='w', pady=(5, 0))
+        
+        # Content area
+        content_area = tk.Frame(main_frame, bg='#f8f9fa')
+        content_area.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        
+        # Warning box
+        warning_frame = tk.Frame(content_area, bg='#fff3cd', relief=tk.SOLID, bd=2)
+        warning_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        warning_content = tk.Frame(warning_frame, bg='#fff3cd')
+        warning_content.pack(fill=tk.X, padx=20, pady=15)
+        
+        tk.Label(warning_content, text="⚠️ WARNING", 
+                font=('Segoe UI', 12, 'bold'), fg='#856404', bg='#fff3cd').pack(anchor='w')
+        tk.Label(warning_content, text="These operations cannot be undone. Please backup your database before clearing data.", 
+                font=('Segoe UI', 10), fg='#856404', bg='#fff3cd').pack(anchor='w', pady=(5, 0))
+        
+        # Clear options
+        clear_frame = tk.LabelFrame(content_area, text="Clear Data Options", 
+                                   font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50')
+        clear_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        options_content = tk.Frame(clear_frame, bg='white')
+        options_content.pack(fill=tk.X, padx=20, pady=20)
+        
+        # Clear all students
+        btn_frame1 = tk.Frame(options_content, bg='white')
+        btn_frame1.pack(fill=tk.X, pady=10)
+        
+        tk.Label(btn_frame1, text="Clear All Students", 
+                font=('Segoe UI', 11, 'bold'), bg='white').pack(side=tk.LEFT)
+        tk.Button(btn_frame1, text="Clear Students", command=self.clear_all_students,
+                 font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
+                 relief=tk.FLAT, padx=20, pady=8, cursor='hand2').pack(side=tk.RIGHT)
+        
+        tk.Label(options_content, text="Removes all student records (keeps classes and teachers)", 
+                font=('Segoe UI', 9), fg='#6c757d', bg='white').pack(anchor='w', padx=(0, 0))
+        
+        tk.Frame(options_content, bg='#dee2e6', height=1).pack(fill=tk.X, pady=15)
+        
+        # Clear all attendance
+        btn_frame2 = tk.Frame(options_content, bg='white')
+        btn_frame2.pack(fill=tk.X, pady=10)
+        
+        tk.Label(btn_frame2, text="Clear All Attendance Records", 
+                font=('Segoe UI', 11, 'bold'), bg='white').pack(side=tk.LEFT)
+        tk.Button(btn_frame2, text="Clear Attendance", command=self.clear_all_attendance,
+                 font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
+                 relief=tk.FLAT, padx=20, pady=8, cursor='hand2').pack(side=tk.RIGHT)
+        
+        tk.Label(options_content, text="Removes all attendance records", 
+                font=('Segoe UI', 9), fg='#6c757d', bg='white').pack(anchor='w')
+        
+        tk.Frame(options_content, bg='#dee2e6', height=1).pack(fill=tk.X, pady=15)
+        
+        # Clear all fees
+        btn_frame3 = tk.Frame(options_content, bg='white')
+        btn_frame3.pack(fill=tk.X, pady=10)
+        
+        tk.Label(btn_frame3, text="Clear All Fee Records", 
+                font=('Segoe UI', 11, 'bold'), bg='white').pack(side=tk.LEFT)
+        tk.Button(btn_frame3, text="Clear Fees", command=self.clear_all_fees,
+                 font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
+                 relief=tk.FLAT, padx=20, pady=8, cursor='hand2').pack(side=tk.RIGHT)
+        
+        tk.Label(options_content, text="Removes all fee payment records", 
+                font=('Segoe UI', 9), fg='#6c757d', bg='white').pack(anchor='w')
+        
+        tk.Frame(options_content, bg='#dee2e6', height=1).pack(fill=tk.X, pady=15)
+        
+        # Clear all grades
+        btn_frame4 = tk.Frame(options_content, bg='white')
+        btn_frame4.pack(fill=tk.X, pady=10)
+        
+        tk.Label(btn_frame4, text="Clear All Grades", 
+                font=('Segoe UI', 11, 'bold'), bg='white').pack(side=tk.LEFT)
+        tk.Button(btn_frame4, text="Clear Grades", command=self.clear_all_grades,
+                 font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
+                 relief=tk.FLAT, padx=20, pady=8, cursor='hand2').pack(side=tk.RIGHT)
+        
+        tk.Label(options_content, text="Removes all grade records", 
+                font=('Segoe UI', 9), fg='#6c757d', bg='white').pack(anchor='w')
+        
+        tk.Frame(options_content, bg='#dee2e6', height=1).pack(fill=tk.X, pady=15)
+        
+        # Clear all test data (nuclear option)
+        btn_frame5 = tk.Frame(options_content, bg='white')
+        btn_frame5.pack(fill=tk.X, pady=10)
+        
+        tk.Label(btn_frame5, text="Clear ALL Test Data", 
+                font=('Segoe UI', 11, 'bold'), bg='white', fg='#dc3545').pack(side=tk.LEFT)
+        tk.Button(btn_frame5, text="Clear Everything", command=self.clear_all_test_data,
+                 font=('Segoe UI', 10, 'bold'), bg='#dc3545', fg='white',
+                 relief=tk.FLAT, padx=20, pady=8, cursor='hand2').pack(side=tk.RIGHT)
+        
+        tk.Label(options_content, text="⚠️ DANGER: Removes ALL data except users and classes (keeps structure)", 
+                font=('Segoe UI', 9, 'bold'), fg='#dc3545', bg='white').pack(anchor='w')
+    
+    def clear_all_students(self):
+        """Clear all student records"""
+        if messagebox.askyesno("Confirm", "Delete all student records?\n\nThis will also delete:\n- All attendance records\n- All fee records\n- All grades\n\nThis cannot be undone!"):
+            try:
+                self.cursor.execute("DELETE FROM attendance")
+                self.cursor.execute("DELETE FROM fees")
+                self.cursor.execute("DELETE FROM grades")
+                self.cursor.execute("DELETE FROM students")
+                self.conn.commit()
+                messagebox.showinfo("Success", "All student records cleared successfully!")
+                self.show_data_management()  # Refresh view
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to clear students: {str(e)}")
+    
+    def clear_all_attendance(self):
+        """Clear all attendance records"""
+        if messagebox.askyesno("Confirm", "Delete all attendance records?\n\nThis cannot be undone!"):
+            try:
+                self.cursor.execute("DELETE FROM attendance")
+                self.conn.commit()
+                messagebox.showinfo("Success", "All attendance records cleared successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to clear attendance: {str(e)}")
+    
+    def clear_all_fees(self):
+        """Clear all fee records"""
+        if messagebox.askyesno("Confirm", "Delete all fee payment records?\n\nThis cannot be undone!"):
+            try:
+                self.cursor.execute("DELETE FROM fees")
+                self.conn.commit()
+                messagebox.showinfo("Success", "All fee records cleared successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to clear fees: {str(e)}")
+    
+    def clear_all_grades(self):
+        """Clear all grade records"""
+        if messagebox.askyesno("Confirm", "Delete all grade records?\n\nThis cannot be undone!"):
+            try:
+                self.cursor.execute("DELETE FROM grades")
+                self.conn.commit()
+                messagebox.showinfo("Success", "All grade records cleared successfully!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to clear grades: {str(e)}")
+    
+    def clear_all_test_data(self):
+        """Clear all test data - keep only users and class structure"""
+        if messagebox.askyesno("FINAL WARNING", "This will delete:\n- All students\n- All attendance\n- All fees\n- All grades\n- All financial transactions\n\nOnly users and class structure will remain.\n\nARE YOU ABSOLUTELY SURE?"):
+            try:
+                # Delete in correct order (respecting foreign keys)
+                self.cursor.execute("DELETE FROM attendance")
+                self.cursor.execute("DELETE FROM fees")
+                self.cursor.execute("DELETE FROM grades")
+                self.cursor.execute("DELETE FROM students")
+                self.cursor.execute("DELETE FROM financial_transactions")
+                self.conn.commit()
+                messagebox.showinfo("Success", "All test data cleared successfully!\n\nThe system is now ready for real data.")
+                self.show_data_management()  # Refresh view
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to clear test data: {str(e)}")
     
     def show_backup_restore_menu(self):
         """Show backup and restore options menu"""
