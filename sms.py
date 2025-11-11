@@ -21,6 +21,7 @@ import sqlite3
 from datetime import datetime, date, timedelta
 import calendar
 import os
+import sys
 import shutil
 import io
 import csv
@@ -1781,19 +1782,56 @@ class SchoolManagementSystem:
         self.root = root
         self.root.title("Gaybeck Starkids Academy - Management System")
         
-        # Try to set window icon
+        # Set window icon for title bar and taskbar
         try:
-            if os.path.exists('icon.ico'):
-                self.root.iconbitmap('icon.ico')
-            elif os.path.exists('logo.png'):
-                # Convert PNG to ICO format for window icon (Windows)
-                from PIL import Image
-                img = Image.open('logo.png')
-                # Save as temp ico file
-                img.save('temp_icon.ico', format='ICO')
-                self.root.iconbitmap('temp_icon.ico')
+            # For Windows: Fix taskbar icon - must be done before iconbitmap
+            import ctypes
+            myappid = 'gaybeck.starkids.sms.2.0.3'  # Arbitrary string
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except:
+            pass
+        
+        # Get the correct path for bundled resources (PyInstaller support)
+        def resource_path(relative_path):
+            """Get absolute path to resource, works for dev and for PyInstaller"""
+            try:
+                # PyInstaller creates a temp folder and stores path in _MEIPASS
+                base_path = sys._MEIPASS
+            except Exception:
+                base_path = os.path.abspath(".")
+            return os.path.join(base_path, relative_path)
+        
+        # Try to set window icon
+        icon_set = False
+        try:
+            # First try icon.ico
+            icon_path = resource_path('icon.ico')
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+                icon_set = True
+                
+            # Also try to set PNG for better quality
+            logo_path = resource_path('logo.png')
+            if os.path.exists(logo_path):
+                try:
+                    if PIL_AVAILABLE:
+                        from PIL import Image, ImageTk
+                        img = Image.open(logo_path)
+                        # Resize to appropriate icon size
+                        img = img.resize((48, 48), Image.Resampling.LANCZOS)
+                        photo = ImageTk.PhotoImage(img)
+                        self.root.iconphoto(True, photo)
+                        # Keep reference to prevent garbage collection
+                        self.root._icon_photo = photo
+                        icon_set = True
+                except Exception as e:
+                    print(f"PNG icon failed: {e}")
+                    
         except Exception as e:
             print(f"Could not set window icon: {e}")
+        
+        if not icon_set:
+            print("Warning: No icon file found")
         
         # Calculate responsive window size for main window
         main_width, main_height = ResponsiveManager.calculate_window_size(
@@ -1874,8 +1912,14 @@ class SchoolManagementSystem:
         self.update_dashboard()
         
     def init_database(self):
+        # Ensure database directory exists
+        db_path = 'database/school_management.db'
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir)
+        
         # Connect to SQLite database
-        self.conn = sqlite3.connect('database/school_management.db')
+        self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
         
         # Enable foreign keys

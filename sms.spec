@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller Spec File for School Management System
-# Build Date: November 10, 2025
-# Version: 2.0.0
+# Build Date: November 11, 2025
+# Version: 2.0.3
 
 block_cipher = None
 
@@ -11,6 +11,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('database', 'database'),
+        ('icon.ico', '.'),  # Include icon file
         ('logo.png', '.'),  # Include logo file
         ('version.json', '.'),
         ('README.md', '.'),
@@ -101,7 +102,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='logo.png'  # Use logo as icon (PyInstaller will convert)
+    icon='icon.ico'  # Use icon.ico file
 )
 
 # Optionally create a directory-based distribution (smaller file, faster startup)
