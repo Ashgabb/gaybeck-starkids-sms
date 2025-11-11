@@ -2229,9 +2229,14 @@ class SchoolManagementSystem:
         class_rows = self.cursor.fetchall()
         class_mapping = {name: cid for cid, name in class_rows}
 
-        # Insert sample students only if table is empty
+        # Check if sample data has been cleared before
+        self.cursor.execute("SELECT value FROM system_settings WHERE key = 'sample_data_cleared'")
+        result = self.cursor.fetchone()
+        sample_data_cleared = result and result[0] == '1'
+
+        # Insert sample students only if table is empty AND sample data hasn't been cleared before
         self.cursor.execute("SELECT COUNT(*) FROM students")
-        if self.cursor.fetchone()[0] == 0:
+        if self.cursor.fetchone()[0] == 0 and not sample_data_cleared:
             sample_students = [
                 ('STD001', 'John Mensah', '2015-03-15', 'Male', '2023-01-10', class_mapping.get('Class 4'),
                  class_mapping.get('Class 3'), 'Kwame Mensah', 'Akua Mensah', '0241234567', 'Accra Central',
@@ -2355,9 +2360,13 @@ class SchoolManagementSystem:
         except Exception as e:
             print("Warning: could not insert default system settings:", e)
         
-        # Create sample teacher record matching the teacher1 login user
+        # Create sample teacher record matching the teacher1 login user - only if sample data not cleared
+        self.cursor.execute("SELECT value FROM system_settings WHERE key = 'sample_data_cleared'")
+        result = self.cursor.fetchone()
+        sample_data_cleared = result and result[0] == '1'
+        
         self.cursor.execute("SELECT COUNT(*) FROM teachers")
-        if self.cursor.fetchone()[0] == 0:
+        if self.cursor.fetchone()[0] == 0 and not sample_data_cleared:
             try:
                 # Get Class 3 ID for teacher assignment
                 self.cursor.execute("SELECT id FROM classes WHERE class_name = ?", ('Class 3',))
@@ -19360,6 +19369,12 @@ Financial Summary:
                 self.cursor.execute("DELETE FROM financial_reports")
                 self.cursor.execute("DELETE FROM budget_plans")
                 self.cursor.execute("DELETE FROM classes")
+                
+                # Mark that sample data has been cleared to prevent reload
+                self.cursor.execute('''
+                    INSERT OR REPLACE INTO system_settings (key, value, description)
+                    VALUES ('sample_data_cleared', '1', 'Flag to prevent sample data from reloading')
+                ''')
                 
                 # Re-enable foreign key constraints
                 self.cursor.execute("PRAGMA foreign_keys = ON")
