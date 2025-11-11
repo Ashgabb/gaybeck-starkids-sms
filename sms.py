@@ -18883,7 +18883,7 @@ Financial Summary:
         
         tk.Label(danger_content, text="🚨 DANGER ZONE", 
                 font=('Segoe UI', 11, 'bold'), fg='#721c24', bg='#f8d7da').pack(anchor='w')
-        tk.Label(danger_content, text="Clear ALL test data (keeps only users and class structure)", 
+        tk.Label(danger_content, text="Clear ALL test data (classes, students, teachers, attendance, fees, grades, financial data)\nKeeps only users and system settings", 
                 font=('Segoe UI', 10), fg='#721c24', bg='#f8d7da').pack(anchor='w', pady=(3, 8))
         
         tk.Button(danger_content, text="Clear All Test Data", 
@@ -19294,7 +19294,7 @@ Financial Summary:
                  font=('Segoe UI', 10, 'bold'), bg='#dc3545', fg='white',
                  relief=tk.FLAT, padx=20, pady=8, cursor='hand2').pack(side=tk.RIGHT)
         
-        tk.Label(options_content, text="⚠️ DANGER: Removes ALL data except users and classes (keeps structure)", 
+        tk.Label(options_content, text="⚠️ DANGER: Removes ALL data (classes, students, teachers, attendance, fees, grades, financial data)\nKeeps only users and system settings", 
                 font=('Segoe UI', 9, 'bold'), fg='#dc3545', bg='white').pack(anchor='w')
     
     def clear_all_students(self):
@@ -19342,19 +19342,36 @@ Financial Summary:
                 messagebox.showerror("Error", f"Failed to clear grades: {str(e)}")
     
     def clear_all_test_data(self):
-        """Clear all test data - keep only users and class structure"""
-        if messagebox.askyesno("FINAL WARNING", "This will delete:\n- All students\n- All attendance\n- All fees\n- All grades\n- All financial transactions\n\nOnly users and class structure will remain.\n\nARE YOU ABSOLUTELY SURE?"):
+        """Clear all test data - keep only users and system settings"""
+        if messagebox.askyesno("FINAL WARNING", "This will delete:\n- All classes\n- All students\n- All teachers\n- All attendance\n- All fees\n- All grades\n- All financial transactions\n- All financial reports\n- All budget plans\n- All promotions\n\nOnly users and system settings will remain.\n\nARE YOU ABSOLUTELY SURE?"):
             try:
-                # Delete in correct order (respecting foreign keys)
+                # Temporarily disable foreign key constraints to allow deletion
+                self.cursor.execute("PRAGMA foreign_keys = OFF")
+                
+                # Delete all data tables
                 self.cursor.execute("DELETE FROM attendance")
                 self.cursor.execute("DELETE FROM fees")
                 self.cursor.execute("DELETE FROM grades")
+                self.cursor.execute("DELETE FROM promotions")
                 self.cursor.execute("DELETE FROM students")
+                self.cursor.execute("DELETE FROM teacher_documents")
+                self.cursor.execute("DELETE FROM teachers")
                 self.cursor.execute("DELETE FROM financial_transactions")
+                self.cursor.execute("DELETE FROM financial_reports")
+                self.cursor.execute("DELETE FROM budget_plans")
+                self.cursor.execute("DELETE FROM classes")
+                
+                # Re-enable foreign key constraints
+                self.cursor.execute("PRAGMA foreign_keys = ON")
+                
+                # Note: We keep users, financial_categories and system_settings as they contain configuration
                 self.conn.commit()
                 messagebox.showinfo("Success", "All test data cleared successfully!\n\nThe system is now ready for real data.")
                 self.show_data_management()  # Refresh view
             except Exception as e:
+                # Re-enable foreign keys even if there's an error
+                self.cursor.execute("PRAGMA foreign_keys = ON")
+                self.conn.commit()
                 messagebox.showerror("Error", f"Failed to clear test data: {str(e)}")
     
     def show_backup_restore_menu(self):
