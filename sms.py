@@ -1,17 +1,18 @@
 """
 School Management System
-Version: 2.0.0
-Build Date: November 10, 2025
+Version: 2.0.3
+Build Date: November 11, 2025
 Organization: Gaybeck Starkids School
 
 A comprehensive school management system with AI-powered analytics.
 Features: Student/Teacher Management, Attendance, Fees, Grading, Reports, AI Insights
+         Enhanced Navigation with Arrow Key Scrolling Support
 
 Copyright (c) 2024-2025 Gaybeck Starkids School. All rights reserved.
 """
 
-__version__ = "2.0.0"
-__build_date__ = "2025-11-10"
+__version__ = "2.0.3"
+__build_date__ = "2025-11-11"
 __author__ = "Gaybeck Starkids SMS Development Team"
 
 import tkinter as tk
