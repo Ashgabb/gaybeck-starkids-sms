@@ -1,6 +1,6 @@
 """
 School Management System
-Version: 2.0.3
+Version: 2.0.4
 Build Date: November 11, 2025
 Organization: Gaybeck Starkids School
 
@@ -11,7 +11,7 @@ Features: Student/Teacher Management, Attendance, Fees, Grading, Reports, AI Ins
 Copyright (c) 2024-2025 Gaybeck Starkids School. All rights reserved.
 """
 
-__version__ = "2.0.3"
+__version__ = "2.0.4"
 __build_date__ = "2025-11-11"
 __author__ = "Gaybeck Starkids SMS Development Team"
 

@@ -1,10 +1,10 @@
 ; Gaybeck Starkids Academy Management System - Installer Script
 ; Created with Inno Setup
-; Version: 2.0.3
+; Version: 2.0.4
 ; Date: November 11, 2025
 
 #define MyAppName "Gaybeck Starkids Academy Management System"
-#define MyAppVersion "2.0.3"
+#define MyAppVersion "2.0.4"
 #define MyAppPublisher "Gaybeck Starkids Academy"
 #define MyAppURL "https://github.com/Ashgabb/gaybeck-starkids-sms"
 #define MyAppExeName "GaybeckStarkidsAcademy.exe"
