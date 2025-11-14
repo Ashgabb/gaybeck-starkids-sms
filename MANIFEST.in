@@ -1,0 +1,40 @@
+# Include documentation and data files
+include README.md
+include LICENSE
+include requirements.txt
+include install_dependencies.bat
+include sms.py
+include uninstall.py
+include uninstall.bat
+include post_install.py
+include icon.ico
+
+# Include all documentation
+recursive-include docs *.md *.html *.txt
+
+# Include database files
+recursive-include database *.db
+
+# Include test files
+recursive-include tests *.py
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.so
+global-exclude *.dylib
+
+# Exclude build artifacts
+prune build
+prune dist
+prune *.egg-info
+
+# Exclude backup files
+prune backups
+exclude *~
+exclude *.bak
+exclude *.swp
+
+# Exclude development scripts
+prune dev-scripts

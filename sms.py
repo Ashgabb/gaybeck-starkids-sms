@@ -1503,6 +1503,182 @@ class ScrollableFrame(tk.Frame):
         """Update the scroll region of the canvas and check for overflow"""
         self._check_overflow()
 
+class AutocompleteEntry(tk.Entry):
+    """Entry widget with autocomplete/word suggestion functionality"""
+    
+    def __init__(self, parent, suggestions_callback=None, textvariable=None, *args, **kwargs):
+        """
+        Initialize autocomplete entry
+        suggestions_callback: function that returns list of suggestions based on current text
+        textvariable: StringVar to use for the entry value
+        """
+        # Remove textvariable from kwargs if it exists
+        if 'textvariable' in kwargs:
+            textvariable = kwargs.pop('textvariable')
+        
+        tk.Entry.__init__(self, parent, *args, **kwargs)
+        
+        self.suggestions_callback = suggestions_callback
+        self.suggestions_list = []
+        self.listbox = None
+        self.listbox_window = None  # Added for toplevel window
+        
+        # Set up textvariable properly
+        if textvariable and isinstance(textvariable, tk.StringVar):
+            self.var = textvariable
+            self["textvariable"] = self.var
+        else:
+            self.var = tk.StringVar()
+            self["textvariable"] = self.var
+        
+        # Bind events
+        self.var.trace('w', self.on_text_change)
+        self.bind("<Down>", self.move_down)
+        self.bind("<Up>", self.move_up)
+        self.bind("<Return>", self.on_enter)
+        self.bind("<Escape>", self.close_listbox)
+        self.bind("<FocusOut>", lambda e: self.after(200, self.close_listbox))
+    
+    def on_text_change(self, *args):
+        """Handle text change and show suggestions"""
+        text = self.var.get()
+        
+        # Close existing listbox if text is empty
+        if not text:
+            self.close_listbox()
+            return
+        
+        # Get suggestions
+        if self.suggestions_callback:
+            self.suggestions_list = self.suggestions_callback(text)
+        else:
+            self.suggestions_list = []
+        
+        # Show listbox with suggestions
+        if self.suggestions_list:
+            self.show_suggestions()
+        else:
+            self.close_listbox()
+    
+    def show_suggestions(self):
+        """Display suggestion listbox"""
+        # Close any existing listbox first
+        self.close_listbox()
+        
+        # Create a toplevel window for better positioning
+        self.listbox_window = tk.Toplevel(self.master)
+        self.listbox_window.wm_overrideredirect(True)  # Remove window decorations
+        self.listbox_window.wm_attributes('-topmost', True)  # Always on top
+        
+        # Create frame for listbox with border
+        list_frame = tk.Frame(self.listbox_window, relief=tk.SOLID, bd=1, bg='white')
+        list_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Create listbox
+        self.listbox = tk.Listbox(list_frame, 
+                                 height=min(8, len(self.suggestions_list)),
+                                 font=self['font'] if 'font' in self.keys() else ('Segoe UI', 10),
+                                 relief=tk.FLAT, bd=0,
+                                 selectmode=tk.SINGLE,
+                                 activestyle='dotbox',
+                                 selectbackground='#3498db',
+                                 selectforeground='white',
+                                 bg='white',
+                                 highlightthickness=0)
+        self.listbox.pack(fill=tk.BOTH, expand=True)
+        
+        # Position below entry - get absolute coordinates
+        entry_x = self.winfo_rootx()
+        entry_y = self.winfo_rooty() + self.winfo_height()
+        entry_width = self.winfo_width()
+        
+        # Calculate height
+        item_height = 20  # Approximate height per item
+        list_height = min(8, len(self.suggestions_list)) * item_height + 4
+        
+        self.listbox_window.geometry(f"{entry_width}x{list_height}+{entry_x}+{entry_y}")
+        
+        # Populate suggestions
+        for suggestion in self.suggestions_list:
+            self.listbox.insert(tk.END, suggestion)
+        
+        # Bind selection
+        self.listbox.bind("<Button-1>", self.on_listbox_click)
+        self.listbox.bind("<Return>", self.on_listbox_select)
+        self.listbox.bind("<Double-Button-1>", self.on_listbox_select)
+    
+    def move_down(self, event):
+        """Move selection down in listbox"""
+        if self.listbox and self.listbox.winfo_exists():
+            current = self.listbox.curselection()
+            if not current:
+                self.listbox.selection_set(0)
+                self.listbox.activate(0)
+            elif current[0] < self.listbox.size() - 1:
+                self.listbox.selection_clear(current)
+                self.listbox.selection_set(current[0] + 1)
+                self.listbox.activate(current[0] + 1)
+                self.listbox.see(current[0] + 1)
+            return "break"
+    
+    def move_up(self, event):
+        """Move selection up in listbox"""
+        if self.listbox and self.listbox.winfo_exists():
+            current = self.listbox.curselection()
+            if current and current[0] > 0:
+                self.listbox.selection_clear(current)
+                self.listbox.selection_set(current[0] - 1)
+                self.listbox.activate(current[0] - 1)
+                self.listbox.see(current[0] - 1)
+            return "break"
+    
+    def on_enter(self, event):
+        """Handle Enter key"""
+        if self.listbox and self.listbox.winfo_exists():
+            self.on_listbox_select(event)
+            return "break"
+    
+    def on_listbox_click(self, event):
+        """Handle listbox click"""
+        self.after(100, lambda: self.on_listbox_select(event))
+    
+    def on_listbox_select(self, event):
+        """Handle selection from listbox"""
+        try:
+            if self.listbox and self.listbox.winfo_exists():
+                selection = self.listbox.curselection()
+                if selection:
+                    selected_value = self.listbox.get(selection[0])
+                    self.var.set(selected_value)
+                    self.close_listbox()
+                    self.icursor(tk.END)
+                    # Trigger any callbacks that depend on the value
+                    self.event_generate('<<ComboboxSelected>>')
+        except:
+            self.close_listbox()
+    
+    def close_listbox(self, event=None):
+        """Close suggestion listbox"""
+        # Destroy the toplevel window first
+        if hasattr(self, 'listbox_window') and self.listbox_window:
+            try:
+                if self.listbox_window.winfo_exists():
+                    self.listbox_window.destroy()
+            except:
+                pass
+            finally:
+                self.listbox_window = None
+        
+        # Then destroy the listbox if it still exists
+        if hasattr(self, 'listbox') and self.listbox:
+            try:
+                if self.listbox.winfo_exists():
+                    self.listbox.destroy()
+            except:
+                pass
+            finally:
+                self.listbox = None
+
 class LoginWindow:
     def __init__(self, root, on_success_callback):
         self.root = root
@@ -1524,14 +1700,20 @@ class LoginWindow:
         self.login_window.title("Gaybeck Starkids Academy - Login")
         
         # Set window icon
+        icon_locations = [
+            'icon.ico',  # Current directory
+            os.path.join(os.environ.get('APPDATA', ''), 'GaybeckStarkidsSMS', 'icon.ico'),  # AppData
+            os.path.join(os.path.dirname(__file__), 'icon.ico'),  # Script directory
+        ]
+        
         try:
-            if os.path.exists('icon.ico'):
-                self.login_window.iconbitmap('icon.ico')
-            elif os.path.exists('logo.png'):
-                from PIL import Image
-                img = Image.open('logo.png')
-                img.save('temp_icon.ico', format='ICO')
-                self.login_window.iconbitmap('temp_icon.ico')
+            for icon_path in icon_locations:
+                if os.path.exists(icon_path):
+                    try:
+                        self.login_window.iconbitmap(icon_path)
+                        break
+                    except Exception:
+                        continue
         except Exception as e:
             print(f"Could not set login window icon: {e}")
         
@@ -1803,12 +1985,24 @@ class SchoolManagementSystem:
         
         # Try to set window icon
         icon_set = False
+        
+        # Check multiple locations for icon.ico
+        icon_locations = [
+            resource_path('icon.ico'),  # Current directory or PyInstaller bundle
+            os.path.join(os.environ.get('APPDATA', ''), 'GaybeckStarkidsSMS', 'icon.ico'),  # AppData
+            os.path.join(os.path.dirname(__file__), 'icon.ico'),  # Script directory
+        ]
+        
         try:
-            # First try icon.ico
-            icon_path = resource_path('icon.ico')
-            if os.path.exists(icon_path):
-                self.root.iconbitmap(icon_path)
-                icon_set = True
+            # First try icon.ico from various locations
+            for icon_path in icon_locations:
+                if os.path.exists(icon_path):
+                    try:
+                        self.root.iconbitmap(icon_path)
+                        icon_set = True
+                        break
+                    except Exception as e:
+                        continue
                 
             # Also try to set PNG for better quality
             logo_path = resource_path('logo.png')
@@ -1911,12 +2105,45 @@ class SchoolManagementSystem:
         # Load initial dashboard data
         self.update_dashboard()
         
+    def get_data_directory(self, subfolder=''):
+        """
+        Get the appropriate data directory for the application.
+        Returns source directory if running from source, or AppData if installed.
+        
+        Args:
+            subfolder: Optional subfolder name (e.g., 'database', 'teacher_documents')
+        """
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Check if we're in the source directory (has database folder)
+        source_dir = os.path.join(base_dir, 'database')
+        
+        if os.path.exists(source_dir) and os.path.isdir(source_dir):
+            # Running from source directory
+            if subfolder:
+                return os.path.join(base_dir, subfolder)
+            return base_dir
+        else:
+            # Running from installed package - use AppData
+            if os.name == 'nt':  # Windows
+                app_data = os.getenv('APPDATA') or os.path.expanduser('~')
+                data_dir = os.path.join(app_data, 'GaybeckStarkidsSMS')
+            else:  # Linux/Mac
+                data_dir = os.path.expanduser('~/.gaybeck-starkids-sms')
+            
+            if subfolder:
+                return os.path.join(data_dir, subfolder)
+            return data_dir
+    
     def init_database(self):
-        # Ensure database directory exists
-        db_path = 'database/school_management.db'
-        db_dir = os.path.dirname(db_path)
-        if db_dir and not os.path.exists(db_dir):
+        # Get database directory using the helper method
+        db_dir = self.get_data_directory('database')
+        db_path = os.path.join(db_dir, 'school_management.db')
+        
+        # Create directory if it doesn't exist
+        if not os.path.exists(db_dir):
             os.makedirs(db_dir)
+            print(f"Created database directory: {db_dir}")
         
         # Connect to SQLite database
         self.conn = sqlite3.connect(db_path)
@@ -1983,26 +2210,27 @@ class SchoolManagementSystem:
                 # Avoid crashing on migration problems; keep running and notify
                 print("Warning: could not add student_id column/index:", e)
         
-        # Add new columns to teachers table for enhanced functionality
-        self.cursor.execute("PRAGMA table_info(teachers)")
-        teacher_columns = [row[1] for row in self.cursor.fetchall()]
-        if 'skills' not in teacher_columns:
-            try:
-                self.cursor.execute("ALTER TABLE teachers ADD COLUMN skills TEXT")
-            except Exception as e:
-                print("Warning: could not add skills column:", e)
-        if 'document_path' not in teacher_columns:
-            try:
-                self.cursor.execute("ALTER TABLE teachers ADD COLUMN document_path TEXT")
-            except Exception as e:
-                print("Warning: could not add document_path column:", e)
-        if 'photo' not in teacher_columns:
-            try:
-                self.cursor.execute("ALTER TABLE teachers ADD COLUMN photo BLOB")
-            except Exception as e:
-                print("Warning: could not add photo column:", e)
-
-        # Add new columns to students table for enhanced functionality
+        # Create teachers table FIRST before trying to ALTER it
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS teachers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                teacher_id TEXT UNIQUE,
+                name TEXT NOT NULL,
+                hire_date DATE,
+                class_id INTEGER,
+                starting_salary REAL,
+                qualifications TEXT,
+                skills TEXT,
+                document_path TEXT,
+                phone TEXT,
+                email TEXT,
+                photo BLOB,
+                created_date DATE DEFAULT CURRENT_DATE,
+                FOREIGN KEY (class_id) REFERENCES classes (id)
+            )
+        ''')
+        
+        # Add new columns to students table for enhanced functionality (migration for older databases)
         self.cursor.execute("PRAGMA table_info(students)")
         student_columns = [row[1] for row in self.cursor.fetchall()]
         
@@ -2022,25 +2250,6 @@ class SchoolManagementSystem:
                     self.cursor.execute(f"ALTER TABLE students ADD COLUMN {col_name} {col_type}")
                 except Exception as e:
                     print(f"Warning: could not add {col_name} column:", e)
-        
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS teachers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                teacher_id TEXT UNIQUE,
-                name TEXT NOT NULL,
-                hire_date DATE,
-                class_id INTEGER,
-                starting_salary REAL,
-                qualifications TEXT,
-                skills TEXT,
-                document_path TEXT,
-                phone TEXT,
-                email TEXT,
-                photo BLOB,
-                created_date DATE DEFAULT CURRENT_DATE,
-                FOREIGN KEY (class_id) REFERENCES classes (id)
-            )
-        ''')
         
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS fees (
@@ -2410,6 +2619,100 @@ class SchoolManagementSystem:
         
         # Format: STU + YEAR + 5-digit sequence
         return f"{prefix}{sequence:05d}"
+    
+    # ==================== AUTOCOMPLETE SUGGESTION METHODS ====================
+    
+    def get_student_suggestions(self, search_text):
+        """Get student name suggestions for autocomplete"""
+        search_text = search_text.lower()
+        try:
+            # Search in student names and IDs
+            self.cursor.execute('''
+                SELECT DISTINCT name FROM students 
+                WHERE LOWER(name) LIKE ? OR LOWER(student_id) LIKE ?
+                ORDER BY name LIMIT 10
+            ''', (f'%{search_text}%', f'%{search_text}%'))
+            results = self.cursor.fetchall()
+            return [r[0] for r in results]
+        except:
+            return []
+    
+    def get_teacher_suggestions(self, search_text):
+        """Get teacher name suggestions for autocomplete"""
+        search_text = search_text.lower()
+        try:
+            self.cursor.execute('''
+                SELECT DISTINCT name FROM teachers 
+                WHERE LOWER(name) LIKE ? OR LOWER(teacher_id) LIKE ?
+                ORDER BY name LIMIT 10
+            ''', (f'%{search_text}%', f'%{search_text}%'))
+            results = self.cursor.fetchall()
+            return [r[0] for r in results]
+        except:
+            return []
+    
+    def get_class_suggestions(self, search_text):
+        """Get class name suggestions for autocomplete"""
+        search_text = search_text.lower()
+        try:
+            self.cursor.execute('''
+                SELECT DISTINCT class_name FROM classes 
+                WHERE LOWER(class_name) LIKE ?
+                ORDER BY class_name LIMIT 10
+            ''', (f'%{search_text}%',))
+            results = self.cursor.fetchall()
+            return [r[0] for r in results]
+        except:
+            return []
+    
+    def get_user_suggestions(self, search_text):
+        """Get user name suggestions for autocomplete"""
+        search_text = search_text.lower()
+        try:
+            self.cursor.execute('''
+                SELECT DISTINCT full_name FROM users 
+                WHERE LOWER(full_name) LIKE ? OR LOWER(username) LIKE ?
+                ORDER BY full_name LIMIT 10
+            ''', (f'%{search_text}%', f'%{search_text}%'))
+            results = self.cursor.fetchall()
+            return [r[0] for r in results]
+        except:
+            return []
+    
+    def get_combined_suggestions(self, search_text):
+        """Get combined suggestions from students, teachers, and users"""
+        suggestions = []
+        search_text = search_text.lower()
+        
+        try:
+            # Get student names
+            self.cursor.execute('''
+                SELECT DISTINCT name FROM students 
+                WHERE LOWER(name) LIKE ?
+                ORDER BY name LIMIT 5
+            ''', (f'%{search_text}%',))
+            suggestions.extend([f"👨‍🎓 {r[0]}" for r in self.cursor.fetchall()])
+            
+            # Get teacher names
+            self.cursor.execute('''
+                SELECT DISTINCT name FROM teachers 
+                WHERE LOWER(name) LIKE ?
+                ORDER BY name LIMIT 5
+            ''', (f'%{search_text}%',))
+            suggestions.extend([f"👨‍🏫 {r[0]}" for r in self.cursor.fetchall()])
+            
+            # Get class names
+            self.cursor.execute('''
+                SELECT DISTINCT class_name FROM classes 
+                WHERE LOWER(class_name) LIKE ?
+                ORDER BY class_name LIMIT 3
+            ''', (f'%{search_text}%',))
+            suggestions.extend([f"📚 {r[0]}" for r in self.cursor.fetchall()])
+            
+        except:
+            pass
+        
+        return suggestions[:10]  # Return top 10 combined
     
     def generate_teacher_id(self, year=None):
         """
@@ -8284,8 +8587,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         search_label.pack(side=tk.LEFT)
         
         self.search_var = tk.StringVar()
-        search_entry = tk.Entry(search_section, textvariable=self.search_var, width=25, 
-                               font=('Segoe UI', 11))
+        search_entry = AutocompleteEntry(search_section, textvariable=self.search_var, width=25, 
+                               font=('Segoe UI', 11),
+                               suggestions_callback=self.get_student_suggestions)
         search_entry.pack(side=tk.LEFT, padx=(10, 15))
         
         search_btn = self.create_modern_button(search_section, "� Search & Filter", 
@@ -9674,95 +9978,101 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             print(f"Error updating student statistics: {e}")
     
     def load_students(self):
-        # Clear existing data
-        for item in self.students_tree.get_children():
-            self.students_tree.delete(item)
-        
-        # Get class filter value
-        class_filter = getattr(self, 'student_class_filter_var', None)
-        selected_class = class_filter.get() if class_filter else "All Classes"
-        
-        # Build query based on user role and class filter
-        if self.current_user.get('role') == 'admin':
-            # Admin sees all students or filtered by class
-            if selected_class != "All Classes":
-                query = '''
-                    SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                           s.date_of_admission, s.phone, s.status, s.class_id
-                    FROM students s 
-                    LEFT JOIN classes c ON s.class_id = c.id
-                    WHERE c.class_name = ?
-                    ORDER BY s.name
-                '''
-                params = (selected_class,)
-            else:
-                query = '''
-                    SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                           s.date_of_admission, s.phone, s.status, s.class_id
-                    FROM students s 
-                    LEFT JOIN classes c ON s.class_id = c.id
-                    ORDER BY s.name
-                '''
-                params = ()
-        elif self.current_user.get('role') == 'teacher':
-            # Teacher sees only students from their assigned class
-            teacher_class_id = self.get_teacher_assigned_class()
-            if teacher_class_id:
-                query = '''
-                    SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                           s.date_of_admission, s.phone, s.status, s.class_id
-                    FROM students s 
-                    LEFT JOIN classes c ON s.class_id = c.id
-                    WHERE s.class_id = ?
-                    ORDER BY s.name
-                '''
-                params = (teacher_class_id,)
-            else:
-                # Teacher not assigned to any class
-                self.students_tree.insert('', tk.END, values=("", "", "No students assigned", "", "", "", "", ""))
-                return
-        else:
-            # Staff and other roles see limited student info (with optional class filter)
-            if selected_class != "All Classes":
-                query = '''
-                    SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                           s.date_of_admission, s.phone, s.status, s.class_id
-                    FROM students s 
-                    LEFT JOIN classes c ON s.class_id = c.id
-                    WHERE c.class_name = ?
-                    ORDER BY s.name
-                '''
-                params = (selected_class,)
-            else:
-                query = '''
-                    SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                           s.date_of_admission, s.phone, s.status, s.class_id
-                    FROM students s 
-                    LEFT JOIN classes c ON s.class_id = c.id
-                    ORDER BY s.name
-                '''
-                params = ()
-        
-        # Load students from database
-        self.cursor.execute(query, params)
-        students = self.cursor.fetchall()
-        
-        for student in students:
-            # Format the data for display
-            formatted_student = (
-                student[0],  # ID
-                student[1] or "N/A",  # Student ID
-                student[2],  # Name
-                student[3] or "No Class",  # Class name
-                student[4],  # Gender
-                student[5],  # Admission date
-                student[6] or "N/A",  # Phone
-                "✅ Active" if student[7] == "Active" else "❌ Inactive"  # Status with icons
-            )
-            self.students_tree.insert('', tk.END, values=formatted_student)
+        try:
+            # Clear existing data
+            for item in self.students_tree.get_children():
+                self.students_tree.delete(item)
             
-        # Update statistics after loading
-        self.update_student_statistics()
+            # Get class filter value
+            class_filter = getattr(self, 'student_class_filter_var', None)
+            selected_class = class_filter.get() if class_filter else "All Classes"
+            
+            # Build query based on user role and class filter
+            if self.current_user.get('role') == 'admin':
+                # Admin sees all students or filtered by class
+                if selected_class != "All Classes":
+                    query = '''
+                        SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
+                               s.date_of_admission, s.phone, s.status, s.class_id
+                        FROM students s 
+                        LEFT JOIN classes c ON s.class_id = c.id
+                        WHERE c.class_name = ?
+                        ORDER BY s.name
+                    '''
+                    params = (selected_class,)
+                else:
+                    query = '''
+                        SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
+                               s.date_of_admission, s.phone, s.status, s.class_id
+                        FROM students s 
+                        LEFT JOIN classes c ON s.class_id = c.id
+                        ORDER BY s.name
+                    '''
+                    params = ()
+            elif self.current_user.get('role') == 'teacher':
+                # Teacher sees only students from their assigned class
+                teacher_class_id = self.get_teacher_assigned_class()
+                if teacher_class_id:
+                    query = '''
+                        SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
+                               s.date_of_admission, s.phone, s.status, s.class_id
+                        FROM students s 
+                        LEFT JOIN classes c ON s.class_id = c.id
+                        WHERE s.class_id = ?
+                        ORDER BY s.name
+                    '''
+                    params = (teacher_class_id,)
+                else:
+                    # Teacher not assigned to any class
+                    self.students_tree.insert('', tk.END, values=("", "", "No students assigned", "", "", "", "", ""))
+                    return
+            else:
+                # Staff and other roles see limited student info (with optional class filter)
+                if selected_class != "All Classes":
+                    query = '''
+                        SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
+                               s.date_of_admission, s.phone, s.status, s.class_id
+                        FROM students s 
+                        LEFT JOIN classes c ON s.class_id = c.id
+                        WHERE c.class_name = ?
+                        ORDER BY s.name
+                    '''
+                    params = (selected_class,)
+                else:
+                    query = '''
+                        SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
+                               s.date_of_admission, s.phone, s.status, s.class_id
+                        FROM students s 
+                        LEFT JOIN classes c ON s.class_id = c.id
+                        ORDER BY s.name
+                    '''
+                    params = ()
+            
+            # Load students from database
+            self.cursor.execute(query, params)
+            students = self.cursor.fetchall()
+            
+            for student in students:
+                # Format the data for display
+                formatted_student = (
+                    student[0],  # ID
+                    student[1] or "N/A",  # Student ID
+                    student[2],  # Name
+                    student[3] or "No Class",  # Class name
+                    student[4],  # Gender
+                    student[5],  # Admission date
+                    student[6] or "N/A",  # Phone
+                    "✅ Active" if student[7] == "Active" else "❌ Inactive"  # Status with icons
+                )
+                self.students_tree.insert('', tk.END, values=formatted_student)
+            
+            # Update statistics after loading
+            self.update_student_statistics()
+            
+        except Exception as e:
+            print(f"Error loading students: {e}")
+            import traceback
+            traceback.print_exc()
     
     def load_promotions(self):
         # Clear existing data
@@ -11140,7 +11450,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         if filenames:
             # Create documents directory if it doesn't exist
-            docs_dir = os.path.join(os.path.dirname(__file__), 'teacher_documents')
+            docs_dir = self.get_data_directory('teacher_documents')
             if not os.path.exists(docs_dir):
                 os.makedirs(docs_dir)
             
@@ -11765,8 +12075,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         search_label.pack(side=tk.LEFT)
         
         self.att_search_var = tk.StringVar()
-        search_entry = tk.Entry(search_section, textvariable=self.att_search_var, width=25, 
-                               font=('Segoe UI', 11))
+        search_entry = AutocompleteEntry(search_section, textvariable=self.att_search_var, width=25, 
+                               font=('Segoe UI', 11),
+                               suggestions_callback=self.get_student_suggestions)
         search_entry.pack(side=tk.LEFT, padx=(10, 15))
         
         search_att_btn = self.create_modern_button(search_section, "🔍 Filter Student", 
@@ -12498,10 +12809,11 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 bg='#ffffff').pack(side='left', padx=(0, 5))
         
         self.users_search_var = tk.StringVar()
-        users_search_entry = tk.Entry(search_frame, textvariable=self.users_search_var,
-                                     font=('Segoe UI', 10), width=30, relief='solid', bd=1)
+        users_search_entry = AutocompleteEntry(search_frame, textvariable=self.users_search_var,
+                                     font=('Segoe UI', 10), width=30, relief='solid', bd=1,
+                                     suggestions_callback=self.get_user_suggestions)
         users_search_entry.pack(side='left', padx=(0, 5))
-        users_search_entry.bind('<KeyRelease>', lambda e: self.filter_users())
+        users_search_entry.var.trace('w', lambda *args: self.filter_users())
         
         # Users TreeView
         users_tree_frame = tk.Frame(list_frame, bg='#ffffff')
@@ -13728,8 +14040,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         tk.Label(search_row1, text="Student Name/ID:", font=('Segoe UI', 11), bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
         self.fee_search_var = tk.StringVar()
-        self.fee_search_entry = tk.Entry(search_row1, textvariable=self.fee_search_var, width=20, 
-                                        font=('Segoe UI', 11))
+        self.fee_search_entry = AutocompleteEntry(search_row1, textvariable=self.fee_search_var, width=20, 
+                                        font=('Segoe UI', 11),
+                                        suggestions_callback=self.get_student_suggestions)
         self.fee_search_entry.pack(side=tk.LEFT, padx=(10, 30))
         
         tk.Label(search_row1, text="Month:", font=('Segoe UI', 11), bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
@@ -19342,19 +19655,31 @@ Financial Summary:
                 messagebox.showerror("Error", f"Failed to clear grades: {str(e)}")
     
     def clear_all_test_data(self):
-        """Clear all test data - keep only users and class structure"""
-        if messagebox.askyesno("FINAL WARNING", "This will delete:\n- All students\n- All attendance\n- All fees\n- All grades\n- All financial transactions\n\nOnly users and class structure will remain.\n\nARE YOU ABSOLUTELY SURE?"):
+        """Clear all test data - keep only user accounts"""
+        if messagebox.askyesno("FINAL WARNING", "This will delete ALL DATA:\n- All students\n- All teachers\n- All classes\n- All attendance\n- All fees\n- All grades\n- All financial transactions\n\nOnly user accounts will remain.\n\nARE YOU ABSOLUTELY SURE?"):
             try:
-                # Delete in correct order (respecting foreign keys)
+                # Temporarily disable foreign key constraints
+                self.cursor.execute("PRAGMA foreign_keys = OFF")
+                
+                # Delete all data in correct order
+                self.cursor.execute("DELETE FROM grades")
                 self.cursor.execute("DELETE FROM attendance")
                 self.cursor.execute("DELETE FROM fees")
-                self.cursor.execute("DELETE FROM grades")
                 self.cursor.execute("DELETE FROM students")
                 self.cursor.execute("DELETE FROM financial_transactions")
+                self.cursor.execute("DELETE FROM teachers")
+                self.cursor.execute("DELETE FROM classes")
+                
+                # Re-enable foreign key constraints
+                self.cursor.execute("PRAGMA foreign_keys = ON")
+                
                 self.conn.commit()
-                messagebox.showinfo("Success", "All test data cleared successfully!\n\nThe system is now ready for real data.")
+                messagebox.showinfo("Success", "All test data cleared successfully!\n\nAll students, teachers, classes, and records have been deleted.\nOnly user accounts remain.\n\nThe system is now ready for real data.")
                 self.show_data_management()  # Refresh view
             except Exception as e:
+                self.conn.rollback()
+                # Re-enable foreign keys even if error occurs
+                self.cursor.execute("PRAGMA foreign_keys = ON")
                 messagebox.showerror("Error", f"Failed to clear test data: {str(e)}")
     
     def show_backup_restore_menu(self):
@@ -20308,7 +20633,8 @@ Financial Summary:
         search_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
         
         search_var = tk.StringVar()
-        search_entry = tk.Entry(search_frame, textvariable=search_var, font=('Segoe UI', 11))
+        search_entry = AutocompleteEntry(search_frame, textvariable=search_var, font=('Segoe UI', 11),
+                                        suggestions_callback=self.get_student_suggestions)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         # Get students (filter by teacher's class if applicable)

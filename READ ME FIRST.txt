@@ -1,0 +1,78 @@
+═══════════════════════════════════════════════════════════════════
+  📚 GAYBECK STARKIDS ACADEMY - SCHOOL MANAGEMENT SYSTEM
+═══════════════════════════════════════════════════════════════════
+
+                    🎉 WELCOME! 🎉
+
+This folder contains everything you need to install and run 
+the School Management System.
+
+═══════════════════════════════════════════════════════════════════
+  📖 INSTALLATION (JUST 2 STEPS!)
+═══════════════════════════════════════════════════════════════════
+
+  STEP 1: Double-click the file named "INSTALL.bat"
+          (Green gear icon ⚙️)
+
+  STEP 2: Wait 2-3 minutes while it installs
+          (Everything is automatic!)
+
+Done! The app will appear on your Desktop.
+
+═══════════════════════════════════════════════════════════════════
+  🚀 TO LAUNCH THE APPLICATION
+═══════════════════════════════════════════════════════════════════
+
+  After installation, you have 3 options:
+
+  ✅ OPTION 1: Double-click "Gaybeck Starkids Academy" 
+               icon on your Desktop
+
+  ✅ OPTION 2: Search Windows Start Menu for
+               "Gaybeck Starkids Academy"
+
+  ✅ OPTION 3: Double-click "LAUNCH.bat" in this folder
+
+═══════════════════════════════════════════════════════════════════
+  🔑 FIRST LOGIN
+═══════════════════════════════════════════════════════════════════
+
+  Username:  admin
+  Password:  admin123
+
+═══════════════════════════════════════════════════════════════════
+  ❌ TO REMOVE THE APPLICATION
+═══════════════════════════════════════════════════════════════════
+
+  Double-click the file named "UNINSTALL.bat"
+
+═══════════════════════════════════════════════════════════════════
+  ⚠️ TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════
+
+  Problem: "Python is not installed" error
+
+  Solution: 
+    1. Go to: https://www.python.org/downloads/
+    2. Download and install Python
+    3. IMPORTANT: Check the box "Add Python to PATH"
+    4. After Python is installed, run INSTALL.bat again
+
+═══════════════════════════════════════════════════════════════════
+
+  📧 Need help? Contact your IT support team.
+
+═══════════════════════════════════════════════════════════════════
+
+  Files you need to know:
+    
+    ⚙️ INSTALL.bat    ← Double-click this FIRST to install
+    
+    🚀 LAUNCH.bat     ← Double-click this to run the app
+                         (after installing)
+    
+    ❌ UNINSTALL.bat  ← Double-click this to remove the app
+
+  Other files are for the program - don't delete them!
+
+═══════════════════════════════════════════════════════════════════

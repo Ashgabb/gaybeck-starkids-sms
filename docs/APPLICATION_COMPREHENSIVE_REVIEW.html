@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>DeepSeek SMS — Comprehensive Review</title>
+<style>
+ body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 40px; line-height: 1.55; color: #222; }
+ code, pre { background: #f6f8fa; padding: 2px 4px; border-radius: 4px; }
+ pre { padding: 12px; overflow: auto; }
+ h1, h2, h3 { color: #0b63ce; }
+ h1 { margin-top: 0; }
+ .muted { color: #666; }
+ .callout { background: #eef6ff; border-left: 4px solid #0b63ce; padding: 12px 16px; margin: 16px 0; }
+ .kpi { display: inline-block; background:#fafafa; border:1px solid #eee; border-radius:8px; padding:10px 16px; margin:6px 8px 6px 0; }
+ .footer { margin-top: 48px; color: #666; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<h1>DeepSeek School Management System (SMS)</h1>
+<p class="muted">Comprehensive application documentation for stakeholder review — Last updated: October 26, 2025</p>
+<div class="callout">This HTML is print‑ready. In your browser, use File → Print → Destination: “Microsoft Print to PDF” to export a PDF.</div>
+
+<h2>1) Executive Summary</h2>
+<p>DeepSeek SMS is a desktop School Management System built with Python (Tkinter) and SQLite that centralizes student, class, attendance, fees, teachers, and finance management. The system includes a real-time synchronization layer for audit logging, dashboard metrics, statistics caching, and notification handling. The application is production-ready for single-site deployments on Windows.</p>
+<ul>
+ <li>Students, teachers, classes, promotions</li>
+ <li>Fees with arrears & payment dates</li>
+ <li>Financials: categories, transactions, reports</li>
+ <li>Attendance analytics</li>
+ <li>Roles & permissions</li>
+ <li>Real-time sync: logs, cache, views, notifications</li>
+</ul>
+
+<h2>2) Architecture Overview</h2>
+<ul>
+ <li><strong>UI</strong>: Tkinter app (<code>sms.py</code>) with multi-tab workflows</li>
+ <li><strong>Data</strong>: SQLite (<code>school_management.db</code>)</li>
+ <li><strong>Sync/Analytics</strong>: Triggers, views, and sync manager (<code>incremental_relationships.py</code>, <code>comprehensive_sync_system.py</code>, <code>realtime_sync.py</code>)</li>
+</ul>
+
+<h2>3) Modules and Responsibilities</h2>
+<ul>
+ <li><code>sms.py</code> — main UI and CRUD flows</li>
+ <li><code>incremental_relationships.py</code> — audit tables, triggers, real-time views</li>
+ <li><code>comprehensive_sync_system.py</code> — extended sync triggers and helpers</li>
+ <li><code>realtime_sync.py</code> — programmatic sync manager and APIs</li>
+</ul>
+
+<h2>4) Database Schema (Key Tables)</h2>
+<p>Classes, Students, Teachers, Fees, Attendance, Promotions, Users, Financial Categories, Financial Transactions, Budget Plans, Financial Reports.</p>
+<p>Supporting: User Activity Log, System Notifications, Sync Status, Statistics Cache.</p>
+
+<h2>5) Real-time Synchronization & Analytics</h2>
+<p>Two-pronged approach with database triggers/views and a programmatic sync manager for logging, notifications, cached metrics, dashboard and analytics queries.</p>
+
+<h2>6) Core Functional Areas</h2>
+<ul>
+ <li>Students/Teachers/Classes/Promotions</li>
+ <li>Fees & Arrears</li>
+ <li>Attendance & Trends</li>
+ <li>Financials (Income/Expense) & Reports</li>
+ <li>Dashboard KPIs, Roles & Permissions</li>
+</ul>
+
+<h2>7) Setup & Run (PowerShell)</h2>
+<pre><code>pip install tkcalendar
+python .\incremental_relationships.py
+python .\comprehensive_sync_system.py
+python .\sms.py
+</code></pre>
+
+<h2>8) Testing Guidance (Manual QA)</h2>
+<ul>
+ <li>Create/edit students; confirm dashboard counts</li>
+ <li>Add fees and payments; confirm arrears and monthly totals</li>
+ <li>Record attendance; confirm today’s attendance rate</li>
+ <li>Add income/expense; confirm financial summaries</li>
+ <li>Check recent activities and notifications</li>
+</ul>
+
+<h2>9) Security & Operations</h2>
+<ul>
+ <li>Recommend password hashing (bcrypt) and consistent FK enforcement</li>
+ <li>Automated backups to <code>/backups</code></li>
+ <li>Use <code>sync_status</code> and <code>statistics_cache</code> to monitor health</li>
+</ul>
+
+<div class="footer">DeepSeek SMS — Comprehensive Review. Print this page to PDF for distribution.</div>
+</body>
+</html>
