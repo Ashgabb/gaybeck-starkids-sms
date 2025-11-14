@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "build_date": "2025-11-10",
+  "version": "2.0.4",
+  "build_date": "2025-11-11",
   "python_version": "3.13+",
   "app_name": "School Management System",
   "organization": "Gaybeck Starkids School",
@@ -17,6 +17,18 @@
     "Backup & Restore"
   ],
   "changelog": {
+    "2.0.4": {
+      "date": "2025-11-11",
+      "changes": [
+        "Fixed Clear All Data button to properly clear all database tables",
+        "Resolved foreign key constraint issues during data clearing"
+      ],
+      "fixes": [
+        "Clear All Data now properly deletes classes, students, teachers, attendance, fees, grades, and financial data",
+        "Fixed foreign key constraint errors by temporarily disabling constraints during deletion",
+        "Updated UI descriptions to accurately reflect what data is cleared"
+      ]
+    },
     "2.0.0": {
       "date": "2025-11-10",
       "changes": [
