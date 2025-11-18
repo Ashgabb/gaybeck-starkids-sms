@@ -1,0 +1,84 @@
+# Quick Reference - Logo Icon Setup
+
+## What Changed
+
+Your **logo.png** is now the official icon for:
+- ✓ Desktop shortcut
+- ✓ Application window
+- ✓ Windows taskbar
+
+## File Details
+
+| File | Size | Purpose |
+|------|------|---------|
+| `logo.png` | 159 KB | Original project logo (1800x1800) |
+| `sms_icon.ico` | 62 KB | Icon format (6 sizes: 16-256px) |
+| `Gaybeck Starkids SMS.lnk` | Shortcut | Points to sms_icon.ico |
+
+## If Icon Not Showing
+
+**Try these in order:**
+
+1. **Refresh Desktop**
+   - Right-click desktop → Refresh
+   - Or press F5
+
+2. **Restart Explorer**
+   - Already done, but can repeat:
+   ```powershell
+   Stop-Process -Name explorer -Force
+   Start-Process explorer
+   ```
+
+3. **Manual Fix**
+   - Right-click shortcut → Properties
+   - Click "Change Icon"
+   - Browse to: `sms_icon.ico`
+   - Select and click OK twice
+
+4. **Verify Files**
+   ```bash
+   python verify_icon_setup.py
+   ```
+
+## Commands
+
+```bash
+# Convert logo to icon
+python convert_logo_to_icon.py
+
+# Update shortcut
+python fix_shortcut_icon.py
+
+# Verify setup
+python verify_icon_setup.py
+
+# Clear cache and refresh
+# (Included in fix_shortcut_icon.py)
+```
+
+## How It Shows
+
+| Location | Display |
+|----------|---------|
+| Desktop | Logo on shortcut icon |
+| Title Bar | Logo in window header |
+| Taskbar | Logo next to app name |
+| Peek/Preview | Logo in thumbnail |
+| Alt+Tab | Logo in app switcher |
+
+## Technical Summary
+
+```
+Project Logo
+    ↓
+Converted to 6-resolution ICO
+    ↓
+Registered in Windows
+    ↓
+Displayed everywhere
+```
+
+## Done! ✓
+
+Your application now has a professional logo visible across all interfaces. No further action needed unless icon doesn't appear (see troubleshooting above).
