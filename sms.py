@@ -743,9 +743,9 @@ class AIPredictor:
             trend_parts = []
             
             if trends['attendance_trend'] == 'improving':
-                trend_parts.append("≡ƒôê Attendance is improving - positive trend!")
+                trend_parts.append("📈 Attendance is improving - positive trend!")
             elif trends['attendance_trend'] == 'declining':
-                trend_parts.append("≡ƒôë Attendance is declining - requires attention")
+                trend_parts.append("📉 Attendance is declining - requires attention")
             else:
                 trend_parts.append("Γ₧í∩╕Å Attendance is stable")
             
@@ -1802,9 +1802,9 @@ class LoginWindow:
         
         # Compact 2x2 grid layout for roles
         roles = [
-            ("≡ƒææ Admin", "admin", "#dc3545"),
+            ("🔐 Admin", "admin", "#dc3545"),
             ("∩┐╜ Accountant", "accountant", "#fd7e14"), 
-            ("∩┐╜ΓÇì≡ƒÅ½ Teacher", "teacher", "#28a745"),
+            ("∩┐╜ΓÇì📚 Teacher", "teacher", "#28a745"),
             ("∩┐╜ Staff", "staff", "#17a2b8")
         ]
         
@@ -2691,7 +2691,7 @@ class SchoolManagementSystem:
                 WHERE LOWER(name) LIKE ?
                 ORDER BY name LIMIT 5
             ''', (f'%{search_text}%',))
-            suggestions.extend([f"≡ƒæ¿ΓÇì≡ƒÄô {r[0]}" for r in self.cursor.fetchall()])
+            suggestions.extend([f"🎓 {r[0]}" for r in self.cursor.fetchall()])
             
             # Get teacher names
             self.cursor.execute('''
@@ -2699,7 +2699,7 @@ class SchoolManagementSystem:
                 WHERE LOWER(name) LIKE ?
                 ORDER BY name LIMIT 5
             ''', (f'%{search_text}%',))
-            suggestions.extend([f"≡ƒæ¿ΓÇì≡ƒÅ½ {r[0]}" for r in self.cursor.fetchall()])
+            suggestions.extend([f"≡ƒæ¿ΓÇì📚 {r[0]}" for r in self.cursor.fetchall()])
             
             # Get class names
             self.cursor.execute('''
@@ -2707,7 +2707,7 @@ class SchoolManagementSystem:
                 WHERE LOWER(class_name) LIKE ?
                 ORDER BY class_name LIMIT 3
             ''', (f'%{search_text}%',))
-            suggestions.extend([f"≡ƒôÜ {r[0]}" for r in self.cursor.fetchall()])
+            suggestions.extend([f"ℹ️ {r[0]}" for r in self.cursor.fetchall()])
             
         except:
             pass
@@ -3194,14 +3194,14 @@ class SchoolManagementSystem:
         
         # Navigation buttons with permission checks
         buttons = [
-            ("≡ƒÅá   Dashboard", self.show_dashboard, "dashboard", True),  # Always available
-            ("≡ƒÅ½   Class Management", self.show_class_management, "classes", "no_teacher"),  # Disabled for teachers
-            ("≡ƒæÑ   Student Management", self.show_student_management, "students", None),
-            ("≡ƒæ¿ΓÇì≡ƒÅ½   Teacher Management", self.show_teacher_management, "teachers", None),
-            ("≡ƒÆ░   Fees Management", self.show_fees_management, "fees", None),
-            ("≡ƒÆ╡   Financial Management", self.show_financial_management, "financial_management", None),  # Income & Expense Management
-            ("≡ƒô¥   Attendance", self.show_attendance, "attendance", None),
-            ("≡ƒñû   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
+            ("📊   Dashboard", self.show_dashboard, "dashboard", True),  # Always available
+            ("📚   Class Management", self.show_class_management, "classes", "no_teacher"),  # Disabled for teachers
+            ("👥   Student Management", self.show_student_management, "students", None),
+            ("≡ƒæ¿ΓÇì📚   Teacher Management", self.show_teacher_management, "teachers", None),
+            ("💳   Fees Management", self.show_fees_management, "fees", None),
+            ("💰   Financial Management", self.show_financial_management, "financial_management", None),  # Income & Expense Management
+            ("📝   Attendance", self.show_attendance, "attendance", None),
+            ("🤖   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
             ("∩┐╜   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
             ("ΓÜÖ∩╕Å   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
         ]
@@ -3384,7 +3384,7 @@ class SchoolManagementSystem:
         content_container.grid(row=1, column=1, padx=50, pady=50)
         
         # Access denied content
-        icon_label = tk.Label(content_container, text="≡ƒÜ½", font=('Arial', 72), bg='#f8f9fa')
+        icon_label = tk.Label(content_container, text="🏫", font=('Arial', 72), bg='#f8f9fa')
         icon_label.pack(pady=(30, 10))
         
         title_label = tk.Label(content_container, text="Access Restricted", 
@@ -3474,7 +3474,7 @@ class SchoolManagementSystem:
         info_content = tk.Frame(info_frame, bg='#e9ecef')
         info_content.pack(fill='both', padx=20, pady=15)
         
-        info_label = tk.Label(info_content, text="≡ƒôÜ Teacher Dashboard Features:", 
+        info_label = tk.Label(info_content, text="ℹ️ Teacher Dashboard Features:", 
                              font=('Segoe UI', 12, 'bold'), fg='#495057', bg='#e9ecef')
         info_label.pack(anchor='w')
         
@@ -3602,7 +3602,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         
         class_name = self.selected_class.get() if hasattr(self, 'selected_class') else "Selected Class"
         title_label = tk.Label(title_frame, 
-                              text=f"≡ƒæ¿ΓÇì≡ƒÅ½ Class Management: {class_name}", 
+                              text=f"≡ƒæ¿ΓÇì📚 Class Management: {class_name}", 
                               font=('Segoe UI', 18, 'bold'), fg='#2c3e50', bg='#ffffff')
         title_label.pack(side='left')
         
@@ -3625,7 +3625,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     def create_student_management_tab(self):
         """Create student management tab"""
         student_frame = ttk.Frame(self.teacher_notebook)
-        self.teacher_notebook.add(student_frame, text="≡ƒæÑ Students & Attendance")
+        self.teacher_notebook.add(student_frame, text="👥 Students & Attendance")
         
         # Create scrollable content
         scrollable_students = ScrollableFrame(student_frame, bg='#ffffff')
@@ -3636,7 +3636,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header_frame = tk.Frame(students_content, bg='#e9ecef', relief='solid', bd=1)
         header_frame.pack(fill='x', pady=(0, 15))
         
-        header_label = tk.Label(header_frame, text="≡ƒôÜ Class Students Overview", 
+        header_label = tk.Label(header_frame, text="ℹ️ Class Students Overview", 
                                font=('Segoe UI', 14, 'bold'), fg='#495057', bg='#e9ecef')
         header_label.pack(pady=10)
         
@@ -3646,7 +3646,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     def create_assignments_tab(self):
         """Create assignments management tab"""
         assignments_frame = ttk.Frame(self.teacher_notebook)
-        self.teacher_notebook.add(assignments_frame, text="≡ƒô¥ Assignments & Tests")
+        self.teacher_notebook.add(assignments_frame, text="📝 Assignments & Tests")
         
         # Create scrollable content
         scrollable_assignments = ScrollableFrame(assignments_frame, bg='#ffffff')
@@ -3659,7 +3659,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     def create_grades_tab(self):
         """Create grades management tab"""
         grades_frame = ttk.Frame(self.teacher_notebook)
-        self.teacher_notebook.add(grades_frame, text="≡ƒôè Grades & Performance")
+        self.teacher_notebook.add(grades_frame, text="📊 Grades & Performance")
         
         # Create scrollable content
         scrollable_grades = ScrollableFrame(grades_frame, bg='#ffffff')
@@ -3720,7 +3720,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             attendance_btn.pack(side='right', padx=2)
             
             # Remarks button
-            remarks_btn = tk.Button(actions_frame, text="≡ƒô¥ Remarks", 
+            remarks_btn = tk.Button(actions_frame, text="📝 Remarks", 
                                   command=lambda s=student: self.write_student_remarks(s),
                                   font=('Segoe UI', 9), bg='#17a2b8', fg='white',
                                   relief='solid', bd=0, padx=10, pady=3)
@@ -3741,7 +3741,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             academic_frame = tk.Frame(details_frame, bg='#ffffff')
             academic_frame.pack(side='left', fill='y')
             
-            tk.Label(academic_frame, text="≡ƒôè Academic Status:", 
+            tk.Label(academic_frame, text="📊 Academic Status:", 
                     font=('Segoe UI', 10, 'bold'), fg='#495057', bg='#ffffff').pack(anchor='w')
             tk.Label(academic_frame, text=f"Current Grade: {student['grade']}", 
                     font=('Segoe UI', 9), fg='#6c757d', bg='#ffffff').pack(anchor='w')
@@ -3752,7 +3752,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             financial_frame = tk.Frame(details_frame, bg='#ffffff')
             financial_frame.pack(side='right', fill='y', padx=50)
             
-            tk.Label(financial_frame, text="≡ƒÆ░ Fees Status:", 
+            tk.Label(financial_frame, text="💳 Fees Status:", 
                     font=('Segoe UI', 10, 'bold'), fg='#495057', bg='#ffffff').pack(anchor='w')
             tk.Label(financial_frame, text=f"Total Fees: GHS {student['total_fees']:.2f}", 
                     font=('Segoe UI', 9), fg='#6c757d', bg='#ffffff').pack(anchor='w')
@@ -3769,12 +3769,12 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         
         # Homework Module
         homework_frame = ttk.Frame(modules_notebook)
-        modules_notebook.add(homework_frame, text="≡ƒôÜ Homework")
+        modules_notebook.add(homework_frame, text="ℹ️ Homework")
         self.create_homework_module(homework_frame)
         
         # Tests Module
         tests_frame = ttk.Frame(modules_notebook)
-        modules_notebook.add(tests_frame, text="≡ƒô¥ Tests")
+        modules_notebook.add(tests_frame, text="📝 Tests")
         self.create_tests_module(tests_frame)
         
         # Lesson Plans Module
@@ -3803,7 +3803,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header_frame = tk.Frame(parent, bg='#e9ecef', relief='solid', bd=1)
         header_frame.pack(fill='x', pady=(0, 20))
         
-        header_label = tk.Label(header_frame, text="≡ƒôè Grades & Performance Management", 
+        header_label = tk.Label(header_frame, text="📊 Grades & Performance Management", 
                                font=('Segoe UI', 14, 'bold'), fg='#495057', bg='#e9ecef')
         header_label.pack(pady=15)
         
@@ -3861,7 +3861,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         overview_frame = tk.Frame(parent, bg='#ffffff', relief='solid', bd=1)
         overview_frame.pack(fill='both', expand=True)
         
-        overview_header = tk.Label(overview_frame, text="≡ƒôê Class Performance Overview", 
+        overview_header = tk.Label(overview_frame, text="📈 Class Performance Overview", 
                                   font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#f8f9fa')
         overview_header.pack(fill='x', pady=10)
         
@@ -3888,12 +3888,12 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         # Available reports
         report_types = [
             {
-                'title': '≡ƒôè Class Performance Report',
+                'title': '📊 Class Performance Report',
                 'description': 'Comprehensive overview of class academic performance',
                 'action': self.generate_class_performance_report
             },
             {
-                'title': '≡ƒæÑ Student Progress Reports',
+                'title': '👥 Student Progress Reports',
                 'description': 'Individual student progress and achievement summaries',
                 'action': self.generate_student_progress_reports
             },
@@ -3903,12 +3903,12 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 'action': self.generate_attendance_report
             },
             {
-                'title': '≡ƒÆ░ Fees Status Report',
+                'title': '💳 Fees Status Report',
                 'description': 'Financial status overview for all students',
                 'action': self.generate_fees_report
             },
             {
-                'title': '≡ƒô¥ Assignment Analytics',
+                'title': '📝 Assignment Analytics',
                 'description': 'Analysis of assignment completion and performance',
                 'action': self.generate_assignment_analytics
             }
@@ -4264,22 +4264,21 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             return 0, 0
     
     def get_payment_status_counts(self):
-        """Get count of fee paying and scholarship students"""
+        """Get count of fee paying and scholarship students using explicit is_scholarship field"""
         try:
-            # Count fee paying students (those with fees records)
+            # Count fee-paying students (is_scholarship = 0)
             self.cursor.execute('''
-                SELECT COUNT(DISTINCT student_id) 
-                FROM fees 
-                WHERE amount_due > 0
+                SELECT COUNT(*) FROM students WHERE is_scholarship = 0
             ''')
             fee_paying_result = self.cursor.fetchone()
             fee_paying = fee_paying_result[0] if fee_paying_result else 0
             
-            # Total students
-            total_students = self.get_total_students()
-            
-            # Scholarship students (assuming those without fees or with 0 amount_due)
-            scholarship = total_students - fee_paying
+            # Count scholarship students (is_scholarship = 1)
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM students WHERE is_scholarship = 1
+            ''')
+            scholarship_result = self.cursor.fetchone()
+            scholarship = scholarship_result[0] if scholarship_result else 0
             
             return fee_paying, scholarship
         except Exception as e:
@@ -4370,7 +4369,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header = tk.Frame(remarks_window, bg='#17a2b8')
         header.pack(fill='x')
         
-        tk.Label(header, text=f"≡ƒô¥ Student Remarks & Comments", 
+        tk.Label(header, text=f"📝 Student Remarks & Comments", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#17a2b8').pack(pady=15)
         tk.Label(header, text=f"Student: {student['name']} ({student['id']})", 
                 font=('Segoe UI', 12), fg='white', bg='#17a2b8').pack(pady=(0, 15))
@@ -4466,7 +4465,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         save_remarks_btn.pack(side='left', padx=(0, 10))
         
         # View history button
-        history_btn = tk.Button(buttons_frame, text="≡ƒôÜ View History", 
+        history_btn = tk.Button(buttons_frame, text="ℹ️ View History", 
                               command=lambda: self.view_remarks_history(student),
                               font=('Segoe UI', 12, 'bold'), bg='#17a2b8', fg='white',
                               relief='solid', bd=0, padx=30, pady=10)
@@ -4551,7 +4550,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         grades_frame = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
         grades_frame.pack(fill='x', pady=(0, 20))
         
-        tk.Label(grades_frame, text="≡ƒôè Recent Grades & Assignments", 
+        tk.Label(grades_frame, text="📊 Recent Grades & Assignments", 
                 font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#f8f9fa').pack(pady=10)
         
         # Sample grades data
@@ -4582,7 +4581,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         fee_frame = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
         fee_frame.pack(fill='x', pady=(0, 20))
         
-        tk.Label(fee_frame, text="≡ƒÆ░ Fee Summary", 
+        tk.Label(fee_frame, text="💳 Fee Summary", 
                 font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#f8f9fa').pack(pady=10)
         
         fee_data = [
@@ -4703,7 +4702,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header = tk.Frame(history_window, bg='#6f42c1')
         header.pack(fill='x')
         
-        tk.Label(header, text=f"≡ƒôÜ Remarks History", 
+        tk.Label(header, text=f"ℹ️ Remarks History", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#6f42c1').pack(pady=15)
         tk.Label(header, text=f"Student: {student['name']}", 
                 font=('Segoe UI', 12), fg='white', bg='#6f42c1').pack(pady=(0, 15))
@@ -4767,7 +4766,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header_content = tk.Frame(header_frame, bg='#e9ecef')
         header_content.pack(fill='x', padx=15, pady=10)
         
-        tk.Label(header_content, text="≡ƒôÜ Homework Management", 
+        tk.Label(header_content, text="ℹ️ Homework Management", 
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
         # Add new homework button
@@ -4816,7 +4815,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header_content = tk.Frame(header_frame, bg='#e9ecef')
         header_content.pack(fill='x', padx=15, pady=10)
         
-        tk.Label(header_content, text="≡ƒô¥ Tests & Examinations", 
+        tk.Label(header_content, text="📝 Tests & Examinations", 
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
         # Add new test button
@@ -4955,11 +4954,11 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         buttons_frame.pack(fill='both', expand=True, pady=(5, 0))
         
         quick_tasks = [
-            ("≡ƒôÜ Reading Assignment", self.create_reading_task),
+            ("ℹ️ Reading Assignment", self.create_reading_task),
             ("Γ£ì∩╕Å Writing Task", self.create_writing_task),
             ("≡ƒº« Math Practice", self.create_math_task),
             ("Γ¥ô Quick Quiz", self.create_quick_quiz),
-            ("≡ƒæÑ Group Activity", self.create_group_activity),
+            ("👥 Group Activity", self.create_group_activity),
             ("≡ƒôó Homework Reminder", self.create_homework_reminder),
             ("≡ƒôú Class Announcement", self.create_class_announcement),
             ("≡ƒôû Study Guide", self.create_study_guide),
@@ -4984,7 +4983,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         summary_frame = tk.Frame(main_frame, bg='#ffffff', relief='solid', bd=1)
         summary_frame.pack(fill='both', expand=True)
         
-        tk.Label(summary_frame, text="≡ƒôè Assignment Summary & Analytics", 
+        tk.Label(summary_frame, text="📊 Assignment Summary & Analytics", 
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#ffffff').pack(pady=15)
         
         # Create summary content
@@ -5039,7 +5038,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header = tk.Frame(hw_window, bg='#28a745')
         header.pack(fill='x')
         
-        tk.Label(header, text="≡ƒôÜ Add New Homework Assignment", 
+        tk.Label(header, text="ℹ️ Add New Homework Assignment", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#28a745').pack(pady=15)
         
         # Create scrollable content frame
@@ -5177,7 +5176,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header = tk.Frame(test_window, bg='#dc3545')
         header.pack(fill='x')
         
-        tk.Label(header, text="≡ƒô¥ Schedule New Test", 
+        tk.Label(header, text="📝 Schedule New Test", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#dc3545').pack(pady=15)
         
         # Create scrollable content frame
@@ -5262,7 +5261,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to schedule test: {str(e)}")
         
-        save_btn = tk.Button(content, text="≡ƒô¥ Schedule Test", command=save_test,
+        save_btn = tk.Button(content, text="📝 Schedule Test", command=save_test,
                             font=('Segoe UI', 12, 'bold'), bg='#dc3545', fg='white',
                             relief='solid', bd=0, padx=30, pady=10)
         save_btn.pack(pady=10)
@@ -5764,7 +5763,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     # Quick task creation methods
     def create_reading_task(self):
         """Create reading assignment task"""
-        self.create_quick_task("Reading Assignment", "≡ƒôÜ")
+        self.create_quick_task("Reading Assignment", "ℹ️")
     
     def create_writing_task(self):
         """Create writing task"""
@@ -5780,7 +5779,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def create_group_activity(self):
         """Create group activity task"""
-        self.create_quick_task("Group Activity", "≡ƒæÑ")
+        self.create_quick_task("Group Activity", "👥")
     
     def create_homework_reminder(self):
         """Create homework reminder"""
@@ -6116,7 +6115,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         refresh_frame = tk.Frame(summary_content, bg='#ffffff')
         refresh_frame.pack(fill='x', pady=(0, 10))
         
-        tk.Label(refresh_frame, text="≡ƒôê Real-Time Assignment Analytics", 
+        tk.Label(refresh_frame, text="📈 Real-Time Assignment Analytics", 
                 font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#ffffff').pack(side='left')
         
         refresh_btn = tk.Button(refresh_frame, text="≡ƒöä Refresh Data", 
@@ -6149,7 +6148,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         analytics_frame = tk.Frame(summary_content, bg='#f8f9fa', relief='solid', bd=1)
         analytics_frame.pack(fill='both', expand=True, pady=(0, 20))
         
-        tk.Label(analytics_frame, text="≡ƒôè Detailed Analytics", 
+        tk.Label(analytics_frame, text="📊 📊 Detailed Analytics", 
                 font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#f8f9fa').pack(pady=(10, 5))
         
         # Analytics content frame (scrollable)
@@ -6367,7 +6366,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                     completion_frame = tk.Frame(self.analytics_content, bg='#ffffff', relief='solid', bd=1)
                     completion_frame.pack(fill='x', padx=10, pady=5)
                     
-                    tk.Label(completion_frame, text="≡ƒôê Assignment Completion Trends", 
+                    tk.Label(completion_frame, text="📈 Assignment Completion Trends", 
                             font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#ffffff').pack(pady=5)
                     
                     # Recent homework completion
@@ -6405,7 +6404,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                     performance_frame = tk.Frame(self.analytics_content, bg='#ffffff', relief='solid', bd=1)
                     performance_frame.pack(fill='x', padx=10, pady=5)
                     
-                    tk.Label(performance_frame, text="≡ƒæÑ Student Performance Metrics", 
+                    tk.Label(performance_frame, text="👥 Student Performance Metrics", 
                             font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#ffffff').pack(pady=5)
                     
                     # Attendance statistics
@@ -6466,7 +6465,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                         activity_row = tk.Frame(activity_frame, bg='#f8f9fa')
                         activity_row.pack(fill='x', padx=10, pady=2)
                         
-                        icon = "≡ƒôÜ" if activity_type == "Homework" else "≡ƒô¥"
+                        icon = "ℹ️" if activity_type == "Homework" else "📝"
                         tk.Label(activity_row, text=f"{icon} {activity_type}: {title[:25]}{'...' if len(title) > 25 else ''}", 
                                 font=('Segoe UI', 9), bg='#f8f9fa').pack(side='left')
                         tk.Label(activity_row, text=date, 
@@ -6637,7 +6636,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header_frame = tk.Frame(grades_container, bg='#ffffff')
         header_frame.pack(fill='x', pady=(0, 10))
         
-        tk.Label(header_frame, text="≡ƒôè Recent Grades", 
+        tk.Label(header_frame, text="📊 Recent Grades", 
                 font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#ffffff').pack(side='left')
         
         refresh_btn = tk.Button(header_frame, text="∩┐╜ Refresh", 
@@ -6787,7 +6786,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         content = scroll_frame.scrollable_frame
         
         # Header with logo
-        self.create_report_header(content, "≡ƒôè Class Performance Report")
+        self.create_report_header(content, "📊 Class Performance Report")
         
         # Get class info
         self.cursor.execute("""
@@ -6880,7 +6879,7 @@ Collection Rate: {rate:.1f}%
         else:
             messagebox.showinfo("Feature", 
                               "Please use the AI Reports menu for detailed student reports.\n\n"
-                              "Navigate to: ≡ƒôè AI Reports ΓåÆ Individual Student Report")
+                              "Navigate to: 📊 AI Reports ΓåÆ Individual Student Report")
     
     def generate_attendance_report(self):
         """Generate attendance summary report"""
@@ -6968,7 +6967,7 @@ Average Attendance: {avg_att:.1f}%
         content = scroll_frame.scrollable_frame
         
         # Header with logo
-        self.create_report_header(content, "≡ƒÆ░ Fees Status Report")
+        self.create_report_header(content, "💳 Fees Status Report")
         
         # Get fee data by class
         query = """
@@ -7051,7 +7050,7 @@ Collection Rate: {collection_rate:.1f}%
         content = scroll_frame.scrollable_frame
         
         # Header with logo
-        self.create_report_header(content, "≡ƒô¥ Grades & Assignment Analytics")
+        self.create_report_header(content, "📝 Grades & Assignment Analytics")
         
         # Get grades data by class
         query = """
@@ -7152,7 +7151,7 @@ Highest Grade: {max_grade:.1f}%
         header_row.pack(fill=tk.X, anchor=tk.W)
         
         # Title with modern typography
-        title = tk.Label(header_row, text="≡ƒôè Dashboard Overview", 
+        title = tk.Label(header_row, text="📊 Dashboard Overview", 
                         font=('Segoe UI', 32, 'bold'), fg='#2c3e50', bg='#ffffff')
         title.pack(side=tk.LEFT, anchor=tk.W)
         
@@ -7189,7 +7188,7 @@ Highest Grade: {max_grade:.1f}%
         stats_content = tk.Frame(stats_section, bg='#ffffff', relief=tk.FLAT, bd=0)
         stats_content.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
         
-        stats_title = tk.Label(stats_content, text="≡ƒôê Key Statistics", 
+        stats_title = tk.Label(stats_content, text="📈 Key Statistics", 
                               font=('Segoe UI', 18, 'bold'), bg='#ffffff', fg='#2c3e50')
         stats_title.pack(anchor=tk.W, pady=(0, 20))
         
@@ -7208,7 +7207,7 @@ Highest Grade: {max_grade:.1f}%
         stats_row1.pack(fill=tk.X, pady=(0, 15))
         
         # Total Students Card
-        total_students_card = self.create_stats_card(stats_row1, "≡ƒæÑ Total Students", 
+        total_students_card = self.create_stats_card(stats_row1, "👥 Total Students", 
                                                     str(total_students), '#3498db')
         total_students_card.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
@@ -7227,25 +7226,25 @@ Highest Grade: {max_grade:.1f}%
         stats_row2.pack(fill=tk.X)
         
         # Fee Paying Students Card
-        fee_paying_card = self.create_stats_card(stats_row2, "≡ƒÆ░ Fee Paying", 
+        fee_paying_card = self.create_stats_card(stats_row2, "💳 Fee Paying", 
                                                  str(fee_paying), '#f39c12')
         fee_paying_card.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
         # Scholarship Students Card
-        scholarship_card = self.create_stats_card(stats_row2, "≡ƒÄô Scholarship", 
+        scholarship_card = self.create_stats_card(stats_row2, "🎓 Scholarship", 
                                                  str(scholarship), '#9b59b6')
         scholarship_card.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
         # Total Classes Card
-        classes_card = self.create_stats_card(stats_row2, "≡ƒÅ½ Total Classes", 
+        classes_card = self.create_stats_card(stats_row2, "📚 Total Classes", 
                                              str(total_classes), '#34495e')
         classes_card.pack(side=tk.LEFT, expand=True, fill=tk.X)
         
-        # Detailed Analytics Section (standalone)
+        # 📊 Detailed Analytics Section (standalone)
         analytics_section = tk.Frame(dashboard_main_frame, bg='#f8f9fa', relief=tk.FLAT, bd=0)
         analytics_section.pack(fill=tk.X, padx=25, pady=(0, 25))
         
-        reports_subtitle = tk.Label(analytics_section, text="≡ƒôè Detailed Analytics", 
+        reports_subtitle = tk.Label(analytics_section, text="📊 📊 Detailed Analytics", 
                                    font=('Segoe UI', 18, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         reports_subtitle.pack(anchor=tk.W, pady=(0, 15))
         
@@ -7298,19 +7297,19 @@ Highest Grade: {max_grade:.1f}%
         action_row1 = tk.Frame(actions_grid, bg='#ffffff')
         action_row1.pack(fill=tk.X, pady=(0, 15))
         
-        student_mgmt_btn = self.create_enhanced_action_button(action_row1, "≡ƒæÑ Student Management", 
+        student_mgmt_btn = self.create_enhanced_action_button(action_row1, "👥 Student Management", 
                                                             "Manage enrollments and records",
                                                             lambda: self.show_student_section(), 
                                                             '#3498db')
         student_mgmt_btn.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
-        teacher_mgmt_btn = self.create_enhanced_action_button(action_row1, "≡ƒæ¿ΓÇì≡ƒÅ½ Teacher Management", 
+        teacher_mgmt_btn = self.create_enhanced_action_button(action_row1, "≡ƒæ¿ΓÇì📚 Teacher Management", 
                                                             "Staff records and assignments",
                                                             lambda: self.show_teacher_section(), 
                                                             '#27ae60')
         teacher_mgmt_btn.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
-        fees_mgmt_btn = self.create_enhanced_action_button(action_row1, "≡ƒÆ░ Fees Management", 
+        fees_mgmt_btn = self.create_enhanced_action_button(action_row1, "💳 Fees Management", 
                                                          "Handle payments and billing",
                                                          lambda: self.show_fees_section(), 
                                                          '#f39c12')
@@ -7320,13 +7319,13 @@ Highest Grade: {max_grade:.1f}%
         action_row2 = tk.Frame(actions_grid, bg='#ffffff')
         action_row2.pack(fill=tk.X)
         
-        class_mgmt_btn = self.create_enhanced_action_button(action_row2, "≡ƒÅ½ Class Management", 
+        class_mgmt_btn = self.create_enhanced_action_button(action_row2, "📚 Class Management", 
                                                           "Organize classes and capacity",
                                                           lambda: self.show_class_section(), 
                                                           '#9b59b6')
         class_mgmt_btn.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
-        attendance_btn = self.create_enhanced_action_button(action_row2, "≡ƒô¥ Attendance Tracking", 
+        attendance_btn = self.create_enhanced_action_button(action_row2, "📝 Attendance Tracking", 
                                                            "Daily attendance management",
                                                            lambda: self.show_attendance_section(), 
                                                            '#e74c3c')
@@ -7374,7 +7373,7 @@ Highest Grade: {max_grade:.1f}%
         header_content = tk.Frame(students_header, bg='#3498db')
         header_content.pack(fill=tk.X, padx=20, pady=15)
         
-        students_icon_label = tk.Label(header_content, text="≡ƒæÑ", font=('Segoe UI', 16), 
+        students_icon_label = tk.Label(header_content, text="👥", font=('Segoe UI', 16), 
                                       bg='#3498db', fg='white')
         students_icon_label.pack(side=tk.LEFT)
         
@@ -7407,7 +7406,7 @@ Highest Grade: {max_grade:.1f}%
                 student_label.pack(fill=tk.X)
                 
                 # Class and date info
-                class_text = f"   ≡ƒôÜ {class_name} ΓÇó Admitted: {admission_date}"
+                class_text = f"   ℹ️ {class_name} ΓÇó Admitted: {admission_date}"
                 class_label = tk.Label(student_entry, text=class_text, 
                                      font=('Segoe UI', 9), bg='#f8f9fa', anchor='w', fg='#7f8c8d')
                 class_label.pack(fill=tk.X, pady=(2, 0))
@@ -7434,7 +7433,7 @@ Highest Grade: {max_grade:.1f}%
         teachers_header_content = tk.Frame(teachers_header, bg='#27ae60')
         teachers_header_content.pack(fill=tk.X, padx=20, pady=15)
         
-        teachers_icon_label = tk.Label(teachers_header_content, text="≡ƒæ¿ΓÇì≡ƒÅ½", font=('Segoe UI', 16), 
+        teachers_icon_label = tk.Label(teachers_header_content, text="≡ƒæ¿ΓÇì📚", font=('Segoe UI', 16), 
                                       bg='#27ae60', fg='white')
         teachers_icon_label.pack(side=tk.LEFT)
         
@@ -7460,7 +7459,7 @@ Highest Grade: {max_grade:.1f}%
                 teacher_entry.pack(fill=tk.X, pady=(0, 12))
                 
                 # Teacher info
-                teacher_text = f"≡ƒºæΓÇì≡ƒÅ½ {name}"
+                teacher_text = f"≡ƒºæΓÇì📚 {name}"
                 teacher_label = tk.Label(teacher_entry, text=teacher_text, 
                                        font=('Segoe UI', 11, 'bold'), bg='#f8f9fa', anchor='w', fg='#2c3e50')
                 teacher_label.pack(fill=tk.X)
@@ -7522,7 +7521,7 @@ Highest Grade: {max_grade:.1f}%
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
         
-        header_label = tk.Label(header_frame, text="≡ƒÆ░ Financial Management", 
+        header_label = tk.Label(header_frame, text="💳 Financial Management", 
                                font=('Segoe UI', 18, 'bold'), 
                                bg='#2c3e50', fg='#ffffff')
         header_label.pack(expand=True)
@@ -7572,7 +7571,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         self.create_enhanced_action_button(actions_frame, "Generate Financial Report", 
                                           lambda: self.generate_financial_report(), 
-                                          "#27ae60", "≡ƒôè")
+                                          "#27ae60", "📊")
         
         self.create_enhanced_action_button(actions_frame, "Send Payment Reminders", 
                                           lambda: self.send_payment_reminders(), 
@@ -7662,10 +7661,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         tk.Label(stats_frame, text="Feeding Fee Statistics", 
                 font=('Segoe UI', 14, 'bold'), bg='#ffffff', fg='#2c3e50').pack(pady=10)
         
-        stats_info = f"""≡ƒôè Monthly Collection: GHS {monthly_feeding:.2f}
+        stats_info = f"""📊 Monthly Collection: GHS {monthly_feeding:.2f}
 ≡ƒôà Today's Collection: GHS {daily_feeding:.2f}
-≡ƒæÑ Students Paid This Month: {students_paid}
-≡ƒôê Payment Rate: {payment_rate:.1f}%
+👥 Students Paid This Month: {students_paid}
+📈 Payment Rate: {payment_rate:.1f}%
 ≡ƒÄ» Total Active Students: {total_students}"""
         
         tk.Label(stats_frame, text=stats_info, 
@@ -7681,7 +7680,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         # Action buttons
         self.create_enhanced_action_button(actions_frame, "View Attendance & Feeding", 
                                           lambda: [feeding_window.destroy(), self.show_attendance()], 
-                                          "#3498db", "≡ƒô¥")
+                                          "#3498db", "📝")
         
         self.create_enhanced_action_button(actions_frame, "Fee Management", 
                                           lambda: [feeding_window.destroy(), self.show_fees_section()], 
@@ -7689,7 +7688,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         self.create_enhanced_action_button(actions_frame, "Generate Feeding Report", 
                                           lambda: self.generate_feeding_report(), 
-                                          "#e67e22", "≡ƒôè")
+                                          "#e67e22", "📊")
     
     def generate_feeding_report(self):
         """Generate feeding fee report"""
@@ -7704,7 +7703,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
     def show_reports_generator(self):
         """Show reports generator window"""
         reports_window = tk.Toplevel(self.root)
-        reports_window.title("≡ƒôè Reports Generator")
+        reports_window.title("📊 Reports Generator")
         reports_window.geometry("800x600")
         reports_window.transient(self.root)
         reports_window.grab_set()
@@ -7717,7 +7716,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content = tk.Frame(header_frame, bg='#2c3e50')
         header_content.pack(fill=tk.X, padx=30, pady=20)
         
-        title_label = tk.Label(header_content, text="≡ƒôè Generate School Reports", 
+        title_label = tk.Label(header_content, text="📊 Generate School Reports", 
                               font=('Segoe UI', 20, 'bold'), bg='#2c3e50', fg='white')
         title_label.pack(anchor=tk.W)
         
@@ -7731,12 +7730,12 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Available reports
         reports_list = [
-            {"title": "≡ƒôè Financial Summary Report", "desc": "Complete financial overview with fees, payments, and outstanding amounts", "color": "#f39c12"},
-            {"title": "≡ƒô¥ Attendance Analysis", "desc": "Detailed attendance patterns, trends, and statistics", "color": "#3498db"},
-            {"title": "≡ƒæÑ Student Demographics", "desc": "Student distribution by class, gender, and enrollment data", "color": "#27ae60"},
-            {"title": "≡ƒæ¿ΓÇì≡ƒÅ½ Staff Overview", "desc": "Teacher assignments, qualifications, and organizational structure", "color": "#8e44ad"},
-            {"title": "≡ƒÅ½ Class Utilization", "desc": "Classroom capacity, enrollment ratios, and space management", "color": "#e67e22"},
-            {"title": "≡ƒôê Comprehensive Report", "desc": "All-in-one report combining all school metrics and analytics", "color": "#2c3e50"}
+            {"title": "📊 Financial Summary Report", "desc": "Complete financial overview with fees, payments, and outstanding amounts", "color": "#f39c12"},
+            {"title": "📝 Attendance Analysis", "desc": "Detailed attendance patterns, trends, and statistics", "color": "#3498db"},
+            {"title": "👥 Student Demographics", "desc": "Student distribution by class, gender, and enrollment data", "color": "#27ae60"},
+            {"title": "≡ƒæ¿ΓÇì📚 Staff Overview", "desc": "Teacher assignments, qualifications, and organizational structure", "color": "#8e44ad"},
+            {"title": "📚 Class Utilization", "desc": "Classroom capacity, enrollment ratios, and space management", "color": "#e67e22"},
+            {"title": "📈 Comprehensive Report", "desc": "All-in-one report combining all school metrics and analytics", "color": "#2c3e50"}
         ]
         
         for i, report in enumerate(reports_list):
@@ -8076,8 +8075,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content.pack(fill=tk.X, padx=20, pady=15)
         
         # Extract emoji from title if present
-        emoji = title.split()[0] if title and title[0] in '≡ƒæÑ≡ƒæª≡ƒæº≡ƒÆ░≡ƒÄô≡ƒÅ½' else "≡ƒôè"
-        title_text = title[2:] if title and title[0] in '≡ƒæÑ≡ƒæª≡ƒæº≡ƒÆ░≡ƒÄô≡ƒÅ½' else title
+        emoji = title.split()[0] if title and title[0] in '👥≡ƒæª≡ƒæº💳≡ƒÄô📚' else "📊"
+        title_text = title[2:] if title and title[0] in '👥≡ƒæª≡ƒæº💳≡ƒÄô📚' else title
         
         icon_label = tk.Label(header_content, text=emoji, font=('Segoe UI', 16), bg=color, fg='white')
         icon_label.pack(side=tk.LEFT)
@@ -8117,7 +8116,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content = tk.Frame(header, bg='#f39c12')
         header_content.pack(fill=tk.X, padx=20, pady=15)
         
-        icon_label = tk.Label(header_content, text="≡ƒÆ░", font=('Segoe UI', 16), bg='#f39c12', fg='white')
+        icon_label = tk.Label(header_content, text="💳", font=('Segoe UI', 16), bg='#f39c12', fg='white')
         icon_label.pack(side=tk.LEFT)
         
         title_label = tk.Label(header_content, text="Financial Summary", 
@@ -8196,7 +8195,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content = tk.Frame(header, bg='#3498db')
         header_content.pack(fill=tk.X, padx=20, pady=15)
         
-        icon_label = tk.Label(header_content, text="≡ƒô¥", font=('Segoe UI', 16), bg='#3498db', fg='white')
+        icon_label = tk.Label(header_content, text="📝", font=('Segoe UI', 16), bg='#3498db', fg='white')
         icon_label.pack(side=tk.LEFT)
         
         title_label = tk.Label(header_content, text="Attendance Summary", 
@@ -8279,7 +8278,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content = tk.Frame(header, bg='#8e44ad')
         header_content.pack(fill=tk.X, padx=20, pady=15)
         
-        icon_label = tk.Label(header_content, text="≡ƒôê", font=('Segoe UI', 16), bg='#8e44ad', fg='white')
+        icon_label = tk.Label(header_content, text="📈", font=('Segoe UI', 16), bg='#8e44ad', fg='white')
         icon_label.pack(side=tk.LEFT)
         
         title_label = tk.Label(header_content, text="School Performance Overview", 
@@ -8521,7 +8520,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_section = tk.Frame(student_main_frame, relief=tk.FLAT, bd=0)
         header_section.pack(fill=tk.X, padx=0, pady=(0, 25))
         
-        title = tk.Label(header_section, text="≡ƒæ¿ΓÇì≡ƒÄô Student Management",
+        title = tk.Label(header_section, text="🎓 Student Management",
                          font=('Segoe UI', 28, 'bold'), fg='#2c3e50')
         title.pack(anchor=tk.W)
         
@@ -8551,7 +8550,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         stats_inner = tk.Frame(stats_section, bg='#f8f9fa')
         stats_inner.pack(fill=tk.X, padx=25, pady=20)
         
-        stats_title = tk.Label(stats_inner, text="≡ƒôè Student Statistics", 
+        stats_title = tk.Label(stats_inner, text="📊 Student Statistics", 
                               font=('Segoe UI', 16, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         stats_title.pack(anchor=tk.W, pady=(0, 15))
         
@@ -8622,7 +8621,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
 
         # Student Form Tab
         form_tab = ttk.Frame(notebook)
-        notebook.add(form_tab, text="≡ƒô¥ Add/Edit Student")
+        notebook.add(form_tab, text="📝 Add/Edit Student")
         
         # Form container with modern styling
         form_container = ScrollableFrame(form_tab, bg='#f8f9fa')
@@ -8801,7 +8800,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.address_text.bind('<FocusOut>', on_address_focus_out)
         
         # ========== SECTION 4: FEE & TRANSPORTATION INFORMATION ==========
-        fee_section = tk.LabelFrame(form_frame, text="≡ƒÆ░ Fee & Transportation Information", 
+        fee_section = tk.LabelFrame(form_frame, text="💳 Fee & Transportation Information", 
                                    font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
                                    bg='#f8f9fa', relief=tk.FLAT, bd=1)
         fee_section.pack(fill=tk.X, padx=20, pady=(0, 15))
@@ -9021,7 +9020,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Students List Tab
         list_tab = ttk.Frame(notebook)
-        notebook.add(list_tab, text="≡ƒæÑ Students List")
+        notebook.add(list_tab, text="👥 Students List")
         
         # List container with modern styling
         list_container = ScrollableFrame(list_tab, bg='#ffffff')
@@ -10125,7 +10124,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         title_frame = tk.Frame(header_content, bg='#3498db')
         title_frame.pack(fill=tk.X)
         
-        icon_label = tk.Label(title_frame, text="≡ƒÅ½", font=('Segoe UI', 40), bg='#3498db', fg='white')
+        icon_label = tk.Label(title_frame, text="📚", font=('Segoe UI', 40), bg='#3498db', fg='white')
         icon_label.pack(side=tk.LEFT, padx=(0, 15))
         
         title_text_frame = tk.Frame(title_frame, bg='#3498db')
@@ -10146,7 +10145,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         stats_title_frame = tk.Frame(stats_dashboard, bg='#f8f9fa')
         stats_title_frame.pack(fill=tk.X, pady=(0, 20))
         
-        stats_title = tk.Label(stats_title_frame, text="≡ƒôè Quick Overview", 
+        stats_title = tk.Label(stats_title_frame, text="📊 Quick Overview", 
                               font=('Segoe UI', 20, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         stats_title.pack(anchor=tk.W)
         
@@ -10155,13 +10154,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         stats_cards_container.pack(fill=tk.X)
         
         # Individual stat cards with modern design
-        self.total_classes_card = self.create_stat_dashboard_card(stats_cards_container, "≡ƒÅ½", "Total Classes", "0", '#8e44ad')
+        self.total_classes_card = self.create_stat_dashboard_card(stats_cards_container, "📚", "Total Classes", "0", '#8e44ad')
         self.total_classes_card.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
         
-        self.total_capacity_card = self.create_stat_dashboard_card(stats_cards_container, "≡ƒæÑ", "Total Capacity", "0", '#16a085')
+        self.total_capacity_card = self.create_stat_dashboard_card(stats_cards_container, "👥", "Total Capacity", "0", '#16a085')
         self.total_capacity_card.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
         
-        self.enrollment_card = self.create_stat_dashboard_card(stats_cards_container, "≡ƒôè", "Enrollment", "0", '#e67e22')
+        self.enrollment_card = self.create_stat_dashboard_card(stats_cards_container, "📊", "Enrollment", "0", '#e67e22')
         self.enrollment_card.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         # Update statistics
@@ -10194,7 +10193,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         form_header_content = tk.Frame(form_header, bg='#2ecc71')
         form_header_content.pack(fill=tk.X, padx=15, pady=15)
         
-        form_title = tk.Label(form_header_content, text="≡ƒô¥ Form",
+        form_title = tk.Label(form_header_content, text="📝 Form",
                              font=('Segoe UI', 14, 'bold'), fg='white', bg='#2ecc71')
         form_title.pack(anchor=tk.W)
         
@@ -10232,7 +10231,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         capacity_section = tk.Frame(fields_container, bg='#ffffff')
         capacity_section.pack(fill=tk.X, pady=(0, 10), padx=15)
         
-        capacity_label = tk.Label(capacity_section, text="≡ƒæÑ Capacity", 
+        capacity_label = tk.Label(capacity_section, text="👥 Capacity", 
                                  font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#2c3e50')
         capacity_label.pack(anchor=tk.W, pady=(0, 3))
         
@@ -10250,7 +10249,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         teacher_section = tk.Frame(fields_container, bg='#ffffff')
         teacher_section.pack(fill=tk.X, pady=(0, 15), padx=15)
         
-        teacher_label = tk.Label(teacher_section, text="≡ƒæ¿ΓÇì≡ƒÅ½ Teacher", 
+        teacher_label = tk.Label(teacher_section, text="≡ƒæ¿ΓÇì📚 Teacher", 
                                 font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#2c3e50')
         teacher_label.pack(anchor=tk.W, pady=(0, 3))
         
@@ -10541,7 +10540,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         title_frame = tk.Frame(header_content, bg='#e67e22')
         title_frame.pack(fill=tk.X)
         
-        icon_label = tk.Label(title_frame, text="≡ƒæ⌐ΓÇì≡ƒÅ½", font=('Segoe UI', 40), bg='#e67e22', fg='white')
+        icon_label = tk.Label(title_frame, text="≡ƒæ⌐ΓÇì📚", font=('Segoe UI', 40), bg='#e67e22', fg='white')
         icon_label.pack(side=tk.LEFT, padx=(0, 15))
         
         title_text_frame = tk.Frame(title_frame, bg='#e67e22')
@@ -10562,7 +10561,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         stats_title_frame = tk.Frame(stats_dashboard, bg='#f8f9fa')
         stats_title_frame.pack(fill=tk.X, pady=(0, 20))
         
-        stats_title = tk.Label(stats_title_frame, text="≡ƒôè Staff Overview", 
+        stats_title = tk.Label(stats_title_frame, text="📊 Staff Overview", 
                               font=('Segoe UI', 20, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         stats_title.pack(anchor=tk.W)
         
@@ -10571,13 +10570,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         stats_cards_container.pack(fill=tk.X)
         
         # Individual stat cards with modern design
-        self.total_teachers_card = self.create_stat_dashboard_card(stats_cards_container, "≡ƒæÑ", "Total Teachers", "0", '#e74c3c')
+        self.total_teachers_card = self.create_stat_dashboard_card(stats_cards_container, "👥", "Total Teachers", "0", '#e74c3c')
         self.total_teachers_card.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
         
-        self.assigned_teachers_card = self.create_stat_dashboard_card(stats_cards_container, "≡ƒÅ½", "Assigned Classes", "0", '#9b59b6')
+        self.assigned_teachers_card = self.create_stat_dashboard_card(stats_cards_container, "📚", "Assigned Classes", "0", '#9b59b6')
         self.assigned_teachers_card.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
         
-        self.avg_salary_card = self.create_stat_dashboard_card(stats_cards_container, "≡ƒÆ░", "Avg Salary", "0", '#f39c12')
+        self.avg_salary_card = self.create_stat_dashboard_card(stats_cards_container, "💳", "Avg Salary", "0", '#f39c12')
         self.avg_salary_card.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         # Update statistics
@@ -10593,7 +10592,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
 
         # Teacher Form Tab with Modern Design
         form_tab = ttk.Frame(notebook)
-        notebook.add(form_tab, text="≡ƒô¥ Teacher Information Form")
+        notebook.add(form_tab, text="📝 Teacher Information Form")
         
         # Form container with modern styling
         form_container = tk.Frame(form_tab, bg='#ffffff', relief=tk.FLAT, bd=0)
@@ -10613,7 +10612,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         form_header_content = tk.Frame(form_header, bg='#e67e22')
         form_header_content.pack(fill=tk.X, padx=25, pady=20)
         
-        form_title = tk.Label(form_header_content, text="≡ƒô¥ Teacher Information Form",
+        form_title = tk.Label(form_header_content, text="📝 Teacher Information Form",
                              font=('Segoe UI', 18, 'bold'), fg='white', bg='#e67e22')
         form_title.pack(anchor=tk.W)
         
@@ -10668,7 +10667,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         salary_section = tk.Frame(form_content, bg='#ffffff')
         salary_section.pack(fill=tk.X, pady=(0, 20), padx=40)
         
-        salary_label = tk.Label(salary_section, text="≡ƒÆ░ Monthly Salary (GHS)", 
+        salary_label = tk.Label(salary_section, text="💳 Monthly Salary (GHS)", 
                                font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#2c3e50')
         salary_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10685,7 +10684,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         class_section = tk.Frame(form_content, bg='#ffffff')
         class_section.pack(fill=tk.X, pady=(0, 25), padx=40)
         
-        class_label = tk.Label(class_section, text="≡ƒÅ½ Assign Class", 
+        class_label = tk.Label(class_section, text="📚 Assign Class", 
                               font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#2c3e50')
         class_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10947,7 +10946,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
 
         # Teachers List Tab with Modern Design
         list_tab = ttk.Frame(notebook)
-        notebook.add(list_tab, text="≡ƒæÑ Staff Directory")
+        notebook.add(list_tab, text="👥 Staff Directory")
         
         # List container with modern styling
         list_container = tk.Frame(list_tab, bg='#ffffff', relief=tk.FLAT, bd=0)
@@ -10967,7 +10966,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         list_header_content = tk.Frame(list_header, bg='#9b59b6')
         list_header_content.pack(fill=tk.X, padx=25, pady=20)
         
-        list_title = tk.Label(list_header_content, text="≡ƒæÑ Staff Directory",
+        list_title = tk.Label(list_header_content, text="👥 Staff Directory",
                              font=('Segoe UI', 18, 'bold'), fg='white', bg='#9b59b6')
         list_title.pack(anchor=tk.W)
         
@@ -12027,7 +12026,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_section = tk.Frame(attendance_main_frame, relief=tk.FLAT, bd=0)
         header_section.pack(fill=tk.X, padx=0, pady=(0, 25))
         
-        title = tk.Label(header_section, text="≡ƒô¥ Attendance Management",
+        title = tk.Label(header_section, text="📝 Attendance Management",
                          font=('Segoe UI', 28, 'bold'), fg='#2c3e50')
         title.pack(anchor=tk.W)
         
@@ -12127,7 +12126,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content = tk.Frame(table_header, bg='#34495e', relief=tk.FLAT)
         header_content.pack(fill=tk.X)
         
-        tk.Label(header_content, text="≡ƒæÑ Student Attendance Records", 
+        tk.Label(header_content, text="👥 Student Attendance Records", 
                 font=('Segoe UI', 16, 'bold'), bg='#34495e', fg='white', pady=15).pack()
         
         # Statistics panel
@@ -12477,7 +12476,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
             messagebox.showinfo("Γ£à Success", 
                                f"Attendance saved successfully!\n\n"
-                               f"≡ƒôè Summary:\n"
+                               f"📊 Summary:\n"
                                f"ΓÇó Total Students: {total_count}\n"
                                f"ΓÇó Present: {present_count}\n"
                                f"ΓÇó Absent: {total_count - present_count}\n"
@@ -12620,10 +12619,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             # Show confirmation dialog with summary
             confirm_message = (f"≡ƒôï SUBMIT ATTENDANCE CONFIRMATION\n\n"
                               f"≡ƒôà Date: {selected_date}\n"
-                              f"≡ƒæÑ Total Students: {total_students}\n"
+                              f"👥 Total Students: {total_students}\n"
                               f"Γ£à Present: {present_count}\n"
                               f"Γ¥î Absent: {absent_count}\n"
-                              f"≡ƒôè Attendance Rate: {(present_count/total_students*100):.1f}%\n\n"
+                              f"📊 Attendance Rate: {(present_count/total_students*100):.1f}%\n\n"
                               f"Do you want to submit this attendance record?")
             
             if messagebox.askyesno("Confirm Submission", confirm_message):
@@ -12795,7 +12794,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Tab 1: User List
         users_tab = tk.Frame(notebook, bg='#ffffff')
-        notebook.add(users_tab, text="≡ƒæÑ Users List")
+        notebook.add(users_tab, text="👥 Users List")
         
         # Users list frame
         list_frame = tk.Frame(users_tab, bg='#ffffff')
@@ -12877,14 +12876,14 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Tab 2: Add/Edit User Form
         form_tab = tk.Frame(notebook, bg='#ffffff')
-        notebook.add(form_tab, text="≡ƒô¥ Add/Edit User")
+        notebook.add(form_tab, text="📝 Add/Edit User")
         
         # User form
         self.create_user_form(form_tab)
         
         # Tab 3: User Activity Report
         activity_tab = tk.Frame(notebook, bg='#ffffff')
-        notebook.add(activity_tab, text="≡ƒôè Activity Report")
+        notebook.add(activity_tab, text="📊 Activity Report")
         
         # Create activity report
         self.create_user_activity_report(activity_tab)
@@ -13091,7 +13090,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_frame = tk.Frame(report_frame, bg='#ffffff')
         header_frame.pack(fill='x', pady=(0, 20))
         
-        tk.Label(header_frame, text="≡ƒôè User Activity Analysis", 
+        tk.Label(header_frame, text="📊 User Activity Analysis", 
                 font=('Segoe UI', 16, 'bold'), bg='#ffffff', fg='#2c3e50').pack(side='left')
         
         # Refresh button
@@ -13116,7 +13115,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.activity_summary_cards = []
         
         # Card 1: Total Users
-        card1 = self.create_activity_card(summary_container, "≡ƒæÑ Total Users", "0", "#3498db")
+        card1 = self.create_activity_card(summary_container, "👥 Total Users", "0", "#3498db")
         card1.pack(side='left', padx=(0, 10), expand=True, fill='both')
         self.activity_summary_cards.append(card1)
         
@@ -13980,7 +13979,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_section = tk.Frame(fees_main_frame, relief=tk.FLAT, bd=0)
         header_section.pack(fill=tk.X, padx=0, pady=(0, 25))
         
-        title = tk.Label(header_section, text="≡ƒÆ░ Fee Management",
+        title = tk.Label(header_section, text="💳 Fee Management",
                          font=('Segoe UI', 28, 'bold'), fg='#2c3e50')
         title.pack(anchor=tk.W)
         
@@ -13995,7 +13994,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         stats_inner = tk.Frame(stats_section, bg='#f8f9fa')
         stats_inner.pack(fill=tk.X, padx=25, pady=20)
         
-        stats_title = tk.Label(stats_inner, text="≡ƒôè Financial Statistics", 
+        stats_title = tk.Label(stats_inner, text="📊 Financial Statistics", 
                               font=('Segoe UI', 16, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         stats_title.pack(anchor=tk.W, pady=(0, 15))
         
@@ -14237,7 +14236,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content = tk.Frame(tree_header, bg='#34495e', relief=tk.FLAT)
         header_content.pack(fill=tk.X)
         
-        tk.Label(header_content, text="≡ƒôè Fee Records Database", 
+        tk.Label(header_content, text="📊 Fee Records Database", 
                 font=('Segoe UI', 14, 'bold'), bg='#34495e', fg='white', pady=12).pack()
         
         # Filter section for fees
@@ -14855,12 +14854,12 @@ Financial Summary:
         header_row = tk.Frame(header_content, bg='#ffffff')
         header_row.pack(fill=tk.X)
         
-        title = tk.Label(header_row, text="≡ƒôè Financial Management System", 
+        title = tk.Label(header_row, text="📊 Financial Management System", 
                         font=('Segoe UI', 28, 'bold'), fg='#2c3e50', bg='#ffffff')
         title.pack(side=tk.LEFT, anchor=tk.W)
         
         # Dashboard button
-        dashboard_btn = tk.Button(header_row, text="≡ƒôê Financial Dashboard", 
+        dashboard_btn = tk.Button(header_row, text="📈 Financial Dashboard", 
                                  command=self.show_financial_dashboard,
                                  font=('Segoe UI', 11, 'bold'), bg='#17a2b8', fg='white',
                                  relief=tk.FLAT, bd=0, padx=20, pady=8, cursor='hand2')
@@ -14886,7 +14885,7 @@ Financial Summary:
     def create_transaction_management_tab(self):
         """Create transaction recording and management tab"""
         transaction_frame = ttk.Frame(self.financial_notebook)
-        self.financial_notebook.add(transaction_frame, text="≡ƒÆ░ Transactions")
+        self.financial_notebook.add(transaction_frame, text="💳 Transactions")
         
         # Create main container with two panels
         main_container = tk.Frame(transaction_frame, bg='#f8f9fa')
@@ -14901,7 +14900,7 @@ Financial Summary:
         form_header = tk.Frame(left_panel, bg='#28a745')
         form_header.pack(fill=tk.X)
         
-        tk.Label(form_header, text="≡ƒô¥ Record New Transaction", 
+        tk.Label(form_header, text="📝 Record New Transaction", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#28a745').pack(pady=15)
         
         # Scrollable form content with adequate padding
@@ -14921,7 +14920,7 @@ Financial Summary:
         type_selection_frame = tk.Frame(type_frame, bg='#ffffff')
         type_selection_frame.pack(fill=tk.X, pady=(5, 0))
         
-        income_rb = tk.Radiobutton(type_selection_frame, text="≡ƒÆ░ Income", 
+        income_rb = tk.Radiobutton(type_selection_frame, text="💳 Income", 
                                   variable=self.transaction_type_var, value="income",
                                   font=('Segoe UI', 10), bg='#ffffff', fg='#27ae60',
                                   command=self.on_transaction_type_change)
@@ -15058,7 +15057,7 @@ Financial Summary:
         header_content = tk.Frame(list_header, bg='#34495e')
         header_content.pack(fill=tk.X, padx=15, pady=15)
         
-        tk.Label(header_content, text="≡ƒôè Transaction Records", 
+        tk.Label(header_content, text="📊 Transaction Records", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#34495e').pack(side=tk.LEFT)
         
         # Filter controls
@@ -15172,7 +15171,7 @@ Financial Summary:
         type_selection_frame = tk.Frame(type_frame, bg='#ffffff')
         type_selection_frame.pack(fill=tk.X, pady=(5, 0))
         
-        income_cat_rb = tk.Radiobutton(type_selection_frame, text="≡ƒÆ░ Income", 
+        income_cat_rb = tk.Radiobutton(type_selection_frame, text="💳 Income", 
                                      variable=self.category_type_var, value="income",
                                      font=('Segoe UI', 10), bg='#ffffff', fg='#27ae60')
         income_cat_rb.pack(side=tk.LEFT, padx=(0, 20))
@@ -15271,7 +15270,7 @@ Financial Summary:
     def create_financial_reports_tab(self):
         """Create financial reports and analytics tab"""
         reports_frame = ttk.Frame(self.financial_notebook)
-        self.financial_notebook.add(reports_frame, text="≡ƒôè Reports")
+        self.financial_notebook.add(reports_frame, text="📊 Reports")
         
         # Create scrollable content
         scrollable_reports = ScrollableFrame(reports_frame, bg='#f8f9fa')
@@ -15285,7 +15284,7 @@ Financial Summary:
         header_content = tk.Frame(header_frame, bg='#e67e22')
         header_content.pack(fill=tk.X, padx=20, pady=15)
         
-        tk.Label(header_content, text="≡ƒôè Financial Reports & Analytics", 
+        tk.Label(header_content, text="📊 Financial Reports & Analytics", 
                 font=('Segoe UI', 18, 'bold'), fg='white', bg='#e67e22').pack()
         
         # Quick stats cards
@@ -15383,12 +15382,12 @@ Financial Summary:
         reports_grid.columnconfigure(1, weight=1)
         
         report_buttons = [
-            ("≡ƒôè Income & Expense Summary", self.generate_income_expense_report, '#27ae60'),
-            ("≡ƒÆ░ Income Analysis", self.generate_income_analysis, '#3498db'),
+            ("📊 Income & Expense Summary", self.generate_income_expense_report, '#27ae60'),
+            ("💳 Income Analysis", self.generate_income_analysis, '#3498db'),
             ("≡ƒÆ╕ Expense Analysis", self.generate_expense_analysis, '#e74c3c'),
-            ("≡ƒôê Profit & Loss Statement", self.generate_profit_loss_report, '#9b59b6'),
+            ("📈 Profit & Loss Statement", self.generate_profit_loss_report, '#9b59b6'),
             ("≡ƒôï Category Breakdown", self.generate_category_report, '#f39c12'),
-            ("≡ƒôè Cash Flow Report", self.generate_cashflow_report, '#16a085')
+            ("📊 Cash Flow Report", self.generate_cashflow_report, '#16a085')
         ]
         
         # Create buttons in organized grid (2 columns, 3 rows)
@@ -15863,7 +15862,7 @@ Financial Summary:
                 
                 # Color code rows by transaction type
                 if transaction[2] == 'income':
-                    self.transactions_tree.set(item, 'Type', '≡ƒÆ░ Income')
+                    self.transactions_tree.set(item, 'Type', '💳 Income')
                 else:
                     self.transactions_tree.set(item, 'Type', '≡ƒÆ╕ Expense')
                     
@@ -15923,7 +15922,7 @@ Financial Summary:
                 item = self.transactions_tree.insert('', tk.END, values=display_row)
                 
                 if transaction[2] == 'income':
-                    self.transactions_tree.set(item, 'Type', '≡ƒÆ░ Income')
+                    self.transactions_tree.set(item, 'Type', '💳 Income')
                 else:
                     self.transactions_tree.set(item, 'Type', '≡ƒÆ╕ Expense')
                     
@@ -16308,7 +16307,7 @@ Financial Summary:
         title_row = tk.Frame(header_content, bg='#2c3e50')
         title_row.pack(fill=tk.X)
         
-        tk.Label(title_row, text="≡ƒôè Financial Dashboard & Analytics", 
+        tk.Label(title_row, text="📊 Financial Dashboard & Analytics", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(side=tk.LEFT)
         
         refresh_dash_btn = tk.Button(title_row, text="≡ƒöä Refresh Data", 
@@ -16335,7 +16334,7 @@ Financial Summary:
         section_header = tk.Frame(overview_section, bg='#34495e')
         section_header.pack(fill=tk.X)
         
-        tk.Label(section_header, text="≡ƒÆ░ Financial Overview", 
+        tk.Label(section_header, text="💳 Financial Overview", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#34495e').pack(pady=12)
         
         # Metrics container
@@ -16388,7 +16387,7 @@ Financial Summary:
                 {
                     'title': 'Monthly Income',
                     'value': f'GHS {monthly_income:.2f}',
-                    'icon': '≡ƒÆ░',
+                    'icon': '💳',
                     'color': '#27ae60',
                     'bg': '#d5f4e6'
                 },
@@ -16402,7 +16401,7 @@ Financial Summary:
                 {
                     'title': 'Monthly Profit',
                     'value': f'GHS {monthly_profit:.2f}',
-                    'icon': '≡ƒôê' if monthly_profit >= 0 else '≡ƒôë',
+                    'icon': '📈' if monthly_profit >= 0 else '📉',
                     'color': '#27ae60' if monthly_profit >= 0 else '#e74c3c',
                     'bg': '#d5f4e6' if monthly_profit >= 0 else '#ffeaea'
                 },
@@ -16489,7 +16488,7 @@ Financial Summary:
         section_header = tk.Frame(comparison_section, bg='#8e44ad')
         section_header.pack(fill=tk.X)
         
-        tk.Label(section_header, text="≡ƒôê Period Comparison", 
+        tk.Label(section_header, text="📈 Period Comparison", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#8e44ad').pack(pady=12)
         
         # Comparison content
@@ -16537,7 +16536,7 @@ Financial Summary:
         section_header = tk.Frame(analysis_section, bg='#e67e22')
         section_header.pack(fill=tk.X)
         
-        tk.Label(section_header, text="≡ƒôè Category Analysis", 
+        tk.Label(section_header, text="📊 Category Analysis", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#e67e22').pack(pady=12)
         
         # Analysis content
@@ -16552,7 +16551,7 @@ Financial Summary:
         income_column = tk.Frame(columns_frame, bg='#ffffff')
         income_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 15))
         
-        tk.Label(income_column, text="≡ƒÆ░ Top Income Categories", 
+        tk.Label(income_column, text="💳 Top Income Categories", 
                 font=('Segoe UI', 14, 'bold'), fg='#27ae60', bg='#ffffff').pack(anchor='w', pady=(0, 15))
         
         self.create_category_breakdown_list(income_column, 'income')
@@ -16675,7 +16674,7 @@ Financial Summary:
                     trans_item_content.pack(fill=tk.X, padx=20, pady=12)
                     
                     # Transaction type icon and info
-                    type_icon = '≡ƒÆ░' if transaction[1] == 'income' else '≡ƒÆ╕'
+                    type_icon = '💳' if transaction[1] == 'income' else '≡ƒÆ╕'
                     type_color = '#27ae60' if transaction[1] == 'income' else '#e74c3c'
                     
                     icon_label = tk.Label(trans_item_content, text=type_icon, 
@@ -17179,7 +17178,7 @@ Financial Summary:
             report_content = scrollable_report.get_frame()
             
             # Report header with logo
-            self.create_report_header(report_content, "≡ƒôè Income & Expense Report", 
+            self.create_report_header(report_content, "📊 Income & Expense Report", 
                                      f"Period: {from_date} to {to_date}")
             
             # Calculate totals for the period
@@ -17207,7 +17206,7 @@ Financial Summary:
             summary_header = tk.Frame(summary_frame, bg='#34495e')
             summary_header.pack(fill=tk.X)
             
-            tk.Label(summary_header, text="≡ƒôê Financial Summary", 
+            tk.Label(summary_header, text="📈 Financial Summary", 
                     font=('Segoe UI', 14, 'bold'), fg='white', bg='#34495e').pack(pady=10)
             
             summary_content = tk.Frame(summary_frame, bg='#f8f9fa')
@@ -17269,7 +17268,7 @@ Financial Summary:
             transactions = self.cursor.fetchall()
             
             for transaction in transactions:
-                type_display = '≡ƒÆ░ Income' if transaction[1] == 'income' else '≡ƒÆ╕ Expense'
+                type_display = '💳 Income' if transaction[1] == 'income' else '≡ƒÆ╕ Expense'
                 amount_display = f"GHS {transaction[3]:.2f}"
                 description_short = transaction[4][:30] + '...' if len(transaction[4]) > 30 else transaction[4]
                 
@@ -17302,7 +17301,7 @@ Financial Summary:
                                      relief='solid', bd=0, padx=15, pady=5, cursor='hand2')
             export_pdf_btn.pack(side=tk.RIGHT, padx=(10, 0))
             
-            export_csv_btn = tk.Button(footer_content, text="≡ƒôè Export to CSV", 
+            export_csv_btn = tk.Button(footer_content, text="📊 Export to CSV", 
                                      command=lambda: self.export_report_csv(from_date, to_date, 'income_expense'),
                                      font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
                                      relief='solid', bd=0, padx=15, pady=5, cursor='hand2')
@@ -17335,7 +17334,7 @@ Financial Summary:
             header_content = tk.Frame(header_frame, bg='#27ae60')
             header_content.pack(fill=tk.BOTH, padx=30, pady=15)
             
-            tk.Label(header_content, text="≡ƒÆ░ Income Analysis Report", 
+            tk.Label(header_content, text="💳 Income Analysis Report", 
                     font=('Segoe UI', 18, 'bold'), fg='white', bg='#27ae60').pack(anchor='w')
             tk.Label(header_content, text=f"Period: {from_date} to {to_date}", 
                     font=('Segoe UI', 11), fg='#d5f4e6', bg='#27ae60').pack(anchor='w', pady=(5, 0))
@@ -17357,7 +17356,7 @@ Financial Summary:
             button_container = tk.Frame(export_frame, bg='#f8f9fa')
             button_container.pack()
             
-            csv_btn = tk.Button(button_container, text="≡ƒôè Export as CSV", 
+            csv_btn = tk.Button(button_container, text="📊 Export as CSV", 
                                command=lambda: self.export_report_csv(from_date, to_date, 'income_analysis'),
                                font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                                relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -17381,7 +17380,7 @@ Financial Summary:
         # Section header
         header = tk.Frame(section, bg='#27ae60')
         header.pack(fill=tk.X)
-        tk.Label(header, text="≡ƒôè Income Summary", 
+        tk.Label(header, text="📊 Income Summary", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#27ae60').pack(pady=10)
         
         # Summary metrics
@@ -17495,7 +17494,7 @@ Financial Summary:
         # Section header
         header = tk.Frame(section, bg='#8e44ad')
         header.pack(fill=tk.X)
-        tk.Label(header, text="≡ƒôê Income Trends (Last 6 Months)", 
+        tk.Label(header, text="📈 Income Trends (Last 6 Months)", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#8e44ad').pack(pady=10)
         
         # Trends data
@@ -17603,12 +17602,12 @@ Financial Summary:
             total_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
             
             # Transaction Count Card
-            count_card = self.create_analysis_card(summary_container, "≡ƒô¥ Transactions", 
+            count_card = self.create_analysis_card(summary_container, "📝 Transactions", 
                                                    str(transaction_count), '#3498db')
             count_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
             
             # Average Expense Card
-            avg_card = self.create_analysis_card(summary_container, "≡ƒôè Average Expense", 
+            avg_card = self.create_analysis_card(summary_container, "📊 Average Expense", 
                                                  f"GHS {avg_expense:,.2f}", '#9b59b6')
             avg_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             
@@ -17619,7 +17618,7 @@ Financial Summary:
             cat_header = tk.Frame(category_frame, bg='#34495e')
             cat_header.pack(fill=tk.X)
             
-            tk.Label(cat_header, text="≡ƒôè Expense Breakdown by Category", 
+            tk.Label(cat_header, text="📊 Expense Breakdown by Category", 
                     font=('Segoe UI', 16, 'bold'), fg='white', bg='#34495e').pack(pady=15)
             
             cat_content = tk.Frame(category_frame, bg='#ffffff')
@@ -17698,7 +17697,7 @@ Financial Summary:
             trend_header = tk.Frame(trend_frame, bg='#16a085')
             trend_header.pack(fill=tk.X)
             
-            tk.Label(trend_header, text="≡ƒôê Monthly Expense Trend", 
+            tk.Label(trend_header, text="📈 Monthly Expense Trend", 
                     font=('Segoe UI', 16, 'bold'), fg='white', bg='#16a085').pack(pady=15)
             
             trend_content = tk.Frame(trend_frame, bg='#ffffff')
@@ -17888,7 +17887,7 @@ Financial Summary:
             header_content = tk.Frame(header_frame, bg='#2c3e50')
             header_content.pack(fill=tk.BOTH, padx=30, pady=20)
             
-            tk.Label(header_content, text="≡ƒôê Profit & Loss Statement", 
+            tk.Label(header_content, text="📈 Profit & Loss Statement", 
                     font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
             tk.Label(header_content, text=f"Period: {from_date} to {to_date}", 
                     font=('Segoe UI', 12), fg='#bdc3c7', bg='#2c3e50').pack(anchor='w', pady=(5, 0))
@@ -17908,7 +17907,7 @@ Financial Summary:
             button_container = tk.Frame(export_frame, bg='#f8f9fa')
             button_container.pack()
             
-            csv_btn = tk.Button(button_container, text="≡ƒôè Export as CSV", 
+            csv_btn = tk.Button(button_container, text="📊 Export as CSV", 
                                command=lambda: self.export_pl_as_csv(from_date, to_date),
                                font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                                relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -18106,7 +18105,7 @@ Financial Summary:
             note_frame = tk.Frame(pl_content, bg='#fff3cd', relief='solid', bd=1)
             note_frame.pack(fill=tk.X, padx=10, pady=20)
             
-            note_text = f"≡ƒôè This statement reflects all financial transactions recorded between {from_date} and {to_date}."
+            note_text = f"📊 This statement reflects all financial transactions recorded between {from_date} and {to_date}."
             tk.Label(note_frame, text=note_text, 
                     font=('Segoe UI', 9), fg='#856404', bg='#fff3cd', wraplength=800).pack(padx=15, pady=10)
             
@@ -18413,7 +18412,7 @@ Financial Summary:
             header_content = tk.Frame(header_frame, bg='#9b59b6')
             header_content.pack(fill=tk.BOTH, padx=30, pady=15)
             
-            tk.Label(header_content, text="≡ƒôè Category Breakdown Report", 
+            tk.Label(header_content, text="📊 Category Breakdown Report", 
                     font=('Segoe UI', 18, 'bold'), fg='white', bg='#9b59b6').pack(anchor='w')
             tk.Label(header_content, text=f"Period: {from_date} to {to_date}", 
                     font=('Segoe UI', 11), fg='#e8d5f0', bg='#9b59b6').pack(anchor='w', pady=(5, 0))
@@ -18433,7 +18432,7 @@ Financial Summary:
             button_container = tk.Frame(export_frame, bg='#f8f9fa')
             button_container.pack()
             
-            csv_btn = tk.Button(button_container, text="≡ƒôè Export as CSV", 
+            csv_btn = tk.Button(button_container, text="📊 Export as CSV", 
                                command=lambda: self.export_report_csv(from_date, to_date, 'category'),
                                font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                                relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -18457,7 +18456,7 @@ Financial Summary:
         
         header = tk.Frame(income_frame, bg='#27ae60')
         header.pack(fill=tk.X)
-        tk.Label(header, text="≡ƒÆ░ Income Categories", 
+        tk.Label(header, text="💳 Income Categories", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#27ae60').pack(pady=10)
         
         income_tree_frame = tk.Frame(income_frame, bg='#ffffff')
@@ -18538,7 +18537,7 @@ Financial Summary:
             button_container = tk.Frame(export_frame, bg='#f8f9fa')
             button_container.pack()
             
-            csv_btn = tk.Button(button_container, text="≡ƒôè Export as CSV", 
+            csv_btn = tk.Button(button_container, text="📊 Export as CSV", 
                                command=lambda: self.export_report_csv(from_date, to_date, 'cashflow'),
                                font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                                relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -18562,7 +18561,7 @@ Financial Summary:
         
         header = tk.Frame(monthly_frame, bg='#16a085')
         header.pack(fill=tk.X)
-        tk.Label(header, text="≡ƒôè Monthly Cash Flow (Last 6 Months)", 
+        tk.Label(header, text="📊 Monthly Cash Flow (Last 6 Months)", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#16a085').pack(pady=10)
         
         flow_content = tk.Frame(monthly_frame, bg='#ffffff')
@@ -19058,7 +19057,7 @@ Financial Summary:
             title_row = tk.Frame(header_content, bg='#2c3e50')
             title_row.pack(fill=tk.X)
             
-            tk.Label(title_row, text="≡ƒôè Financial Dashboard & Analytics", 
+            tk.Label(title_row, text="📊 Financial Dashboard & Analytics", 
                     font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(side=tk.LEFT)
             
             refresh_dash_btn = tk.Button(title_row, text="≡ƒöä Refresh Data", 
@@ -19729,7 +19728,7 @@ Financial Summary:
                  font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                  relief='flat', bd=0, padx=20, pady=12, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
         
-        tk.Button(backup_options_frame, text="≡ƒôè Export to CSV", 
+        tk.Button(backup_options_frame, text="📊 Export to CSV", 
                  command=self.export_database_to_csv,
                  font=('Segoe UI', 11, 'bold'), bg='#3498db', fg='white',
                  relief='flat', bd=0, padx=20, pady=12, cursor='hand2').pack(side=tk.LEFT)
@@ -20127,7 +20126,7 @@ Financial Summary:
         title_row = tk.Frame(header_content, bg='#2c3e50')
         title_row.pack(fill=tk.X)
         
-        tk.Label(title_row, text="≡ƒñû AI Insights & Predictions", 
+        tk.Label(title_row, text="🤖 AI Insights & Predictions", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(side=tk.LEFT)
         
         tk.Button(title_row, text="≡ƒöä Refresh", 
@@ -20178,7 +20177,7 @@ Financial Summary:
     
     def create_attendance_risk_section(self, parent):
         """Create attendance risk prediction section"""
-        section = tk.LabelFrame(parent, text="≡ƒôè Attendance Risk Analysis", 
+        section = tk.LabelFrame(parent, text="📊 Attendance Risk Analysis", 
                                font=('Segoe UI', 13, 'bold'), bg='white', 
                                fg='#2c3e50', relief=tk.RAISED, bd=2)
         section.pack(fill=tk.BOTH, expand=True)
@@ -20236,7 +20235,7 @@ Financial Summary:
     
     def create_fee_payment_risk_section(self, parent):
         """Create fee payment risk prediction section"""
-        section = tk.LabelFrame(parent, text="≡ƒÆ░ Fee Payment Risk Analysis", 
+        section = tk.LabelFrame(parent, text="💳 Fee Payment Risk Analysis", 
                                font=('Segoe UI', 13, 'bold'), bg='white', 
                                fg='#2c3e50', relief=tk.RAISED, bd=2)
         section.pack(fill=tk.BOTH, expand=True)
@@ -20366,7 +20365,7 @@ Financial Summary:
         header_content = tk.Frame(header_frame, bg='#2c3e50')
         header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
         
-        tk.Label(header_content, text="≡ƒô¥ AI Report Assistant", 
+        tk.Label(header_content, text="📝 AI Report Assistant", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
         tk.Label(header_content, text="Generate comprehensive reports with AI-powered insights and recommendations", 
                 font=('Segoe UI', 12), fg='#bdc3c7', bg='#2c3e50').pack(anchor='w', pady=(5, 0))
@@ -20388,7 +20387,7 @@ Financial Summary:
         buttons_frame = tk.Frame(selection_content, bg='white')
         buttons_frame.pack(fill=tk.X)
         
-        tk.Button(buttons_frame, text="≡ƒôè Class Performance Report", 
+        tk.Button(buttons_frame, text="📊 Class Performance Report", 
                  command=self.generate_class_report_ui,
                  font=('Segoe UI', 12, 'bold'), bg='#3498db', fg='white',
                  relief='flat', bd=0, padx=25, pady=15, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
@@ -20398,7 +20397,7 @@ Financial Summary:
                  font=('Segoe UI', 12, 'bold'), bg='#9b59b6', fg='white',
                  relief='flat', bd=0, padx=25, pady=15, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
         
-        tk.Button(buttons_frame, text="≡ƒôê Progress Summary", 
+        tk.Button(buttons_frame, text="📈 Progress Summary", 
                  command=self.generate_progress_summary_ui,
                  font=('Segoe UI', 12, 'bold'), bg='#e74c3c', fg='white',
                  relief='flat', bd=0, padx=25, pady=15, cursor='hand2').pack(side=tk.LEFT)
@@ -20488,9 +20487,9 @@ Financial Summary:
             
             # Create stat cards
             stats_data = [
-                ("≡ƒæÑ Total Students", str(total_students), "#3498db"),
-                ("≡ƒôè Avg Attendance", f"{avg_attendance:.1f}%", "#27ae60"),
-                ("≡ƒÆ░ Total Arrears", f"GHS {total_arrears:.2f}", "#e74c3c")
+                ("👥 Total Students", str(total_students), "#3498db"),
+                ("📊 Avg Attendance", f"{avg_attendance:.1f}%", "#27ae60"),
+                ("💳 Total Arrears", f"GHS {total_arrears:.2f}", "#e74c3c")
             ]
             
             for title, value, color in stats_data:
@@ -20709,7 +20708,7 @@ Financial Summary:
         header = tk.Frame(content, bg='#2c3e50')
         header.pack(fill=tk.X, pady=(0, 20))
         
-        tk.Label(header, text=f"≡ƒôè Class Report: {report['class_info']['name']}", 
+        tk.Label(header, text=f"📊 Class Report: {report['class_info']['name']}", 
                 font=('Segoe UI', 20, 'bold'), bg='#2c3e50', fg='white').pack(pady=20)
         
         # Class info section
@@ -20766,7 +20765,7 @@ Collection Rate: {fee['collection_rate']}%
         
         # AI Recommendations
         if report['recommendations']:
-            rec_frame = tk.LabelFrame(content, text="≡ƒñû AI Recommendations", 
+            rec_frame = tk.LabelFrame(content, text="🤖 AI Recommendations", 
                                      font=('Segoe UI', 13, 'bold'), bg='white')
             rec_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
             
@@ -20880,7 +20879,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         
         # Behavior summary
         if report.get('behavior_summary'):
-            behavior_frame = tk.LabelFrame(content, text="≡ƒñû AI Behavior Summary", 
+            behavior_frame = tk.LabelFrame(content, text="🤖 AI Behavior Summary", 
                                           font=('Segoe UI', 13, 'bold'), bg='white')
             behavior_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
             
@@ -20893,7 +20892,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         
         # Recommendations
         if report['recommendations']:
-            rec_frame = tk.LabelFrame(content, text="≡ƒñû AI Recommendations", 
+            rec_frame = tk.LabelFrame(content, text="🤖 AI Recommendations", 
                                      font=('Segoe UI', 13, 'bold'), bg='white')
             rec_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
             
@@ -21088,7 +21087,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                 wraplength=900, justify=tk.LEFT).pack(padx=15, pady=10)
         
         # Trends Section
-        trends_frame = tk.LabelFrame(content, text="≡ƒôê Performance Trends", 
+        trends_frame = tk.LabelFrame(content, text="📈 Performance Trends", 
                                      font=('Segoe UI', 14, 'bold'), bg='white')
         trends_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
         
@@ -21107,7 +21106,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         att_trend_frame = tk.Frame(trend_grid, bg='#f8f9fa', relief=tk.RAISED, bd=1)
         att_trend_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
-        trend_icons = {'improving': '≡ƒôê', 'declining': '≡ƒôë', 'stable': 'Γ₧í∩╕Å'}
+        trend_icons = {'improving': '📈', 'declining': '📉', 'stable': 'Γ₧í∩╕Å'}
         att_icon = trend_icons.get(trends['attendance_trend'], 'Γ₧í∩╕Å')
         
         tk.Label(att_trend_frame, text="Attendance Trend", 
@@ -21127,7 +21126,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                 font=('Segoe UI', 12), bg='#f8f9fa').pack(pady=(0, 10))
         
         # Comparison Section
-        comp_frame = tk.LabelFrame(content, text="≡ƒôè Class Comparison", 
+        comp_frame = tk.LabelFrame(content, text="📊 Class Comparison", 
                                    font=('Segoe UI', 14, 'bold'), bg='white')
         comp_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
         
