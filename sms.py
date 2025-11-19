@@ -3195,14 +3195,14 @@ class SchoolManagementSystem:
         # Navigation buttons with permission checks
         buttons = [
             ("📊   Dashboard", self.show_dashboard, "dashboard", True),  # Always available
-            ("📚   Class Management", self.show_class_management, "classes", "no_teacher"),  # Disabled for teachers
-            ("👥   Student Management", self.show_student_management, "students", None),
-            ("👨‍📚   Teacher Management", self.show_teacher_management, "teachers", None),
-            ("💳   Fees Management", self.show_fees_management, "fees", None),
-            ("💰   Financial Management", self.show_financial_management, "financial_management", None),  # Income & Expense Management
-            ("📝   Attendance", self.show_attendance, "attendance", None),
-            ("🤖   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
-            ("🤖   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
+            ("🏫   Class Management", self.show_class_management, "classes", "no_teacher"),  # Disabled for teachers
+            ("🎓   Student Management", self.show_student_management, "students", None),
+            ("👨‍🏫   Teacher Management", self.show_teacher_management, "teachers", None),
+            ("💵   Fees Management", self.show_fees_management, "fees", None),
+            ("📊   Financial Management", self.show_financial_management, "financial_management", None),  # Income & Expense Management
+            ("✅   Attendance", self.show_attendance, "attendance", None),
+            ("🧠   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
+            ("📈   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
             ("⚙️   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
         ]
         
@@ -7521,7 +7521,7 @@ Highest Grade: {max_grade:.1f}%
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
         
-        header_label = tk.Label(header_frame, text="💳 Financial Management", 
+        header_label = tk.Label(header_frame, text="📊 Financial Management", 
                                font=('Segoe UI', 18, 'bold'), 
                                bg='#2c3e50', fg='#ffffff')
         header_label.pack(expand=True)
@@ -7613,7 +7613,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
         
-        header_label = tk.Label(header_frame, text="ì╜∩╕Å Feeding Fee Management", 
+        header_label = tk.Label(header_frame, text="🍽️ Feeding Fee Management", 
                                font=('Segoe UI', 18, 'bold'), 
                                bg='#16a085', fg='#ffffff')
         header_label.pack(expand=True)
@@ -8800,7 +8800,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.address_text.bind('<FocusOut>', on_address_focus_out)
         
         # ========== SECTION 4: FEE & TRANSPORTATION INFORMATION ==========
-        fee_section = tk.LabelFrame(form_frame, text="💳 Fee & Transportation Information", 
+        fee_section = tk.LabelFrame(form_frame, text="💵 Fee & Transportation Information", 
                                    font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
                                    bg='#f8f9fa', relief=tk.FLAT, bd=1)
         fee_section.pack(fill=tk.X, padx=20, pady=(0, 15))
@@ -9915,7 +9915,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         title_text_frame = tk.Frame(title_frame, bg='#3498db')
         title_text_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
-        title = tk.Label(title_text_frame, text="Class Management Center",
+        title = tk.Label(title_text_frame, text="🏫 Class Management Center",
                          font=('Segoe UI', 32, 'bold'), fg='white', bg='#3498db')
         title.pack(anchor=tk.W)
         
@@ -13764,7 +13764,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_section = tk.Frame(fees_main_frame, relief=tk.FLAT, bd=0)
         header_section.pack(fill=tk.X, padx=0, pady=(0, 25))
         
-        title = tk.Label(header_section, text="💳 Fee Management",
+        title = tk.Label(header_section, text="💵 Fee Management",
                          font=('Segoe UI', 28, 'bold'), fg='#2c3e50')
         title.pack(anchor=tk.W)
         
@@ -16119,7 +16119,7 @@ Financial Summary:
         section_header = tk.Frame(overview_section, bg='#34495e')
         section_header.pack(fill=tk.X)
         
-        tk.Label(section_header, text="💳 Financial Overview", 
+        tk.Label(section_header, text="📊 Financial Overview", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#34495e').pack(pady=12)
         
         # Metrics container
