@@ -8973,7 +8973,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                           relief=tk.SOLID, bd=1)
         self.student_file_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
         
-        upload_btn = tk.Button(upload_frame, text="ôü Browse Files", 
+        upload_btn = tk.Button(upload_frame, text="📂 Browse Files", 
                               font=('Segoe UI', 10, 'bold'), 
                               bg='#3498db', fg='#ffffff', 
                               relief=tk.FLAT, bd=0, cursor='hand2',
@@ -10495,7 +10495,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         phone_section = tk.Frame(form_content, bg='#ffffff')
         phone_section.pack(fill=tk.X, pady=(0, 25), padx=40)
         
-        phone_label = tk.Label(phone_section, text="ô₧ Phone Number", 
+        phone_label = tk.Label(phone_section, text="📞 Phone Number", 
                               font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#2c3e50')
         phone_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10512,7 +10512,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         email_section = tk.Frame(form_content, bg='#ffffff')
         email_section.pack(fill=tk.X, pady=(0, 25), padx=40)
         
-        email_label = tk.Label(email_section, text="ôº Email Address", 
+        email_label = tk.Label(email_section, text="📧 Email Address", 
                               font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#2c3e50')
         email_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10617,7 +10617,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         upload_section = tk.Frame(form_content, bg='#ffffff')
         upload_section.pack(fill=tk.X, pady=(0, 25), padx=40)
         
-        upload_label = tk.Label(upload_section, text="ô╖ Photo & Documents", 
+        upload_label = tk.Label(upload_section, text="📸 Photo & Documents", 
                                font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#2c3e50')
         upload_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10633,7 +10633,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         photo_display_frame = tk.Frame(photo_section, bg='#f8f9fa', relief=tk.SOLID, bd=1)
         photo_display_frame.pack(side=tk.LEFT, padx=(0, 15))
         
-        self.teacher_photo_label = tk.Label(photo_display_frame, text="ô╖\nNo Photo", 
+        self.teacher_photo_label = tk.Label(photo_display_frame, text="📸\nNo Photo", 
                                            font=('Segoe UI', 10), bg='#f8f9fa', fg='#7f8c8d',
                                            width=12, height=8, relief=tk.FLAT)
         self.teacher_photo_label.pack(padx=5, pady=5)
@@ -10945,7 +10945,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             preview_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
             
             # Camera label
-            camera_label = tk.Label(preview_frame, text="ô╖ Initializing camera...", 
+            camera_label = tk.Label(preview_frame, text="📷 Initializing camera...", 
                                    font=('Segoe UI', 14), bg='#f8f9fa', fg='#7f8c8d')
             camera_label.pack(expand=True)
             
@@ -11043,7 +11043,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
     
     def clear_teacher_photo(self):
         """Clear the teacher photo"""
-        self.teacher_photo_label.configure(image="", text="ô╖\nNo Photo")
+        self.teacher_photo_label.configure(image="", text="📸\nNo Photo")
         if hasattr(self, 'teacher_photo_path'):
             delattr(self, 'teacher_photo_path')
         # Remove the image reference
@@ -11638,13 +11638,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     photo_label.pack(padx=15, pady=15)
                 except Exception as e:
                     # Placeholder photo
-                    placeholder_label = tk.Label(photo_frame, text="ô╖\nNo Photo\nAvailable",
+                    placeholder_label = tk.Label(photo_frame, text="📸\nNo Photo\nAvailable",
                                                 font=('Segoe UI', 12), fg='#7f8c8d', bg='#f8f9fa',
                                                 justify=tk.CENTER)
                     placeholder_label.pack(padx=50, pady=50)
             else:
                 # Placeholder photo
-                placeholder_label = tk.Label(photo_frame, text="ô╖\nNo Photo\nAvailable",
+                placeholder_label = tk.Label(photo_frame, text="📸\nNo Photo\nAvailable",
                                             font=('Segoe UI', 12), fg='#7f8c8d', bg='#f8f9fa',
                                             justify=tk.CENTER)
                 placeholder_label.pack(padx=50, pady=50)
@@ -11685,7 +11685,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             contact_section = tk.Frame(profile_frame, bg='#ffffff', relief=tk.SOLID, bd=1)
             contact_section.pack(fill=tk.X, pady=(0, 20))
             
-            contact_header = tk.Label(contact_section, text="ô₧ Contact Information",
+            contact_header = tk.Label(contact_section, text="📞 Contact Information",
                                      font=('Segoe UI', 14, 'bold'), fg='#ffffff', bg='#3498db')
             contact_header.pack(fill=tk.X, padx=0, pady=0, ipady=10)
             
@@ -12886,7 +12886,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         refresh_btn.pack(side='right', padx=(10, 0))
         
         # Export button
-        export_btn = tk.Button(header_frame, text="ôÑ Export Report", 
+        export_btn = tk.Button(header_frame, text="📥 Export Report", 
                               command=self.export_activity_report,
                               bg='#27ae60', fg='white', font=('Segoe UI', 10, 'bold'),
                               relief='flat', padx=15, pady=5, cursor='hand2')
@@ -15013,7 +15013,7 @@ Financial Summary:
         list_header = tk.Frame(right_panel, bg='#6f42c1')
         list_header.pack(fill=tk.X)
         
-        tk.Label(list_header, text="ôé Financial Categories", 
+        tk.Label(list_header, text="💰 Financial Categories", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#6f42c1').pack(pady=15)
         
         # Categories treeview
@@ -19053,7 +19053,7 @@ Financial Summary:
                  relief=tk.FLAT, cursor='hand2', padx=20, pady=8).grid(row=0, column=2, sticky='w', pady=5)
         
         # Finance Categories Section
-        categories_frame = tk.LabelFrame(content, text="ôü Financial Categories", 
+        categories_frame = tk.LabelFrame(content, text="💰 Financial Categories", 
                                         font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50')
         categories_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
@@ -19493,7 +19493,7 @@ Financial Summary:
         content_area.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
         
         # Backup Section
-        backup_section = tk.LabelFrame(content_area, text="ôñ Backup Database", 
+        backup_section = tk.LabelFrame(content_area, text="💾 Backup Database", 
                                       font=('Segoe UI', 14, 'bold'), bg='white', 
                                       fg='#2c3e50', relief=tk.RAISED, bd=2)
         backup_section.pack(fill=tk.X, pady=(0, 20))
@@ -19527,7 +19527,7 @@ Financial Summary:
                 wraplength=600, justify=tk.LEFT).pack(padx=15, pady=10)
         
         # Restore Section
-        restore_section = tk.LabelFrame(content_area, text="ôÑ Restore Database", 
+        restore_section = tk.LabelFrame(content_area, text="♻️ Restore Database", 
                                        font=('Segoe UI', 14, 'bold'), bg='white', 
                                        fg='#2c3e50', relief=tk.RAISED, bd=2)
         restore_section.pack(fill=tk.X, pady=(0, 20))
@@ -19538,7 +19538,7 @@ Financial Summary:
         tk.Label(restore_content, text="Restore your database from a previous backup", 
                 font=('Segoe UI', 11), bg='white', fg='#555').pack(anchor='w', pady=(0, 15))
         
-        tk.Button(restore_content, text="ôé Restore from Backup File", 
+        tk.Button(restore_content, text="♻️ Restore from Backup File", 
                  command=self.restore_database,
                  font=('Segoe UI', 11, 'bold'), bg='#e67e22', fg='white',
                  relief='flat', bd=0, padx=20, pady=12, cursor='hand2').pack(anchor='w')
