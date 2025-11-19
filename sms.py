@@ -747,7 +747,7 @@ class AIPredictor:
             elif trends['attendance_trend'] == 'declining':
                 trend_parts.append("📉 Attendance is declining - requires attention")
             else:
-                trend_parts.append("Γ₧í∩╕Å Attendance is stable")
+                trend_parts.append("➝ Attendance is stable")
             
             if trends['fee_trend'] == 'improving':
                 trend_parts.append("Payment situation is improving")
@@ -826,11 +826,11 @@ class AIPredictor:
             
             # Generate comparison text
             if student_attendance > class_avg + 10:
-                comparison['comparison_text'] = f"Γ¡É Excellent! Student performs {student_attendance - class_avg:.1f}% above class average"
+                comparison['comparison_text'] = f"⭐ Excellent! Student performs {student_attendance - class_avg:.1f}% above class average"
             elif student_attendance > class_avg:
-                comparison['comparison_text'] = f"Γ£ô Good! Student performs above class average"
+                comparison['comparison_text'] = f"✓ Good! Student performs above class average"
             elif student_attendance > class_avg - 10:
-                comparison['comparison_text'] = f"Γ₧í∩╕Å Student performs near class average"
+                comparison['comparison_text'] = f"➝ Student performs near class average"
             else:
                 comparison['comparison_text'] = f"⚠️ Attention needed! Student performs {class_avg - student_attendance:.1f}% below class average"
             
@@ -1844,7 +1844,7 @@ class LoginWindow:
                 font=('Arial', 9, 'bold'), bg='#e9ecef', fg='#333').pack(anchor='w')
         
         # Credentials with proper wrapping
-        cred_text = "Sample Accounts:\nΓÇó admin/admin123 (Admin)  ΓÇó accountant1/account123 (Accountant)\nΓÇó teacher1/teacher123 (Teacher)  ΓÇó staff1/staff123 (Staff)"
+        cred_text = "Sample Accounts:\n• admin/admin123 (Admin)  • accountant1/account123 (Accountant)\n• teacher1/teacher123 (Teacher)  • staff1/staff123 (Staff)"
         cred_label = tk.Label(info_content, text=cred_text, font=('Arial', 8), 
                              bg='#e9ecef', fg='#666', justify='left', wraplength=420)
         cred_label.pack(anchor='w', pady=(3, 2), fill='x')
@@ -3203,7 +3203,7 @@ class SchoolManagementSystem:
             ("📝   Attendance", self.show_attendance, "attendance", None),
             ("🤖   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
             ("🤖   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
-            ("ΓÜÖ∩╕Å   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
+            ("⚙️   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
         ]
         
         self.nav_buttons = []
@@ -3478,13 +3478,13 @@ class SchoolManagementSystem:
                              font=('Segoe UI', 12, 'bold'), fg='#495057', bg='#e9ecef')
         info_label.pack(anchor='w')
         
-        features_text = """ΓÇó View all students in your selected class with complete information
-ΓÇó Track attendance and manage student records (read-only access to financial info)
-ΓÇó Assign homework, tests, and lessons to students
-ΓÇó Grade assignments and record student performance
-ΓÇó Write remarks and comments for individual students
-ΓÇó Generate comprehensive reports and progress summaries
-ΓÇó Manage classroom activities (cannot create/edit classes - admin only)
+        features_text = """• View all students in your selected class with complete information
+• Track attendance and manage student records (read-only access to financial info)
+• Assign homework, tests, and lessons to students
+• Grade assignments and record student performance
+• Write remarks and comments for individual students
+• Generate comprehensive reports and progress summaries
+• Manage classroom activities (cannot create/edit classes - admin only)
 
 Note: Classes are created and managed by administrators. Teachers can only select from existing classes."""
         
@@ -4335,15 +4335,15 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         
         attendance_var = tk.StringVar(value="present")
         
-        present_rb = tk.Radiobutton(today_frame, text="Γ£à Present", variable=attendance_var, 
+        present_rb = tk.Radiobutton(today_frame, text="✅ Present", variable=attendance_var, 
                                    value="present", font=('Segoe UI', 11), bg='#ffffff')
         present_rb.pack(anchor='w', pady=2)
         
-        absent_rb = tk.Radiobutton(today_frame, text="Γ¥î Absent", variable=attendance_var, 
+        absent_rb = tk.Radiobutton(today_frame, text="❌ Absent", variable=attendance_var, 
                                   value="absent", font=('Segoe UI', 11), bg='#ffffff')
         absent_rb.pack(anchor='w', pady=2)
         
-        late_rb = tk.Radiobutton(today_frame, text="ΓÅ░ Late", variable=attendance_var, 
+        late_rb = tk.Radiobutton(today_frame, text="⏱️ Late", variable=attendance_var, 
                                 value="late", font=('Segoe UI', 11), bg='#ffffff')
         late_rb.pack(anchor='w', pady=2)
         
@@ -4770,7 +4770,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
         # Add new homework button
-        add_hw_btn = tk.Button(header_content, text="Γ₧ò Add Homework", 
+        add_hw_btn = tk.Button(header_content, text="➕ Add Homework", 
                               command=self.add_new_homework,
                               font=('Segoe UI', 10, 'bold'), bg='#28a745', fg='white',
                               relief='solid', bd=0, padx=15, pady=5)
@@ -4819,7 +4819,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
         # Add new test button
-        add_test_btn = tk.Button(header_content, text="Γ₧ò Schedule Test", 
+        add_test_btn = tk.Button(header_content, text="➕ Schedule Test", 
                                 command=self.add_new_test,
                                 font=('Segoe UI', 10, 'bold'), bg='#dc3545', fg='white',
                                 relief='solid', bd=0, padx=15, pady=5)
@@ -4862,7 +4862,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         tk.Label(header_content, text="ôû Lesson Plans", 
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
-        add_lesson_btn = tk.Button(header_content, text="Γ₧ò Create Lesson Plan", 
+        add_lesson_btn = tk.Button(header_content, text="➕ Create Lesson Plan", 
                                   command=self.add_new_lesson_plan,
                                   font=('Segoe UI', 10, 'bold'), bg='#17a2b8', fg='white',
                                   relief='solid', bd=0, padx=15, pady=5)
@@ -4905,7 +4905,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         tk.Label(header_content, text="📁 Class Projects", 
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
-        add_project_btn = tk.Button(header_content, text="Γ₧ò Add Project", 
+        add_project_btn = tk.Button(header_content, text="➕ Add Project", 
                                    command=self.add_new_project,
                                    font=('Segoe UI', 10, 'bold'), bg='#fd7e14', fg='white',
                                    relief='solid', bd=0, padx=15, pady=5)
@@ -4955,9 +4955,9 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         
         quick_tasks = [
             ("ℹ️ Reading Assignment", self.create_reading_task),
-            ("Γ£ì∩╕Å Writing Task", self.create_writing_task),
+            ("✏️∩╕Å Writing Task", self.create_writing_task),
             ("º« Math Practice", self.create_math_task),
-            ("Γ¥ô Quick Quiz", self.create_quick_quiz),
+            ("❓ Quick Quiz", self.create_quick_quiz),
             ("👥 Group Activity", self.create_group_activity),
             ("ôó Homework Reminder", self.create_homework_reminder),
             ("ôú Class Announcement", self.create_class_announcement),
@@ -5004,7 +5004,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         tk.Label(header_content, text="⏰ Class Timetable", 
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
-        add_period_btn = tk.Button(header_content, text="Γ₧ò Add Period", 
+        add_period_btn = tk.Button(header_content, text="➕ Add Period", 
                                   command=self.add_timetable_period,
                                   font=('Segoe UI', 10, 'bold'), bg='#6f42c1', fg='white',
                                   relief='solid', bd=0, padx=15, pady=5)
@@ -5767,7 +5767,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def create_writing_task(self):
         """Create writing task"""
-        self.create_quick_task("Writing Task", "Γ£ì∩╕Å")
+        self.create_quick_task("Writing Task", "✏️∩╕Å")
     
     def create_math_task(self):
         """Create math practice task"""
@@ -5775,7 +5775,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def create_quick_quiz(self):
         """Create quick quiz/assessment"""
-        self.create_quick_task("Quick Quiz", "Γ¥ô")
+        self.create_quick_task("Quick Quiz", "❓")
     
     def create_group_activity(self):
         """Create group activity task"""
@@ -5799,11 +5799,11 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def create_research_task(self):
         """Create research task"""
-        self.create_quick_task("Research Task", "ö¼")
+        self.create_quick_task("Research Task", "🔬")
     
     def create_creative_task(self):
         """Create creative project"""
-        self.create_quick_task("Creative Project", "Ä¿")
+        self.create_quick_task("Creative Project", "🎨")
     
     def create_quick_task(self, task_type, icon):
         """Create a quick task with minimal form"""
@@ -6076,7 +6076,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 },
                 "Exam Checklist": {
                     "title": "Final Exam Study Checklist",
-                    "description": "Comprehensive study checklist.\n\nWhat to review:\nΓûí All chapter summaries\nΓûí Homework problems\nΓûí Quiz corrections\nΓûí Class notes\nΓûí Practice tests"
+                    "description": "Comprehensive study checklist.\n\nWhat to review:\n☑️ All chapter summaries\n☑️ Homework problems\n☑️ Quiz corrections\n☑️ Class notes\n☑️ Practice tests"
                 }
             },
             "Project Milestone": {
@@ -6118,7 +6118,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         tk.Label(refresh_frame, text="📈 Real-Time Assignment Analytics", 
                 font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#ffffff').pack(side='left')
         
-        refresh_btn = tk.Button(refresh_frame, text="öä Refresh Data", 
+        refresh_btn = tk.Button(refresh_frame, text="🔄 Refresh Data", 
                                command=self.refresh_assignment_summary,
                                font=('Segoe UI', 9), bg='#007bff', fg='white',
                                relief='solid', bd=0, padx=10, pady=5)
@@ -6393,7 +6393,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                         hw_row = tk.Frame(completion_frame, bg='#f8f9fa')
                         hw_row.pack(fill='x', padx=10, pady=2)
                         
-                        tk.Label(hw_row, text=f"ΓÇó {title[:30]}{'...' if len(title) > 30 else ''}", 
+                        tk.Label(hw_row, text=f"• {title[:30]}{'...' if len(title) > 30 else ''}", 
                                 font=('Segoe UI', 9), bg='#f8f9fa').pack(side='left')
                         tk.Label(hw_row, text=f"Due: {due_date}", 
                                 font=('Segoe UI', 8), fg='#6c757d', bg='#f8f9fa').pack(side='left', padx=(10, 0))
@@ -6436,7 +6436,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                     activity_frame = tk.Frame(self.analytics_content, bg='#ffffff', relief='solid', bd=1)
                     activity_frame.pack(fill='x', padx=10, pady=5)
                     
-                    tk.Label(activity_frame, text="öö Recent Activity", 
+                    tk.Label(activity_frame, text="📝 Recent Activity", 
                             font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#ffffff').pack(pady=5)
                     
                     # Get recent activities (homework, tests, projects)
@@ -7156,7 +7156,7 @@ Highest Grade: {max_grade:.1f}%
         title.pack(side=tk.LEFT, anchor=tk.W)
         
         # Refresh button with hover effects
-        refresh_btn = tk.Button(header_row, text="öä Refresh", 
+        refresh_btn = tk.Button(header_row, text="🔄 Refresh", 
                                font=('Segoe UI', 10, 'bold'), 
                                bg='#3498db', fg='#ffffff', 
                                relief=tk.FLAT, bd=0, cursor='hand2',
@@ -7281,7 +7281,7 @@ Highest Grade: {max_grade:.1f}%
         actions_content = tk.Frame(actions_section, bg='#ffffff', relief=tk.FLAT, bd=0)
         actions_content.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
         
-        actions_title = tk.Label(actions_content, text="ΓÜí Quick Actions", 
+        actions_title = tk.Label(actions_content, text="⚡ Quick Actions", 
                                font=('Segoe UI', 18, 'bold'), bg='#ffffff', fg='#2c3e50')
         actions_title.pack(anchor=tk.W, pady=(0, 20))
         
@@ -7337,7 +7337,7 @@ Highest Grade: {max_grade:.1f}%
                                                          '#34495e')
         database_btn.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
-        reports_btn = self.create_enhanced_action_button(action_row2, "ôä Generate Reports", 
+        reports_btn = self.create_enhanced_action_button(action_row2, "📊 Generate Reports", 
                                                         "Create detailed school reports",
                                                         self.show_reports_generator, 
                                                         '#16a085')
@@ -7406,7 +7406,7 @@ Highest Grade: {max_grade:.1f}%
                 student_label.pack(fill=tk.X)
                 
                 # Class and date info
-                class_text = f"   ℹ️ {class_name} ΓÇó Admitted: {admission_date}"
+                class_text = f"   ℹ️ {class_name} • Admitted: {admission_date}"
                 class_label = tk.Label(student_entry, text=class_text, 
                                      font=('Segoe UI', 9), bg='#f8f9fa', anchor='w', fg='#7f8c8d')
                 class_label.pack(fill=tk.X, pady=(2, 0))
@@ -7466,7 +7466,7 @@ Highest Grade: {max_grade:.1f}%
                 
                 # Assignment and hire date info
                 class_text = assigned_class if assigned_class else "Unassigned"
-                assignment_text = f"   📋 {class_text} ΓÇó Hired: {hire_date}"
+                assignment_text = f"   📋 {class_text} • Hired: {hire_date}"
                 assignment_label = tk.Label(teacher_entry, text=assignment_text, 
                                           font=('Segoe UI', 9), bg='#f8f9fa', anchor='w', fg='#7f8c8d')
                 assignment_label.pack(fill=tk.X, pady=(2, 0))
@@ -7767,7 +7767,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             desc_text.pack(fill=tk.X, pady=(0, 15))
             
             # Generate button
-            generate_btn = self.create_modern_button(card_content, "ôä Generate Report", 
+            generate_btn = self.create_modern_button(card_content, "📊 Generate Report", 
                                                    lambda idx=i: self.generate_report(idx, reports_window), 
                                                    'primary', width=15)
             generate_btn.pack(anchor=tk.E)
@@ -7776,7 +7776,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         close_frame = tk.Frame(reports_window, bg='#f8f9fa')
         close_frame.pack(fill=tk.X, padx=30, pady=(0, 20))
         
-        close_btn = self.create_modern_button(close_frame, "Γ¥î Close", 
+        close_btn = self.create_modern_button(close_frame, "❌ Close", 
                                             reports_window.destroy, 'secondary', width=12)
         close_btn.pack(anchor=tk.E)
     
@@ -7797,9 +7797,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         messagebox.showinfo("Report Generator", 
                            f"Generating {report_name}...\n\n"
                            f"This feature creates detailed reports with:\n"
-                           f"ΓÇó Statistical analysis\n"
-                           f"ΓÇó Data visualizations\n" 
-                           f"ΓÇó Export capabilities\n\n"
+                           f"• Statistical analysis\n"
+                           f"• Data visualizations\n" 
+                           f"• Export capabilities\n\n"
                            f"Report generation completed successfully!")
         
         # Update status
@@ -8581,7 +8581,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         search_section = tk.Frame(control_inner, bg='#f8f9fa')
         search_section.pack(fill=tk.X, pady=(0, 15))
         
-        search_label = tk.Label(search_section, text="öì Quick Search:", 
+        search_label = tk.Label(search_section, text="🔍 Quick Search:", 
                                font=('Segoe UI', 12, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         search_label.pack(side=tk.LEFT)
         
@@ -8599,7 +8599,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                               self.show_student_details, 'success', width=15)
         details_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        clear_btn = self.create_modern_button(search_section, "öä Clear Search", 
+        clear_btn = self.create_modern_button(search_section, "🔄 Clear Search", 
                                             self.clear_student_search, 'secondary', width=12)
         clear_btn.pack(side=tk.LEFT)
         
@@ -8649,7 +8649,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.student_id.pack(side=tk.LEFT, padx=(10, 10))
         
         # Auto-generate button for Student ID
-        auto_id_btn = tk.Button(personal_row1, text="öä Auto", 
+        auto_id_btn = tk.Button(personal_row1, text="🔄 Auto", 
                                 font=('Segoe UI', 9, 'bold'),
                                 bg='#3498db', fg='white', relief=tk.FLAT,
                                 cursor='hand2', padx=8, pady=2,
@@ -8679,10 +8679,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         gender_frame = tk.Frame(personal_row2, bg='#f8f9fa')
         gender_frame.pack(side=tk.LEFT, padx=(10, 0))
         
-        male_radio = tk.Radiobutton(gender_frame, text="ΓÖé∩╕Å Male", variable=self.gender, 
+        male_radio = tk.Radiobutton(gender_frame, text="♂️ Male", variable=self.gender, 
                                    value="Male", bg='#f8f9fa', font=('Segoe UI', 10))
         male_radio.pack(side=tk.LEFT, padx=(0, 20))
-        female_radio = tk.Radiobutton(gender_frame, text="ΓÖÇ∩╕Å Female", variable=self.gender, 
+        female_radio = tk.Radiobutton(gender_frame, text="♀️ Female", variable=self.gender, 
                                      value="Female", bg='#f8f9fa', font=('Segoe UI', 10))
         female_radio.pack(side=tk.LEFT)
         
@@ -8823,7 +8823,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
         self.feeding_fee_paid = tk.BooleanVar()
         feeding_check = tk.Checkbutton(fee_row1, variable=self.feeding_fee_paid, 
-                                      bg='#f8f9fa', text="Γ£à Yes", font=('Segoe UI', 10))
+                                      bg='#f8f9fa', text="✅ Yes", font=('Segoe UI', 10))
         feeding_check.pack(side=tk.LEFT, padx=(10, 0))
         
         # Fee Row 2: Transportation Options
@@ -8944,7 +8944,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.allergies_text.bind('<FocusOut>', on_allergies_focus_out)
 
         # ========== SECTION 7: DOCUMENT MANAGEMENT ==========
-        doc_section = tk.LabelFrame(form_frame, text="ôÄ Document Management", 
+        doc_section = tk.LabelFrame(form_frame, text="📄 Document Management", 
                                    font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
                                    bg='#f8f9fa', relief=tk.FLAT, bd=1)
         doc_section.pack(fill=tk.X, padx=20, pady=(0, 15))
@@ -8992,13 +8992,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         upload_btn.bind("<Leave>", on_upload_leave)
         
         # File status display
-        self.student_file_info = tk.Label(upload_row, text="ôä No file selected", 
+        self.student_file_info = tk.Label(upload_row, text="📊 No file selected", 
                                          font=('Segoe UI', 10), 
                                          bg='#f8f9fa', fg='#7f8c8d')
         self.student_file_info.pack(anchor=tk.W, pady=(8, 0))
         
         # ========== ACTION BUTTONS SECTION ==========
-        button_section = tk.LabelFrame(form_frame, text="ΓÜí Actions", 
+        button_section = tk.LabelFrame(form_frame, text="⚡ Actions", 
                                       font=('Segoe UI', 11, 'bold'), fg='#2c3e50', 
                                       bg='#f8f9fa', relief=tk.FLAT, bd=1)
         button_section.pack(fill=tk.X, padx=20, pady=(0, 20))
@@ -9006,11 +9006,11 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         button_container = tk.Frame(button_section, bg='#f8f9fa')
         button_container.pack(anchor=tk.CENTER, pady=15)
         
-        add_btn = self.create_modern_button(button_container, "Γ₧ò Add Student", 
+        add_btn = self.create_modern_button(button_container, "➕ Add Student", 
                                           self.add_student, 'success', width=18)
         add_btn.pack(side=tk.LEFT, padx=(0, 15))
         
-        update_btn = self.create_modern_button(button_container, "Γ£Å∩╕Å Update Student", 
+        update_btn = self.create_modern_button(button_container, "🔄 Update Student", 
                                              self.update_student, 'primary', width=18)
         update_btn.pack(side=tk.LEFT, padx=(0, 15))
         
@@ -9042,7 +9042,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         filter_content = tk.Frame(filter_frame, bg='#f8f9fa')
         filter_content.pack(fill=tk.X, padx=15, pady=10)
         
-        tk.Label(filter_content, text="öì Filter by Class:", 
+        tk.Label(filter_content, text="🔍 Filter by Class:", 
                 font=('Segoe UI', 10, 'bold'), bg='#f8f9fa', fg='#2c3e50').pack(side=tk.LEFT, padx=(0, 10))
         
         # Get all classes for filter
@@ -9185,7 +9185,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 student[4],  # Gender
                 student[5],  # Admission date
                 student[6] or "N/A",  # Phone
-                "Γ£à Active" if student[7] == "Active" else "Γ¥î Inactive"  # Status with icons
+                "✅ Active" if student[7] == "Active" else "❌ Inactive"  # Status with icons
             )
             self.students_tree.insert('', tk.END, values=formatted_student)
         
@@ -9464,7 +9464,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 # Update file info display
                 file_size = os.path.getsize(new_path)
                 size_mb = file_size / (1024 * 1024)
-                file_info = f"Γ£ô {os.path.basename(filename)} ({size_mb:.2f} MB)"
+                file_info = f"✓ {os.path.basename(filename)} ({size_mb:.2f} MB)"
                 self.student_file_info.configure(text=file_info, fg='#27ae60')
                 
             except Exception as e:
@@ -9846,7 +9846,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     student[4],  # Gender
                     student[5],  # Admission date
                     student[6] or "N/A",  # Phone
-                    "Γ£à Active" if student[7] == "Active" else "Γ¥î Inactive"  # Status with icons
+                    "✅ Active" if student[7] == "Active" else "❌ Inactive"  # Status with icons
                 )
                 self.students_tree.insert('', tk.END, values=formatted_student)
             
@@ -10061,7 +10061,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         buttons_frame.pack(fill=tk.X, pady=(5, 15), padx=15)
         
         # Add button
-        add_btn = self.create_enhanced_form_button(buttons_frame, "Γ₧ò Add", 
+        add_btn = self.create_enhanced_form_button(buttons_frame, "➕ Add", 
                                                   self.add_class, '#27ae60', '#2ecc71')
         add_btn.pack(fill=tk.X, pady=(0, 5))
         
@@ -10069,7 +10069,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         button_row = tk.Frame(buttons_frame, bg='#ffffff')
         button_row.pack(fill=tk.X, pady=(0, 5))
         
-        update_btn = self.create_enhanced_form_button(button_row, "Γ£Å∩╕Å Update", 
+        update_btn = self.create_enhanced_form_button(button_row, "🔄 Update", 
                                                      self.update_class, '#2980b9', '#3498db')
         update_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 3))
         
@@ -10078,7 +10078,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(3, 0))
         
         # Clear form button
-        clear_btn = self.create_enhanced_form_button(buttons_frame, "öä Clear", 
+        clear_btn = self.create_enhanced_form_button(buttons_frame, "🔄 Clear", 
                                                     self.clear_class_form, '#7f8c8d', '#95a5a6')
         clear_btn.pack(fill=tk.X)
 
@@ -10205,7 +10205,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
             # Determine status based on utilization
             if current == 0:
-                status = "ö┤ Empty"
+                status = "📭 Empty"
             elif current >= capacity:
                 status = "ƒí Full" 
             elif current/capacity >= 0.8:
@@ -10659,7 +10659,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         docs_section = tk.Frame(upload_section, bg='#ffffff')
         docs_section.pack(fill=tk.X, pady=(15, 0))
         
-        docs_label = tk.Label(docs_section, text="ôä Supporting Documents:", 
+        docs_label = tk.Label(docs_section, text="📊 Supporting Documents:", 
                              font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#2c3e50')
         docs_label.pack(anchor=tk.W, pady=(0, 8))
         
@@ -10708,7 +10708,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         button_row1 = tk.Frame(buttons_frame, bg='#ffffff')
         button_row1.pack(fill=tk.X, pady=(0, 10))
         
-        add_btn = self.create_enhanced_form_button(button_row1, "Γ₧ò Add New Teacher", 
+        add_btn = self.create_enhanced_form_button(button_row1, "➕ Add New Teacher", 
                                                   self.add_teacher, '#27ae60', '#2ecc71')
         add_btn.pack(fill=tk.X)
         
@@ -10716,7 +10716,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         button_row2 = tk.Frame(buttons_frame, bg='#ffffff')
         button_row2.pack(fill=tk.X, pady=(0, 10))
         
-        update_btn = self.create_enhanced_form_button(button_row2, "Γ£Å∩╕Å Update Selected", 
+        update_btn = self.create_enhanced_form_button(button_row2, "🔄 Update Selected", 
                                                      self.update_teacher, '#e67e22', '#f39c12')
         update_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
@@ -10725,7 +10725,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         
         # Clear form button
-        clear_btn = self.create_enhanced_form_button(buttons_frame, "öä Clear Form", 
+        clear_btn = self.create_enhanced_form_button(buttons_frame, "🔄 Clear Form", 
                                                     self.clear_teacher_form, '#7f8c8d', '#95a5a6')
         clear_btn.pack(fill=tk.X, pady=(10, 0))
 
@@ -10824,7 +10824,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 if 'assigned_classes' in self.stat_value_labels:
                     self.stat_value_labels['assigned_classes'].config(text=str(assigned_teachers))
                 if 'avg_salary' in self.stat_value_labels:
-                    self.stat_value_labels['avg_salary'].config(text=f"Γé╡{avg_salary:,}")
+                    self.stat_value_labels['avg_salary'].config(text=f"₡{avg_salary:,}")
             
             # Update old labels if they still exist (backward compatibility)
             if hasattr(self, 'total_teachers_stat'):
@@ -10959,7 +10959,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 try:
                     cap = cv2.VideoCapture(0)
                     if not cap.isOpened():
-                        camera_label.configure(text="Γ¥î Camera not found")
+                        camera_label.configure(text="❌ Camera not found")
                         return
                     
                     camera_label.configure(text="")
@@ -10989,7 +10989,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     update_frame()
                     
                 except Exception as e:
-                    camera_label.configure(text=f"Γ¥î Camera error: {str(e)}")
+                    camera_label.configure(text=f"❌ Camera error: {str(e)}")
             
             # Capture button
             def capture_photo():
@@ -11028,7 +11028,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                                           capture_photo, '#27ae60', '#2ecc71')
             capture_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
             
-            cancel_btn = self.create_enhanced_form_button(controls_frame, "Γ¥î Cancel", 
+            cancel_btn = self.create_enhanced_form_button(controls_frame, "❌ Cancel", 
                                                          close_camera, '#e74c3c', '#c0392b')
             cancel_btn.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
             
@@ -11068,7 +11068,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 file_size = os.path.getsize(file_path)
                 size_mb = file_size / (1024 * 1024)
                 self.teacher_file_info.configure(
-                    text=f"ôä {file_name} ({size_mb:.1f} MB)",
+                    text=f"📊 {file_name} ({size_mb:.1f} MB)",
                     fg='#27ae60'
                 )
                 
@@ -11098,7 +11098,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 f"GHS {teacher[4]:.2f}" if teacher[4] else "Not Set",  # Formatted salary
                 teacher[5] or "N/A",  # Phone
                 teacher[6] or "N/A",  # Email
-                "Γ£à Active"  # Status (assuming all are active for now)
+                "✅ Active"  # Status (assuming all are active for now)
             )
             self.teachers_tree.insert('', tk.END, values=formatted_teacher)
             
@@ -11300,7 +11300,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 else:
                     display_name = doc_name
                 
-                name_label = tk.Label(info_frame, text=f"ôä {display_name}", 
+                name_label = tk.Label(info_frame, text=f"📊 {display_name}", 
                                      font=('Segoe UI', 9, 'bold'), bg='#ffffff', fg='#2c3e50')
                 name_label.pack(anchor=tk.W)
                 
@@ -11309,13 +11309,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     if os.path.exists(doc_path):
                         file_size = os.path.getsize(doc_path)
                         size_mb = file_size / (1024 * 1024)
-                        status_text = f"Γ£à {size_mb:.2f} MB"
+                        status_text = f"✅ {size_mb:.2f} MB"
                         status_color = '#27ae60'
                     else:
-                        status_text = "Γ¥î File not found"
+                        status_text = "❌ File not found"
                         status_color = '#e74c3c'
                 except:
-                    status_text = "Γ¥ô Unknown"
+                    status_text = "❓ Unknown"
                     status_color = '#f39c12'
                 
                 status_label = tk.Label(info_frame, text=status_text, 
@@ -11761,7 +11761,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                  command=lambda: self.print_teacher_profile(profile_frame))
             print_btn.pack(side=tk.LEFT, padx=(0, 10), fill=tk.X, expand=True)
             
-            close_btn = tk.Button(button_frame, text="Γ¥î Close", 
+            close_btn = tk.Button(button_frame, text="❌ Close", 
                                  font=('Segoe UI', 12, 'bold'), bg='#95a5a6', fg='white',
                                  relief=tk.FLAT, bd=0, pady=10,
                                  command=profile_window.destroy)
@@ -11789,9 +11789,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             messagebox.showinfo("Print", 
                                "Profile ready for printing!\n\n"
                                "You can:\n"
-                               "ΓÇó Use Ctrl+P to print this window\n"
-                               "ΓÇó Take a screenshot\n"
-                               "ΓÇó Copy the content to a document\n\n"
+                               "• Use Ctrl+P to print this window\n"
+                               "• Take a screenshot\n"
+                               "• Copy the content to a document\n\n"
                                "For advanced printing features, consider adding a PDF export option.")
             
             print_window.destroy()
@@ -11854,7 +11854,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         search_section = tk.Frame(control_inner, bg='#f8f9fa')
         search_section.pack(fill=tk.X, pady=(0, 15))
         
-        search_label = tk.Label(search_section, text="öì Search Student:", 
+        search_label = tk.Label(search_section, text="🔍 Search Student:", 
                                font=('Segoe UI', 12, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         search_label.pack(side=tk.LEFT)
         
@@ -11864,11 +11864,11 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                suggestions_callback=self.get_student_suggestions)
         search_entry.pack(side=tk.LEFT, padx=(10, 15))
         
-        search_att_btn = self.create_modern_button(search_section, "öì Filter Student", 
+        search_att_btn = self.create_modern_button(search_section, "🔍 Filter Student", 
                                                   self.search_attendance_student, 'primary', width=15)
         search_att_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        clear_att_btn = self.create_modern_button(search_section, "öä Show All", 
+        clear_att_btn = self.create_modern_button(search_section, "🔄 Show All", 
                                                  self.clear_attendance_search, 'secondary', width=12)
         clear_att_btn.pack(side=tk.LEFT)
         
@@ -11880,15 +11880,15 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         left_buttons = tk.Frame(buttons_section, bg='#f8f9fa')
         left_buttons.pack(side=tk.LEFT)
         
-        load_btn = self.create_modern_button(left_buttons, "öä Load Attendance", 
+        load_btn = self.create_modern_button(left_buttons, "🔄 Load Attendance", 
                                            self.load_attendance, 'primary', width=15)
         load_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        present_btn = self.create_modern_button(left_buttons, "Γ£à Mark Present", 
+        present_btn = self.create_modern_button(left_buttons, "✅ Mark Present", 
                                               lambda: self.toggle_selected_attendance(True), 'success', width=15)
         present_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        absent_btn = self.create_modern_button(left_buttons, "Γ¥î Mark Absent", 
+        absent_btn = self.create_modern_button(left_buttons, "❌ Mark Absent", 
                                              lambda: self.toggle_selected_attendance(False), 'danger', width=15)
         absent_btn.pack(side=tk.LEFT, padx=(0, 10))
         
@@ -12026,7 +12026,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Reset button next to submit
         reset_btn = tk.Button(submit_container, 
-                             text="öä RESET FORM", 
+                             text="🔄 RESET FORM", 
                              command=self.reset_attendance_form,
                              font=('Segoe UI', 12, 'bold'), 
                              bg='#6c757d', 
@@ -12095,7 +12095,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             is_present = ar and ar[0]
             # Simple attendance display
               
-            present = 'Γ£ô Present' if is_present else 'ΓùÅ Absent'
+            present = '✓ Present' if is_present else '❌ Absent'
             
             feeding = 'Paid' if ar and ar[1] else 'Not Paid'
             
@@ -12139,7 +12139,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             is_present = ar and ar[0]
             # Simple attendance display
               
-            present = 'Γ£ô Present' if is_present else 'ΓùÅ Absent'
+            present = '✓ Present' if is_present else '❌ Absent'
             
             feeding = 'Paid' if ar and ar[1] else 'Not Paid'
             
@@ -12154,9 +12154,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
             # Color coding for better visual distinction
             if is_present:
-                self.att_tree.set(item, 'Present', 'Γ£ô Present')
+                self.att_tree.set(item, 'Present', '✓ Present')
             else:
-                self.att_tree.set(item, 'Present', 'ΓùÅ Absent')
+                self.att_tree.set(item, 'Present', '❌ Absent')
         
         # Update statistics
         absent_count = total_students - present_count
@@ -12184,7 +12184,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         for s in sel:
             vals = list(self.att_tree.item(s)['values'])
             student_name = vals[2]  # Student name is in column 2
-            vals[3] = 'Γ£ô Present' if present_flag else 'ΓùÅ Absent'
+            vals[3] = '✓ Present' if present_flag else '❌ Absent'
             # Apply color tags for visual distinction
             tag = 'present' if present_flag else 'absent'
             self.att_tree.item(s, values=vals, tags=(tag,))
@@ -12211,7 +12211,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         # Count present students
         for item in self.att_tree.get_children():
             present_value = str(self.att_tree.item(item)['values'][3])
-            if 'Γ£à' in present_value or 'Present' in present_value:
+            if '✅' in present_value or 'Present' in present_value:
                 present_count += 1
         
         absent_count = total_students - present_count
@@ -12235,14 +12235,14 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 student_db_id = vals[0]
                 # Handle enhanced UI format with emojis
                 present_status = str(vals[3])
-                present = 1 if ('Γ£à' in present_status or 'Present' in present_status) else 0
+                present = 1 if ('✅' in present_status or 'Present' in present_status) else 0
                 
                 # Handle feeding and bus fees with enhanced format
                 feeding_status = str(vals[4]) if len(vals) > 4 else 'No'
-                feeding = 1 if ('Γ£à' in feeding_status or 'Yes' in feeding_status) else 0
+                feeding = 1 if ('✅' in feeding_status or 'Yes' in feeding_status) else 0
                 
                 bus_status = str(vals[5]) if len(vals) > 5 else 'No'
-                bus = 1 if ('Γ£à' in bus_status or 'Yes' in bus_status) else 0
+                bus = 1 if ('✅' in bus_status or 'Yes' in bus_status) else 0
                 # upsert attendance row
                 self.cursor.execute("SELECT id FROM attendance WHERE student_id = ? AND date = ?", (student_db_id, d))
                 r = self.cursor.fetchone()
@@ -12256,16 +12256,16 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
             # Enhanced success feedback
             present_count = sum(1 for item in self.att_tree.get_children() 
-                              if 'Γ£à' in str(self.att_tree.item(item)['values'][3]))
+                              if '✅' in str(self.att_tree.item(item)['values'][3]))
             total_count = len(list(self.att_tree.get_children()))
             
-            messagebox.showinfo("Γ£à Success", 
+            messagebox.showinfo("✅ Success", 
                                f"Attendance saved successfully!\n\n"
                                f"📊 Summary:\n"
-                               f"ΓÇó Total Students: {total_count}\n"
-                               f"ΓÇó Present: {present_count}\n"
-                               f"ΓÇó Absent: {total_count - present_count}\n"
-                               f"ΓÇó Date: {d}")
+                               f"• Total Students: {total_count}\n"
+                               f"• Present: {present_count}\n"
+                               f"• Absent: {total_count - present_count}\n"
+                               f"• Date: {d}")
             
             # Update status bar
             if hasattr(self, 'update_status'):
@@ -12275,7 +12275,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             self.load_attendance()
             self.update_dashboard()
         except Exception as e:
-            messagebox.showerror("Γ¥î Error", f"Failed to save attendance:\n{str(e)}")
+            messagebox.showerror("❌ Error", f"Failed to save attendance:\n{str(e)}")
             if hasattr(self, 'update_status'):
                 self.update_status("Error saving attendance")
 
@@ -12340,7 +12340,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             is_present = ar and ar[0]
             # Simple attendance display
               
-            present = 'Γ£ô Present' if is_present else 'ΓùÅ Absent'
+            present = '✓ Present' if is_present else '❌ Absent'
             
             feeding = 'Paid' if ar and ar[1] else 'Not Paid'
             
@@ -12396,7 +12396,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             for item in self.att_tree.get_children():
                 vals = self.att_tree.item(item)['values']
                 present_status = str(vals[3])
-                if 'Γ£à' in present_status or 'Present' in present_status:
+                if '✅' in present_status or 'Present' in present_status:
                     present_count += 1
                 else:
                     absent_count += 1
@@ -12405,8 +12405,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             confirm_message = (f"📋 SUBMIT ATTENDANCE CONFIRMATION\n\n"
                               f"✅ Date: {selected_date}\n"
                               f"👥 Total Students: {total_students}\n"
-                              f"Γ£à Present: {present_count}\n"
-                              f"Γ¥î Absent: {absent_count}\n"
+                              f"✅ Present: {present_count}\n"
+                              f"❌ Absent: {absent_count}\n"
                               f"📊 Attendance Rate: {(present_count/total_students*100):.1f}%\n\n"
                               f"Do you want to submit this attendance record?")
             
@@ -12416,28 +12416,28 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 
                 # Additional success actions
                 if hasattr(self, 'update_status'):
-                    self.update_status(f"Γ£à Attendance submitted successfully for {selected_date}")
+                    self.update_status(f"✅ Attendance submitted successfully for {selected_date}")
                 
                 # Update dashboard if it exists
                 if hasattr(self, 'update_dashboard'):
                     self.update_dashboard()
                 
                 # Show completion message
-                messagebox.showinfo("Γ£à Submission Complete", 
+                messagebox.showinfo("✅ Submission Complete", 
                                    f"Attendance has been successfully submitted!\n\n"
                                    f"✅ Date: {selected_date}\n"
-                                   f"Γ£à Present: {present_count} students\n"
-                                   f"Γ¥î Absent: {absent_count} students")
+                                   f"✅ Present: {present_count} students\n"
+                                   f"❌ Absent: {absent_count} students")
         
         except Exception as e:
-            messagebox.showerror("Γ¥î Submission Error", 
+            messagebox.showerror("❌ Submission Error", 
                                f"Failed to submit attendance:\n\n{str(e)}")
             if hasattr(self, 'update_status'):
-                self.update_status("Γ¥î Error submitting attendance")
+                self.update_status("❌ Error submitting attendance")
     
     def reset_attendance_form(self):
         """Reset the attendance form to default state"""
-        if messagebox.askyesno("öä Reset Form", 
+        if messagebox.askyesno("🔄 Reset Form", 
                               "Are you sure you want to reset the attendance form?\n\n"
                               "This will reload all student data and clear any unsaved changes."):
             try:
@@ -12458,18 +12458,18 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 
                 # Update status
                 if hasattr(self, 'update_status'):
-                    self.update_status("öä Attendance form reset to default state")
+                    self.update_status("🔄 Attendance form reset to default state")
                 
-                messagebox.showinfo("Γ£à Form Reset", 
+                messagebox.showinfo("✅ Form Reset", 
                                    f"Attendance form has been reset.\n\n"
                                    f"✅ Date reset to: {today_str}\n"
                                    f"📋 All student data reloaded")
             
             except Exception as e:
-                messagebox.showerror("Γ¥î Reset Error", 
+                messagebox.showerror("❌ Reset Error", 
                                    f"Failed to reset form:\n\n{str(e)}")
                 if hasattr(self, 'update_status'):
-                    self.update_status("Γ¥î Error resetting attendance form")
+                    self.update_status("❌ Error resetting attendance form")
 
     def show_database_view(self):
         self.clear_content_frame()
@@ -12567,7 +12567,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         title_label.pack(side='left', padx=20, pady=15)
         
         # Add refresh button
-        refresh_btn = tk.Button(header_frame, text="öä Refresh", 
+        refresh_btn = tk.Button(header_frame, text="🔄 Refresh", 
                                command=self.load_users_data,
                                bg='#3498db', fg='white', font=('Segoe UI', 10, 'bold'),
                                relief='flat', padx=15, pady=5, cursor='hand2')
@@ -12589,7 +12589,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         search_frame = tk.Frame(list_frame, bg='#ffffff')
         search_frame.pack(fill='x', pady=(0, 10))
         
-        tk.Label(search_frame, text="öì Search Users:", font=('Segoe UI', 10, 'bold'), 
+        tk.Label(search_frame, text="🔍 Search Users:", font=('Segoe UI', 10, 'bold'), 
                 bg='#ffffff').pack(side='left', padx=(0, 5))
         
         self.users_search_var = tk.StringVar()
@@ -12635,19 +12635,19 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         users_btn_frame = tk.Frame(list_frame, bg='#ffffff')
         users_btn_frame.pack(fill='x', pady=(10, 0))
         
-        edit_user_btn = tk.Button(users_btn_frame, text="Γ£Å∩╕Å Edit User", 
+        edit_user_btn = tk.Button(users_btn_frame, text="🔄 Edit User", 
                                  command=self.edit_selected_user,
                                  bg='#f39c12', fg='white', font=('Segoe UI', 10, 'bold'),
                                  relief='flat', padx=15, pady=8, cursor='hand2')
         edit_user_btn.pack(side='left', padx=(0, 5))
         
-        change_role_btn = tk.Button(users_btn_frame, text="öä Change Role", 
+        change_role_btn = tk.Button(users_btn_frame, text="🔄 Change Role", 
                                    command=self.change_user_role,
                                    bg='#9b59b6', fg='white', font=('Segoe UI', 10, 'bold'),
                                    relief='flat', padx=15, pady=8, cursor='hand2')
         change_role_btn.pack(side='left', padx=5)
         
-        toggle_status_btn = tk.Button(users_btn_frame, text="ΓÅ╕∩╕Å Activate/Deactivate", 
+        toggle_status_btn = tk.Button(users_btn_frame, text="🔄 Activate/Deactivate", 
                                      command=self.toggle_user_status,
                                      bg='#e67e22', fg='white', font=('Segoe UI', 10, 'bold'),
                                      relief='flat', padx=15, pady=8, cursor='hand2')
@@ -12744,10 +12744,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         status_frame = tk.Frame(fields_frame, bg='#ffffff')
         status_frame.grid(row=1, column=3, sticky='w', padx=(10, 0), pady=(0, 10))
         
-        active_radio = tk.Radiobutton(status_frame, text="Γ£à Active", variable=self.user_status_var, 
+        active_radio = tk.Radiobutton(status_frame, text="✅ Active", variable=self.user_status_var, 
                                      value=True, bg='#ffffff', font=('Segoe UI', 9))
         active_radio.pack(side='left')
-        inactive_radio = tk.Radiobutton(status_frame, text="Γ¥î Inactive", variable=self.user_status_var, 
+        inactive_radio = tk.Radiobutton(status_frame, text="❌ Inactive", variable=self.user_status_var, 
                                        value=False, bg='#ffffff', font=('Segoe UI', 9))
         inactive_radio.pack(side='left', padx=(10, 0))
         
@@ -12879,7 +12879,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 font=('Segoe UI', 16, 'bold'), bg='#ffffff', fg='#2c3e50').pack(side='left')
         
         # Refresh button
-        refresh_btn = tk.Button(header_frame, text="öä Refresh Data", 
+        refresh_btn = tk.Button(header_frame, text="🔄 Refresh Data", 
                                command=self.refresh_activity_report,
                                bg='#3498db', fg='white', font=('Segoe UI', 10, 'bold'),
                                relief='flat', padx=15, pady=5, cursor='hand2')
@@ -12905,7 +12905,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.activity_summary_cards.append(card1)
         
         # Card 2: Active Users
-        card2 = self.create_activity_card(summary_container, "Γ£à Active Users", "0", "#27ae60")
+        card2 = self.create_activity_card(summary_container, "✅ Active Users", "0", "#27ae60")
         card2.pack(side='left', padx=(0, 10), expand=True, fill='both')
         self.activity_summary_cards.append(card2)
         
@@ -13112,22 +13112,22 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                         elif days_since <= 30:
                             status = "ƒá Active This Month"
                         else:
-                            status = "ö┤ Inactive"
+                            status = "📭 Inactive"
                         
                         days_text = f"{days_since} day{'s' if days_since != 1 else ''} ago"
                         
                     except:
                         days_since = 999
                         days_text = "Unknown"
-                        status = "Γ¥ô Unknown"
+                        status = "❓ Unknown"
                 else:
                     days_text = "Never"
-                    status = "ΓÜ¬ Never Logged In"
+                    status = "🚫 Never Logged In"
                     last_login = "Never"
                 
                 # Add account status
                 if not is_active:
-                    status = "Γ¥î Disabled"
+                    status = "❌ Disabled"
                 
                 self.login_activity_tree.insert('', 'end', values=(
                     username, role.capitalize(), last_login, days_text, status
@@ -13669,9 +13669,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         else:
             confirm_msg = (f"Deactivate user '{username}'?\n\n"
                           f"⚠️ WARNING: This will:\n"
-                          f"ΓÇó Prevent the user from logging in\n"
-                          f"ΓÇó Immediately revoke all system access\n"
-                          f"ΓÇó Maintain user data for future reactivation\n\n"
+                          f"• Prevent the user from logging in\n"
+                          f"• Immediately revoke all system access\n"
+                          f"• Maintain user data for future reactivation\n\n"
                           f"The user account can be reactivated later.")
         
         if messagebox.askyesno("Confirm Status Change", confirm_msg):
@@ -13683,11 +13683,11 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 # Show success message with instructions
                 if new_status:
                     messagebox.showinfo("User Activated", 
-                                       f"Γ£à User '{username}' has been activated.\n\n"
+                                       f"✅ User '{username}' has been activated.\n\n"
                                        f"The user can now login to the system.")
                 else:
                     messagebox.showinfo("User Deactivated", 
-                                       f"ΓÅ╕∩╕Å User '{username}' has been deactivated.\n\n"
+                                       f"🔄 User '{username}' has been deactivated.\n\n"
                                        f"The user cannot login until reactivated.\n"
                                        f"All user data has been preserved.")
                 
@@ -13721,13 +13721,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         # Enhanced confirmation with more details
         confirm_msg = (f"⚠️ PERMANENT DELETION WARNING ⚠️\n\n"
                       f"You are about to delete:\n"
-                      f"ΓÇó Username: {username}\n"
-                      f"ΓÇó Role: {user_role.title()}\n\n"
+                      f"• Username: {username}\n"
+                      f"• Role: {user_role.title()}\n\n"
                       f"This action will:\n"
-                      f"ΓÇó Permanently remove the user account\n"
-                      f"ΓÇó Delete all login credentials\n"
-                      f"ΓÇó Remove all permissions\n"
-                      f"ΓÇó Cannot be undone\n\n"
+                      f"• Permanently remove the user account\n"
+                      f"• Delete all login credentials\n"
+                      f"• Remove all permissions\n"
+                      f"• Cannot be undone\n\n"
                       f"💡 Alternative: Consider deactivating the user instead\n"
                       f"   (preserves data for future reactivation)\n\n"
                       f"Are you absolutely sure you want to DELETE this user?")
@@ -13814,7 +13814,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         search_section = tk.Frame(control_inner, bg='#f8f9fa')
         search_section.pack(fill=tk.X, pady=(0, 15))
         
-        search_label = tk.Label(search_section, text="öì Fee Search:", 
+        search_label = tk.Label(search_section, text="🔍 Fee Search:", 
                                font=('Segoe UI', 12, 'bold'), bg='#f8f9fa', fg='#2c3e50')
         search_label.pack(side=tk.LEFT)
         
@@ -13852,13 +13852,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         left_buttons = tk.Frame(buttons_section, bg='#f8f9fa')
         left_buttons.pack(side=tk.LEFT)
         
-        search_btn = self.create_modern_button(left_buttons, "öì Search Student Fees", self.search_student_fees, 'primary', width=18)
+        search_btn = self.create_modern_button(left_buttons, "🔍 Search Student Fees", self.search_student_fees, 'primary', width=18)
         search_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         show_all_btn = self.create_modern_button(left_buttons, "📋 Show All Fees", self.load_fees, 'success', width=12)
         show_all_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        clear_btn = self.create_modern_button(left_buttons, "öä Clear Search", self.clear_fee_search, 'secondary', width=12)
+        clear_btn = self.create_modern_button(left_buttons, "🔄 Clear Search", self.clear_fee_search, 'secondary', width=12)
         clear_btn.pack(side=tk.LEFT)
 
         # Main frame with left form and right list
@@ -14031,7 +14031,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         fee_filter_content = tk.Frame(fee_filter_frame, bg='#f8f9fa')
         fee_filter_content.pack(fill=tk.X, padx=15, pady=10)
         
-        tk.Label(fee_filter_content, text="öì Filter by Class:", 
+        tk.Label(fee_filter_content, text="🔍 Filter by Class:", 
                 font=('Segoe UI', 10, 'bold'), bg='#f8f9fa', fg='#2c3e50').pack(side=tk.LEFT, padx=(0, 10))
         
         # Get all classes for filter
@@ -14280,10 +14280,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
 Found {len(fees)} fee record(s)
 
 Financial Summary:
-ΓÇó Total Amount Due: GHS {total_due:.2f}
-ΓÇó Total Amount Paid: GHS {total_paid:.2f}
-ΓÇó Total Arrears: GHS {total_arrears:.2f}
-ΓÇó Balance: GHS {(total_due - total_paid):.2f}"""
+• Total Amount Due: GHS {total_due:.2f}
+• Total Amount Paid: GHS {total_paid:.2f}
+• Total Arrears: GHS {total_arrears:.2f}
+• Balance: GHS {(total_due - total_paid):.2f}"""
         
         messagebox.showinfo("Search Results", summary_msg)
         # Update status bar
@@ -14810,7 +14810,7 @@ Financial Summary:
                            relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         save_btn.pack(fill=tk.X, pady=(0, 8))
         
-        update_btn = tk.Button(buttons_frame, text="Γ£Å∩╕Å Update Transaction", 
+        update_btn = tk.Button(buttons_frame, text="🔄 Update Transaction", 
                              command=self.update_transaction,
                              font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
                              relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -14822,7 +14822,7 @@ Financial Summary:
                              relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         delete_btn.pack(fill=tk.X, pady=(0, 8))
         
-        clear_btn = tk.Button(buttons_frame, text="öä Clear Form", 
+        clear_btn = tk.Button(buttons_frame, text="🔄 Clear Form", 
                             command=self.clear_transaction_form,
                             font=('Segoe UI', 10, 'bold'), bg='#95a5a6', fg='white',
                             relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -14860,7 +14860,7 @@ Financial Summary:
         filter_dropdown.pack(side=tk.LEFT, padx=(0, 10))
         filter_dropdown.bind('<<ComboboxSelected>>', self.filter_transactions)
         
-        refresh_btn = tk.Button(filter_frame, text="öä", command=self.load_transactions,
+        refresh_btn = tk.Button(filter_frame, text="🔄", command=self.load_transactions,
                               font=('Segoe UI', 9, 'bold'), bg='#3498db', fg='white',
                               relief='flat', bd=0, padx=8, pady=2, cursor='hand2')
         refresh_btn.pack(side=tk.LEFT)
@@ -14987,7 +14987,7 @@ Financial Summary:
                                relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         save_cat_btn.pack(fill=tk.X, pady=(0, 8))
         
-        update_cat_btn = tk.Button(buttons_frame, text="Γ£Å∩╕Å Update Category", 
+        update_cat_btn = tk.Button(buttons_frame, text="🔄 Update Category", 
                                  command=self.update_category,
                                  font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
                                  relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -14999,7 +14999,7 @@ Financial Summary:
                                  relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         delete_cat_btn.pack(fill=tk.X, pady=(0, 8))
         
-        clear_cat_btn = tk.Button(buttons_frame, text="öä Clear Form", 
+        clear_cat_btn = tk.Button(buttons_frame, text="🔄 Clear Form", 
                                 command=self.clear_category_form,
                                 font=('Segoe UI', 10, 'bold'), bg='#95a5a6', fg='white',
                                 relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15300,7 +15300,7 @@ Financial Summary:
                             relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         save_btn.pack(fill=tk.X, pady=(0, 8))
         
-        update_btn = tk.Button(buttons_frame, text="Γ£Å∩╕Å Update Budget", 
+        update_btn = tk.Button(buttons_frame, text="🔄 Update Budget", 
                               command=self.update_budget,
                               font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
                               relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15312,7 +15312,7 @@ Financial Summary:
                               relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         delete_btn.pack(fill=tk.X, pady=(0, 8))
         
-        clear_btn = tk.Button(buttons_frame, text="öä Clear Form", 
+        clear_btn = tk.Button(buttons_frame, text="🔄 Clear Form", 
                              command=self.clear_budget_form,
                              font=('Segoe UI', 10, 'bold'), bg='#95a5a6', fg='white',
                              relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -16095,7 +16095,7 @@ Financial Summary:
         tk.Label(title_row, text="📊 Financial Dashboard & Analytics", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(side=tk.LEFT)
         
-        refresh_dash_btn = tk.Button(title_row, text="öä Refresh Data", 
+        refresh_dash_btn = tk.Button(title_row, text="🔄 Refresh Data", 
                                    command=lambda: self.refresh_dashboard_data(dash_content),
                                    font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
                                    relief='flat', bd=0, padx=15, pady=8, cursor='hand2')
@@ -16472,12 +16472,12 @@ Financial Summary:
                     
                     # Category and description
                     category_desc = tk.Label(details_frame, 
-                                           text=f"{transaction[2]} ΓÇó {transaction[4][:50]}{'...' if len(transaction[4]) > 50 else ''}", 
+                                           text=f"{transaction[2]} • {transaction[4][:50]}{'...' if len(transaction[4]) > 50 else ''}", 
                                            font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#ffffff')
                     category_desc.pack(anchor='w')
                     
                     # Date and time
-                    date_time = tk.Label(details_frame, text=f"✅ {transaction[0]} ΓÇó ΓÅ░ {transaction[5][:10]}", 
+                    date_time = tk.Label(details_frame, text=f"✅ {transaction[0]} • ⏱️ {transaction[5][:10]}", 
                                        font=('Segoe UI', 9), fg='#7f8c8d', bg='#ffffff')
                     date_time.pack(anchor='w', pady=(2, 0))
                     
@@ -17080,7 +17080,7 @@ Financial Summary:
                     font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#ecf0f1').pack(side=tk.LEFT)
             
             # Export buttons (placeholder functionality)
-            export_pdf_btn = tk.Button(footer_content, text="ôä Export to PDF", 
+            export_pdf_btn = tk.Button(footer_content, text="📊 Export to PDF", 
                                      command=lambda: self.export_report_pdf(from_date, to_date, 'income_expense'),
                                      font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
                                      relief='solid', bd=0, padx=15, pady=5, cursor='hand2')
@@ -17148,7 +17148,7 @@ Financial Summary:
             csv_btn.pack(side=tk.LEFT, padx=(0, 10))
             
             if PDF_AVAILABLE:
-                pdf_btn = tk.Button(button_container, text="ôä Export as PDF", 
+                pdf_btn = tk.Button(button_container, text="📊 Export as PDF", 
                                    command=lambda: self.export_report_pdf(from_date, to_date, 'income_analysis'),
                                    font=('Segoe UI', 11, 'bold'), bg='#e74c3c', fg='white',
                                    relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -17616,7 +17616,7 @@ Financial Summary:
             export_frame = tk.Frame(content, bg='#f8f9fa')
             export_frame.pack(fill=tk.X, pady=(10, 0))
             
-            export_btn = tk.Button(export_frame, text="ôä Export to PDF", 
+            export_btn = tk.Button(export_frame, text="📊 Export to PDF", 
                                    command=lambda: self.export_expense_analysis_pdf(from_date, to_date),
                                    font=('Segoe UI', 12, 'bold'), bg='#27ae60', fg='white',
                                    relief='solid', bd=0, padx=30, pady=12, cursor='hand2')
@@ -17699,7 +17699,7 @@ Financial Summary:
             csv_btn.pack(side=tk.LEFT, padx=(0, 10))
             
             if PDF_AVAILABLE:
-                pdf_btn = tk.Button(button_container, text="ôä Export as PDF", 
+                pdf_btn = tk.Button(button_container, text="📊 Export as PDF", 
                                    command=lambda: self.export_pl_as_pdf(from_date, to_date),
                                    font=('Segoe UI', 11, 'bold'), bg='#e74c3c', fg='white',
                                    relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -17897,7 +17897,7 @@ Financial Summary:
         except Exception as e:
             error_frame = tk.Frame(pl_content, bg='#f8d7da', relief='solid', bd=1)
             error_frame.pack(fill=tk.X, padx=10, pady=10)
-            tk.Label(error_frame, text=f"Γ¥î Error generating P&L statement: {str(e)}", 
+            tk.Label(error_frame, text=f"❌ Error generating P&L statement: {str(e)}", 
                     font=('Segoe UI', 10), fg='#721c24', bg='#f8d7da').pack(padx=15, pady=10)
     
     def export_pl_as_csv(self, from_date, to_date):
@@ -18224,7 +18224,7 @@ Financial Summary:
             csv_btn.pack(side=tk.LEFT, padx=(0, 10))
             
             if PDF_AVAILABLE:
-                pdf_btn = tk.Button(button_container, text="ôä Export as PDF", 
+                pdf_btn = tk.Button(button_container, text="📊 Export as PDF", 
                                    command=lambda: self.export_report_pdf(from_date, to_date, 'category'),
                                    font=('Segoe UI', 11, 'bold'), bg='#e74c3c', fg='white',
                                    relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -18329,7 +18329,7 @@ Financial Summary:
             csv_btn.pack(side=tk.LEFT, padx=(0, 10))
             
             if PDF_AVAILABLE:
-                pdf_btn = tk.Button(button_container, text="ôä Export as PDF", 
+                pdf_btn = tk.Button(button_container, text="📊 Export as PDF", 
                                    command=lambda: self.export_report_pdf(from_date, to_date, 'cashflow'),
                                    font=('Segoe UI', 11, 'bold'), bg='#e74c3c', fg='white',
                                    relief='solid', bd=0, padx=25, pady=12, cursor='hand2')
@@ -18845,7 +18845,7 @@ Financial Summary:
             tk.Label(title_row, text="📊 Financial Dashboard & Analytics", 
                     font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(side=tk.LEFT)
             
-            refresh_dash_btn = tk.Button(title_row, text="öä Refresh Data", 
+            refresh_dash_btn = tk.Button(title_row, text="🔄 Refresh Data", 
                                        command=lambda: self.refresh_dashboard_data(dashboard_content),
                                        font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
                                        relief='flat', bd=0, padx=15, pady=8, cursor='hand2')
@@ -18882,7 +18882,7 @@ Financial Summary:
         header_content = tk.Frame(header_frame, bg='#34495e')
         header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
         
-        tk.Label(header_content, text="ΓÜÖ∩╕Å System Settings", 
+        tk.Label(header_content, text="⚙️ System Settings", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#34495e').pack(anchor='w')
         tk.Label(header_content, text="Admin Only: Configure system preferences and manage data", 
                 font=('Segoe UI', 12), fg='#ecf0f1', bg='#34495e').pack(anchor='w', pady=(5, 0))
@@ -18917,7 +18917,7 @@ Financial Summary:
         
         # Tab 5: Backup & Restore
         backup_tab = tk.Frame(notebook, bg='white')
-        notebook.add(backup_tab, text="öä Backup & Restore")
+        notebook.add(backup_tab, text="🔄 Backup & Restore")
         self.create_backup_restore_tab(backup_tab)
     
     def create_data_management_tab(self, parent):
@@ -19914,7 +19914,7 @@ Financial Summary:
         tk.Label(title_row, text="🤖 AI Insights & Predictions", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(side=tk.LEFT)
         
-        tk.Button(title_row, text="öä Refresh", 
+        tk.Button(title_row, text="🔄 Refresh", 
                  command=self.show_ai_insights,
                  font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
                  relief='flat', bd=0, padx=15, pady=8, cursor='hand2').pack(side=tk.RIGHT)
@@ -19933,7 +19933,7 @@ Financial Summary:
         status_content = tk.Frame(status_card, bg='#e8f5e9')
         status_content.pack(fill=tk.X, padx=20, pady=15)
         
-        tk.Label(status_content, text="Γ£à AI System Active", 
+        tk.Label(status_content, text="✅ AI System Active", 
                 font=('Segoe UI', 12, 'bold'), bg='#e8f5e9', fg='#2e7d32').pack(anchor='w')
         tk.Label(status_content, text="Running offline ML models for predictive analytics", 
                 font=('Segoe UI', 10), bg='#e8f5e9', fg='#555').pack(anchor='w', pady=(5, 0))
@@ -19977,7 +19977,7 @@ Financial Summary:
         at_risk = self.ai_predictor.predict_attendance_risk()
         
         if not at_risk:
-            tk.Label(content, text="Γ£à No students at high attendance risk", 
+            tk.Label(content, text="✅ No students at high attendance risk", 
                     font=('Segoe UI', 11), bg='white', fg='#27ae60').pack(pady=20)
             return
         
@@ -20035,7 +20035,7 @@ Financial Summary:
         at_risk = self.ai_predictor.predict_fee_payment_risk()
         
         if not at_risk:
-            tk.Label(content, text="Γ£à No students at high payment risk", 
+            tk.Label(content, text="✅ No students at high payment risk", 
                     font=('Segoe UI', 11), bg='white', fg='#27ae60').pack(pady=20)
             return
         
@@ -20090,7 +20090,7 @@ Financial Summary:
         insights = self.ai_predictor.generate_insights()
         
         if not insights:
-            tk.Label(content, text="Γ£à All systems running smoothly. No critical insights at this time.", 
+            tk.Label(content, text="✅ All systems running smoothly. No critical insights at this time.", 
                     font=('Segoe UI', 11), bg='white', fg='#27ae60').pack(pady=10)
             return
         
@@ -20103,7 +20103,7 @@ Financial Summary:
             colors = {
                 'warning': ('#fff3e0', '#f57c00', '⚠️'),
                 'info': ('#e3f2fd', '#1976d2', 'ℹ️'),
-                'success': ('#e8f5e9', '#388e3c', 'Γ£à')
+                'success': ('#e8f5e9', '#388e3c', '✅')
             }
             bg_color, text_color, icon = colors.get(insight['type'], colors['info'])
             
@@ -20218,12 +20218,12 @@ Financial Summary:
         recent_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         features = [
-            "Γ£à AI-powered student performance analysis",
-            "Γ£à Attendance pattern recognition",
-            "Γ£à Fee payment tracking and predictions",
-            "Γ£à Personalized recommendations for each student",
-            "Γ£à Class-wide insights and trends",
-            "Γ£à Exportable reports in PDF format"
+            "✅ AI-powered student performance analysis",
+            "✅ Attendance pattern recognition",
+            "✅ Fee payment tracking and predictions",
+            "✅ Personalized recommendations for each student",
+            "✅ Class-wide insights and trends",
+            "✅ Exportable reports in PDF format"
         ]
         
         for feature in features:
@@ -20358,9 +20358,9 @@ Financial Summary:
         messagebox.showinfo("Coming Soon", 
                           "Progress Summary Report\n\n"
                           "This feature will provide:\n"
-                          "ΓÇó Term-by-term comparisons\n"
-                          "ΓÇó Individual student growth tracking\n"
-                          "ΓÇó Class-wide progress trends\n\n"
+                          "• Term-by-term comparisons\n"
+                          "• Individual student growth tracking\n"
+                          "• Class-wide progress trends\n\n"
                           "Available in next update!")
     
     def select_class_dialog(self):
@@ -20578,7 +20578,7 @@ Collection Rate: {fee['collection_rate']}%
         btn_frame = tk.Frame(content, bg='white')
         btn_frame.pack(fill=tk.X, padx=20, pady=20)
         
-        tk.Button(btn_frame, text="ôä Export to PDF", 
+        tk.Button(btn_frame, text="📊 Export to PDF", 
                  command=lambda: self.export_report_to_pdf(report, 'class'),
                  font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                  padx=20, pady=10).pack(side=tk.LEFT)
@@ -20716,12 +20716,12 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         btn_frame = tk.Frame(content, bg='white')
         btn_frame.pack(fill=tk.X, padx=20, pady=20)
         
-        tk.Button(btn_frame, text="ôä Export to PDF", 
+        tk.Button(btn_frame, text="📊 Export to PDF", 
                  command=lambda: self.export_report_to_pdf(report, 'student'),
                  font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                  padx=20, pady=10).pack(side=tk.LEFT)
         
-        tk.Button(btn_frame, text="öì View Advanced Analytics", 
+        tk.Button(btn_frame, text="🔍 View Advanced Analytics", 
                  command=lambda: self.show_advanced_analytics_window(student_id) if student_id else None,
                  font=('Segoe UI', 11, 'bold'), bg='#3498db', fg='white',
                  padx=20, pady=10).pack(side=tk.LEFT, padx=10)
@@ -20764,15 +20764,15 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                 tk.Label(analytics_content, text="⚠️ Risk Factors:", 
                         font=('Segoe UI', 10, 'bold'), bg='white', fg='#e74c3c').pack(anchor='w')
                 for factor in risk_score['risk_factors'][:3]:
-                    tk.Label(analytics_content, text=f"  ΓÇó {factor}", 
+                    tk.Label(analytics_content, text=f"  • {factor}", 
                             font=('Segoe UI', 10), bg='white').pack(anchor='w', padx=(10, 0))
             
             # Protective factors
             if risk_score['protective_factors']:
-                tk.Label(analytics_content, text="\nΓ£ô Strengths:", 
+                tk.Label(analytics_content, text="\n✓ Strengths:", 
                         font=('Segoe UI', 10, 'bold'), bg='white', fg='#27ae60').pack(anchor='w', pady=(5, 0))
                 for factor in risk_score['protective_factors'][:2]:
-                    tk.Label(analytics_content, text=f"  ΓÇó {factor}", 
+                    tk.Label(analytics_content, text=f"  • {factor}", 
                             font=('Segoe UI', 10), bg='white').pack(anchor='w', padx=(10, 0))
         
         except Exception as e:
@@ -20803,7 +20803,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         header = tk.Frame(content, bg='#8e44ad')
         header.pack(fill=tk.X, pady=(0, 20))
         
-        tk.Label(header, text=f"öì Advanced AI Analytics: {student_name}", 
+        tk.Label(header, text=f"🔍 Advanced AI Analytics: {student_name}", 
                 font=('Segoe UI', 20, 'bold'), bg='#8e44ad', fg='white').pack(pady=20)
         
         # Get all analytics data
@@ -20844,7 +20844,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                 font=('Segoe UI', 11, 'bold'), bg='white', fg='#e74c3c').pack(anchor='w')
         if risk_score['risk_factors']:
             for factor in risk_score['risk_factors']:
-                tk.Label(left_col, text=f"  ΓÇó {factor}", 
+                tk.Label(left_col, text=f"  • {factor}", 
                         font=('Segoe UI', 10), bg='white', wraplength=400).pack(anchor='w', padx=(10, 0), pady=2)
         else:
             tk.Label(left_col, text="  None identified", 
@@ -20853,11 +20853,11 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         right_col = tk.Frame(detail_frame, bg='white')
         right_col.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
-        tk.Label(right_col, text="Γ£ô Protective Factors:", 
+        tk.Label(right_col, text="✓ Protective Factors:", 
                 font=('Segoe UI', 11, 'bold'), bg='white', fg='#27ae60').pack(anchor='w')
         if risk_score['protective_factors']:
             for factor in risk_score['protective_factors']:
-                tk.Label(right_col, text=f"  ΓÇó {factor}", 
+                tk.Label(right_col, text=f"  • {factor}", 
                         font=('Segoe UI', 10), bg='white', wraplength=400).pack(anchor='w', padx=(10, 0), pady=2)
         else:
             tk.Label(right_col, text="  None identified", 
@@ -20891,8 +20891,8 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         att_trend_frame = tk.Frame(trend_grid, bg='#f8f9fa', relief=tk.RAISED, bd=1)
         att_trend_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
-        trend_icons = {'improving': '📈', 'declining': '📉', 'stable': 'Γ₧í∩╕Å'}
-        att_icon = trend_icons.get(trends['attendance_trend'], 'Γ₧í∩╕Å')
+        trend_icons = {'improving': '📈', 'declining': '📉', 'stable': '➝'}
+        att_icon = trend_icons.get(trends['attendance_trend'], '➝')
         
         tk.Label(att_trend_frame, text="Attendance Trend", 
                 font=('Segoe UI', 10, 'bold'), bg='#f8f9fa').pack(pady=(10, 5))
@@ -20903,7 +20903,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         fee_trend_frame = tk.Frame(trend_grid, bg='#f8f9fa', relief=tk.RAISED, bd=1)
         fee_trend_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
         
-        fee_icon = trend_icons.get(trends['fee_trend'], 'Γ₧í∩╕Å')
+        fee_icon = trend_icons.get(trends['fee_trend'], '➝')
         
         tk.Label(fee_trend_frame, text="Payment Trend", 
                 font=('Segoe UI', 10, 'bold'), bg='#f8f9fa').pack(pady=(10, 5))
@@ -20942,7 +20942,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                     bg=color, fg='white').pack(pady=(0, 8))
         
         # Patterns Section
-        patterns_frame = tk.LabelFrame(content, text="öì Behavioral Patterns", 
+        patterns_frame = tk.LabelFrame(content, text="🔍 Behavioral Patterns", 
                                       font=('Segoe UI', 14, 'bold'), bg='white')
         patterns_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
         
