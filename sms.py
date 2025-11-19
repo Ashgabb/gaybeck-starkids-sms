@@ -4458,7 +4458,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         buttons_frame.pack(fill='x', pady=20)
         
         # Save button
-        save_remarks_btn = tk.Button(buttons_frame, text="Æ╛ Save Remarks", 
+        save_remarks_btn = tk.Button(buttons_frame, text="💾 Save Remarks", 
                                    command=lambda: self.save_remarks(student, remarks_window),
                                    font=('Segoe UI', 12, 'bold'), bg='#28a745', fg='white',
                                    relief='solid', bd=0, padx=30, pady=10)
@@ -4472,7 +4472,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         history_btn.pack(side='left', padx=10)
         
         # Clear all button
-        clear_btn = tk.Button(buttons_frame, text="ùæ∩╕Å Clear All", 
+        clear_btn = tk.Button(buttons_frame, text="🧹 Clear All", 
                             command=lambda: self.clear_all_remarks(),
                             font=('Segoe UI', 12, 'bold'), bg='#dc3545', fg='white',
                             relief='solid', bd=0, padx=30, pady=10)
@@ -5124,7 +5124,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save homework: {str(e)}")
         
-        save_btn = tk.Button(content, text="Æ╛ Save Homework", command=save_homework,
+        save_btn = tk.Button(content, text="💾 Save Homework", command=save_homework,
                             font=('Segoe UI', 12, 'bold'), bg='#28a745', fg='white',
                             relief='solid', bd=0, padx=30, pady=10)
         save_btn.pack(pady=10)
@@ -6879,7 +6879,7 @@ Collection Rate: {rate:.1f}%
         else:
             messagebox.showinfo("Feature", 
                               "Please use the AI Reports menu for detailed student reports.\n\n"
-                              "Navigate to: 📊 AI Reports ΓåÆ Individual Student Report")
+                              "Navigate to: 📊 AI Reports → Individual Student Report")
     
     def generate_attendance_report(self):
         """Generate attendance summary report"""
@@ -7331,7 +7331,7 @@ Highest Grade: {max_grade:.1f}%
                                                            '#e74c3c')
         attendance_btn.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
-        database_btn = self.create_enhanced_action_button(action_row2, "Æ╛ Database Overview", 
+        database_btn = self.create_enhanced_action_button(action_row2, "💾 Database Overview", 
                                                          "Raw data and advanced queries",
                                                          lambda: self.show_database_section(), 
                                                          '#34495e')
@@ -7567,7 +7567,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         # Action buttons
         self.create_enhanced_action_button(actions_frame, "View Fee Management", 
                                           lambda: [finance_window.destroy(), self.show_fees_section()], 
-                                          "#3498db", "Æ│")
+                                          "#3498db", "📊")
         
         self.create_enhanced_action_button(actions_frame, "Generate Financial Report", 
                                           lambda: self.generate_financial_report(), 
@@ -7684,7 +7684,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         self.create_enhanced_action_button(actions_frame, "Fee Management", 
                                           lambda: [feeding_window.destroy(), self.show_fees_section()], 
-                                          "#27ae60", "Æ│")
+                                          "#27ae60", "📊")
         
         self.create_enhanced_action_button(actions_frame, "Generate Feeding Report", 
                                           lambda: self.generate_feeding_report(), 
@@ -7871,7 +7871,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         title_label.pack(side=tk.LEFT)
         
         # Click indicator
-        click_label = tk.Label(bottom_section, text="ΓåÆ", 
+        click_label = tk.Label(bottom_section, text="→", 
                               font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg=card_data['color'], anchor='e')
         click_label.pack(side=tk.RIGHT)
         
@@ -9358,42 +9358,24 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         close_button.pack(side=tk.RIGHT, padx=5)
 
     def export_student_pdf(self, student_data):
-        print("DEBUG: export_student_pdf called")  # Debug output
-        print(f"DEBUG: PDF_AVAILABLE = {PDF_AVAILABLE}")  # Debug output
-        
+        """Export student information to PDF"""
         if not PDF_AVAILABLE:
-            print("DEBUG: PDF_AVAILABLE is False, showing installation dialog")  # Debug output
-            response = messagebox.askyesno("PDF Library Missing", 
-                                          "The reportlab library is required for PDF export.\n\n"
-                                          "Would you like to install it now?")
-            if response:
-                try:
-                    import subprocess
-                    import sys
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", "reportlab"])
-                    messagebox.showinfo("Success", "Reportlab installed successfully! Please restart the application.")
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to install reportlab: {str(e)}")
+            messagebox.showwarning("PDF Not Available", 
+                                  "PDF export requires the reportlab library.\n\n"
+                                  "Please install it using: pip install reportlab")
             return
         
-        print("DEBUG: Proceeding with PDF export")  # Debug output
-    
+        # For now, use the simplified version
+        self.export_student_pdf_simple(student_data)
+
     def export_student_pdf_simple(self, student_data):
         """Simplified PDF export function with better error handling"""
         try:
-            print("DEBUG: Starting simplified PDF export")
-            
-            # Check if reportlab is available
-            try:
-                from reportlab.lib.pagesizes import A4
-                from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-                from reportlab.lib.units import inch
-                from reportlab.lib import colors
-                print("DEBUG: Reportlab imports successful")
-            except ImportError as e:
-                messagebox.showerror("Error", f"Reportlab library not available: {e}")
-                return
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
             
             # Get save location
             filename = filedialog.asksaveasfilename(
@@ -9403,10 +9385,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 initialfile=f"Student_Report_{student_data[2].replace(' ', '_')}.pdf"
             )
             
-            print(f"DEBUG: Selected filename: {filename}")
-            
             if not filename:
-                print("DEBUG: No filename selected, canceling")
                 return
             
             # Create simple PDF document
@@ -9427,18 +9406,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 ['Student ID', student_data[1] or "N/A"],
                 ['Full Name', student_data[2]],
                 ['Gender', student_data[4]],
-                ['Date of Birth', student_data[5] or "N/A"],
-                ['Current Class', student_data[3]],
-                ['Date of Admission', student_data[6]],
-                ['Father\'s Name', student_data[7] or "N/A"],
-                ['Mother\'s Name', student_data[8] or "N/A"],
-                ['Phone', student_data[9] or "N/A"],
-                ['Address', student_data[10] or "N/A"],
-                ['Transportation', student_data[11]],
-                ['Bus Fee (GHS)', f"{student_data[12]:.2f}" if student_data[12] else "0.00"],
-                ['Monthly Fee (GHS)', f"{student_data[13]:.2f}" if student_data[13] else "0.00"],
-                ['Feeding Fee Paid', "Yes" if student_data[14] else "No"],
-                ['Status', student_data[15]]
+                ['Current Status', student_data[15]]
             ]
             
             table = Table(data, colWidths=[2*inch, 4*inch])
@@ -9456,191 +9424,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             story.append(table)
             
             # Build PDF
-            print("DEBUG: Building PDF...")
             doc.build(story)
-            
-            print(f"DEBUG: PDF created successfully at {filename}")
             messagebox.showinfo("Success", f"Student report saved successfully!\n\nFile: {filename}")
-            
-        except Exception as e:
-            print(f"DEBUG: Error occurred: {e}")
-            import traceback
-            traceback.print_exc()
-            messagebox.showerror("Error", f"Failed to generate PDF: {str(e)}")
-        
-        # Get save location
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF files", "*.pdf")],
-            title="Save Student Report As",
-            initialfile=f"Student_Report_{student_data[2].replace(' ', '_')}.pdf"
-        )
-        
-        if not filename:
-            return
-        
-        try:
-            # Create PDF document
-            doc = SimpleDocTemplate(filename, pagesize=A4)
-            story = []
-            styles = getSampleStyleSheet()
-            
-            # Custom styles
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Heading1'],
-                fontSize=18,
-                spaceAfter=30,
-                alignment=1,  # Center alignment
-                textColor=colors.darkblue
-            )
-            
-            header_style = ParagraphStyle(
-                'CustomHeader',
-                parent=styles['Heading2'],
-                fontSize=14,
-                spaceAfter=12,
-                textColor=colors.darkred,
-                borderWidth=1,
-                borderColor=colors.black,
-                backColor=colors.lightgrey,
-                leftIndent=10,
-                rightIndent=10
-            )
-            
-            # Title
-            story.append(Paragraph("STUDENT INFORMATION RECORD", title_style))
-            story.append(Spacer(1, 20))
-            
-            # School info with logo
-            try:
-                if os.path.exists('logo.png'):
-                    from reportlab.platypus import Image as RLImage
-                    logo = RLImage('logo.png', width=1*inch, height=1*inch)
-                    
-                    school_info_data = [
-                        [logo, "Gaybeck Starkids Academy\n" + f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]
-                    ]
-                    
-                    school_table = Table(school_info_data, colWidths=[1.2*inch, 4.8*inch])
-                    school_table.setStyle(TableStyle([
-                        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                        ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
-                        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-                        ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
-                        ('FONTNAME', (1, 0), (1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (1, 0), (1, 0), 12),
-                    ]))
-                else:
-                    raise FileNotFoundError("Logo not found")
-            except:
-                # Fallback without logo
-                school_info = [
-                    ["Gaybeck Starkids Academy"],
-                    [f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"],
-                    [""]
-                ]
-                
-                school_table = Table(school_info, colWidths=[6*inch])
-                school_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ]))
-            
-            story.append(school_table)
-            story.append(Spacer(1, 20))
-            
-            # Personal Information
-            story.append(Paragraph("PERSONAL INFORMATION", header_style))
-            personal_data = [
-                ["Student ID:", student_data[1] or "N/A"],
-                ["Full Name:", student_data[2]],
-                ["Gender:", student_data[4]],
-                ["Date of Birth:", student_data[5] or "N/A"],
-                ["Status:", student_data[15]]
-            ]
-            
-            personal_table = Table(personal_data, colWidths=[2*inch, 4*inch])
-            personal_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightblue),
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            story.append(personal_table)
-            story.append(Spacer(1, 15))
-            
-            # Academic Information
-            story.append(Paragraph("ACADEMIC INFORMATION", header_style))
-            academic_data = [
-                ["Current Class:", student_data[3]],
-                ["Date of Admission:", student_data[6]]
-            ]
-            
-            academic_table = Table(academic_data, colWidths=[2*inch, 4*inch])
-            academic_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightgreen),
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            story.append(academic_table)
-            story.append(Spacer(1, 15))
-            
-            # Parent Information
-            story.append(Paragraph("PARENT/GUARDIAN INFORMATION", header_style))
-            parent_data = [
-                ["Father's Name:", student_data[7] or "N/A"],
-                ["Mother's Name:", student_data[8] or "N/A"],
-                ["Phone Number:", student_data[9] or "N/A"],
-                ["Address:", student_data[10] or "N/A"]
-            ]
-            
-            parent_table = Table(parent_data, colWidths=[2*inch, 4*inch])
-            parent_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightyellow),
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            story.append(parent_table)
-            story.append(Spacer(1, 15))
-            
-            # Fee Information
-            story.append(Paragraph("FEE INFORMATION", header_style))
-            feeding_status = "Yes" if student_data[14] else "No"
-            fee_data = [
-                ["Transportation:", student_data[11]],
-                ["Bus Fee (GHS):", f"{student_data[12]:.2f}" if student_data[12] else "0.00"],
-                ["Monthly Fee (GHS):", f"{student_data[13]:.2f}" if student_data[13] else "0.00"],
-                ["Feeding Fee Paid:", feeding_status]
-            ]
-            
-            fee_table = Table(fee_data, colWidths=[2*inch, 4*inch])
-            fee_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightcoral),
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            story.append(fee_table)
-            
-            # Build PDF
-            doc.build(story)
-            messagebox.showinfo("Success", f"Student report saved successfully as:\n{filename}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate PDF: {str(e)}")
@@ -10288,7 +10073,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                                      self.update_class, '#2980b9', '#3498db')
         update_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 3))
         
-        delete_btn = self.create_enhanced_form_button(button_row, "ùæ∩╕Å Delete", 
+        delete_btn = self.create_enhanced_form_button(button_row, "🧹 Delete", 
                                                      self.delete_class, '#c0392b', '#e74c3c')
         delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(3, 0))
         
@@ -10788,7 +10573,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         skills_section = tk.Frame(form_content, bg='#ffffff')
         skills_section.pack(fill=tk.X, pady=(0, 25), padx=40)
         
-        skills_label = tk.Label(skills_section, text="Æí Additional Skills", 
+        skills_label = tk.Label(skills_section, text="💡 Additional Skills", 
                                font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#2c3e50')
         skills_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -10866,7 +10651,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                                                self.capture_teacher_photo, '#9b59b6', '#8e44ad')
             photo_capture_btn.pack(fill=tk.X, pady=(0, 5))
         
-        photo_clear_btn = self.create_enhanced_form_button(photo_buttons_frame, "ùæ∩╕Å Clear Photo", 
+        photo_clear_btn = self.create_enhanced_form_button(photo_buttons_frame, "🧹 Clear Photo", 
                                                           self.clear_teacher_photo, '#e74c3c', '#c0392b')
         photo_clear_btn.pack(fill=tk.X)
         
@@ -10886,7 +10671,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                                       self.add_teacher_document, '#f39c12', '#e67e22')
         add_doc_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        clear_docs_btn = self.create_enhanced_form_button(docs_buttons_frame, "ùæ∩╕Å Clear All", 
+        clear_docs_btn = self.create_enhanced_form_button(docs_buttons_frame, "🧹 Clear All", 
                                                          self.clear_teacher_documents, '#e74c3c', '#c0392b')
         clear_docs_btn.pack(side=tk.LEFT)
         
@@ -10935,7 +10720,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                                      self.update_teacher, '#e67e22', '#f39c12')
         update_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        delete_btn = self.create_enhanced_form_button(button_row2, "ùæ∩╕Å Delete Selected", 
+        delete_btn = self.create_enhanced_form_button(button_row2, "🧹 Delete Selected", 
                                                      self.delete_teacher, '#c0392b', '#e74c3c')
         delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         
@@ -11538,7 +11323,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 status_label.pack(anchor=tk.W)
                 
                 # Remove button
-                remove_btn = tk.Button(doc_frame, text="ùæ∩╕Å", font=('Segoe UI', 10), 
+                remove_btn = tk.Button(doc_frame, text="🧹", font=('Segoe UI', 10), 
                                       bg='#e74c3c', fg='white', relief=tk.FLAT, bd=0,
                                       width=3, command=lambda dp=doc_path: self.remove_teacher_document(dp))
                 remove_btn.pack(side=tk.RIGHT, padx=5, pady=5)
@@ -11937,7 +11722,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             skills_section = tk.Frame(profile_frame, bg='#ffffff', relief=tk.SOLID, bd=1)
             skills_section.pack(fill=tk.X, pady=(0, 20))
             
-            skills_header = tk.Label(skills_section, text="Æí Additional Skills & Competencies",
+            skills_header = tk.Label(skills_section, text="💡 Additional Skills & Competencies",
                                     font=('Segoe UI', 14, 'bold'), fg='#ffffff', bg='#e67e22')
             skills_header.pack(fill=tk.X, padx=0, pady=0, ipady=10)
             
@@ -12111,7 +11896,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         right_buttons = tk.Frame(buttons_section, bg='#f8f9fa')
         right_buttons.pack(side=tk.RIGHT)
         
-        save_btn = self.create_modern_button(right_buttons, "Æ╛ Save Changes", 
+        save_btn = self.create_modern_button(right_buttons, "💾 Save Changes", 
                                            self.save_bulk_attendance, 'warning', width=15)
         save_btn.pack(side=tk.LEFT)
 
@@ -12201,7 +11986,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         instructions_inner = tk.Frame(instructions_panel, bg='#e8f6ff')
         instructions_inner.pack(fill=tk.X, padx=20, pady=15)
         
-        tk.Label(instructions_inner, text="Æí Instructions:", 
+        tk.Label(instructions_inner, text="💡 Instructions:", 
                 font=('Segoe UI', 11, 'bold'), bg='#e8f6ff', fg='#2c3e50').pack(anchor=tk.W)
         
         instructions_text = "Select one or more students and use the Mark Present/Absent buttons. Click Submit Attendance to save all changes."
@@ -12391,7 +12176,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         if not sel:
             messagebox.showwarning("⚠️ No Selection", 
                                  "Please select one or more student rows first.\n\n"
-                                 "Æí Tip: Click on a student name to select, or hold Ctrl to select multiple students.")
+                                 "💡 Tip: Click on a student name to select, or hold Ctrl to select multiple students.")
             return
             
         # Update selected students
@@ -12868,7 +12653,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                      relief='flat', padx=15, pady=8, cursor='hand2')
         toggle_status_btn.pack(side='left', padx=5)
         
-        delete_user_btn = tk.Button(users_btn_frame, text="ùæ∩╕Å Delete User", 
+        delete_user_btn = tk.Button(users_btn_frame, text="🧹 Delete User", 
                                    command=self.delete_selected_user,
                                    bg='#c0392b', fg='white', font=('Segoe UI', 10, 'bold'),
                                    relief='flat', padx=15, pady=8, cursor='hand2')
@@ -13029,13 +12814,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         btn_frame = tk.Frame(form_frame, bg='#ffffff')
         btn_frame.pack(fill='x', pady=(20, 0))
         
-        save_btn = tk.Button(btn_frame, text="Æ╛ Save User", 
+        save_btn = tk.Button(btn_frame, text="💾 Save User", 
                             command=self.save_user,
                             bg='#27ae60', fg='white', font=('Segoe UI', 12, 'bold'),
                             relief='flat', padx=20, pady=10, cursor='hand2')
         save_btn.pack(side='left', padx=(0, 10))
         
-        clear_btn = tk.Button(btn_frame, text="ùæ∩╕Å Clear Form", 
+        clear_btn = tk.Button(btn_frame, text="🧹 Clear Form", 
                              command=self.clear_user_form,
                              bg='#95a5a6', fg='white', font=('Segoe UI', 12, 'bold'),
                              relief='flat', padx=20, pady=10, cursor='hand2')
@@ -13178,7 +12963,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Tab 2: Role Distribution
         role_tab = tk.Frame(activity_notebook, bg='#ffffff')
-        activity_notebook.add(role_tab, text="æö Role Distribution")
+        activity_notebook.add(role_tab, text="👥 Role Distribution")
         
         # Role distribution content
         role_frame = tk.Frame(role_tab, bg='#ffffff')
@@ -13193,7 +12978,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Tab 3: Permission Analysis
         perm_tab = tk.Frame(activity_notebook, bg='#ffffff')
-        activity_notebook.add(perm_tab, text="öæ Permissions")
+        activity_notebook.add(perm_tab, text="🔐 Permissions")
         
         # Permission analysis content
         perm_frame = tk.Frame(perm_tab, bg='#ffffff')
@@ -13943,7 +13728,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                       f"ΓÇó Delete all login credentials\n"
                       f"ΓÇó Remove all permissions\n"
                       f"ΓÇó Cannot be undone\n\n"
-                      f"Æí Alternative: Consider deactivating the user instead\n"
+                      f"💡 Alternative: Consider deactivating the user instead\n"
                       f"   (preserves data for future reactivation)\n\n"
                       f"Are you absolutely sure you want to DELETE this user?")
         
@@ -13958,7 +13743,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     self.load_users_data()
                     
                     messagebox.showinfo("User Deleted", 
-                                       f"ùæ∩╕Å User '{username}' has been permanently deleted.\n\n"
+                                       f"🧹 User '{username}' has been permanently deleted.\n\n"
                                        f"The account cannot be recovered.")
                     
                     self.update_status(f"User '{username}' deleted successfully")
@@ -14213,13 +13998,13 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         btns = tk.Frame(btns_container, bg='#f9f9f9')
         btns.pack()
         
-        add_btn = self.create_modern_button(btns, "Æ╛ Add Payment", self.add_fee, 'primary', width=15)
+        add_btn = self.create_modern_button(btns, "💾 Add Payment", self.add_fee, 'primary', width=15)
         add_btn.grid(row=0, column=0, padx=5, pady=3)
         
-        update_btn = self.create_modern_button(btns, "Γ£Å∩╕Å Update Payment", self.update_fee, 'success', width=15)
+        update_btn = self.create_modern_button(btns, "📱 Update Payment", self.update_fee, 'success', width=15)
         update_btn.grid(row=0, column=1, padx=5, pady=3)
         
-        delete_btn = self.create_modern_button(btns, "ùæ∩╕Å Delete Payment", self.delete_fee, 'danger', width=15)
+        delete_btn = self.create_modern_button(btns, "🧹 Delete Payment", self.delete_fee, 'danger', width=15)
         delete_btn.grid(row=1, column=0, columnspan=2, padx=5, pady=3)
         
         # Add some bottom padding
@@ -14926,7 +14711,7 @@ Financial Summary:
                                   command=self.on_transaction_type_change)
         income_rb.pack(side=tk.LEFT, padx=(0, 20))
         
-        expense_rb = tk.Radiobutton(type_selection_frame, text="Æ╕ Expense", 
+        expense_rb = tk.Radiobutton(type_selection_frame, text="💸 Expense", 
                                    variable=self.transaction_type_var, value="expense",
                                    font=('Segoe UI', 10), bg='#ffffff', fg='#e74c3c',
                                    command=self.on_transaction_type_change)
@@ -15019,7 +14804,7 @@ Financial Summary:
         buttons_frame = tk.Frame(form, bg='#ffffff')
         buttons_frame.pack(fill=tk.X, pady=(15, 20))  # Added bottom padding
         
-        save_btn = tk.Button(buttons_frame, text="Æ╛ Save Transaction", 
+        save_btn = tk.Button(buttons_frame, text="💾 Save Transaction", 
                            command=self.save_transaction,
                            font=('Segoe UI', 10, 'bold'), bg='#28a745', fg='white',
                            relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15031,7 +14816,7 @@ Financial Summary:
                              relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         update_btn.pack(fill=tk.X, pady=(0, 8))
         
-        delete_btn = tk.Button(buttons_frame, text="ùæ∩╕Å Delete Transaction", 
+        delete_btn = tk.Button(buttons_frame, text="🧹 Delete Transaction", 
                              command=self.delete_transaction,
                              font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
                              relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15176,7 +14961,7 @@ Financial Summary:
                                      font=('Segoe UI', 10), bg='#ffffff', fg='#27ae60')
         income_cat_rb.pack(side=tk.LEFT, padx=(0, 20))
         
-        expense_cat_rb = tk.Radiobutton(type_selection_frame, text="Æ╕ Expense", 
+        expense_cat_rb = tk.Radiobutton(type_selection_frame, text="💸 Expense", 
                                       variable=self.category_type_var, value="expense",
                                       font=('Segoe UI', 10), bg='#ffffff', fg='#e74c3c')
         expense_cat_rb.pack(side=tk.LEFT)
@@ -15196,7 +14981,7 @@ Financial Summary:
         buttons_frame = tk.Frame(form, bg='#ffffff')
         buttons_frame.pack(fill=tk.X, pady=(15, 0))
         
-        save_cat_btn = tk.Button(buttons_frame, text="Æ╛ Save Category", 
+        save_cat_btn = tk.Button(buttons_frame, text="💾 Save Category", 
                                command=self.save_category,
                                font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
                                relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15208,7 +14993,7 @@ Financial Summary:
                                  relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         update_cat_btn.pack(fill=tk.X, pady=(0, 8))
         
-        delete_cat_btn = tk.Button(buttons_frame, text="ùæ∩╕Å Delete Category", 
+        delete_cat_btn = tk.Button(buttons_frame, text="🧹 Delete Category", 
                                  command=self.delete_category,
                                  font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
                                  relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15384,7 +15169,7 @@ Financial Summary:
         report_buttons = [
             ("📊 Income & Expense Summary", self.generate_income_expense_report, '#27ae60'),
             ("💳 Income Analysis", self.generate_income_analysis, '#3498db'),
-            ("Æ╕ Expense Analysis", self.generate_expense_analysis, '#e74c3c'),
+            ("💸 Expense Analysis", self.generate_expense_analysis, '#e74c3c'),
             ("📈 Profit & Loss Statement", self.generate_profit_loss_report, '#9b59b6'),
             ("📋 Category Breakdown", self.generate_category_report, '#f39c12'),
             ("📊 Cash Flow Report", self.generate_cashflow_report, '#16a085')
@@ -15403,7 +15188,7 @@ Financial Summary:
     def create_budget_planning_tab(self):
         """Create budget planning and tracking tab"""
         budget_frame = ttk.Frame(self.financial_notebook)
-        self.financial_notebook.add(budget_frame, text="Æí Budget Planning")
+        self.financial_notebook.add(budget_frame, text="💡 Budget Planning")
         
         # Create main container
         main_container = tk.Frame(budget_frame, bg='#f8f9fa')
@@ -15419,7 +15204,7 @@ Financial Summary:
         form_header = tk.Frame(left_panel, bg='#8e44ad')
         form_header.pack(fill=tk.X)
         
-        tk.Label(form_header, text="Æí Create/Edit Budget", 
+        tk.Label(form_header, text="💡 Create/Edit Budget", 
                 font=('Segoe UI', 14, 'bold'), fg='white', bg='#8e44ad').pack(pady=15)
         
         # Scrollable form content
@@ -15509,7 +15294,7 @@ Financial Summary:
         buttons_frame = tk.Frame(form, bg='#ffffff')
         buttons_frame.pack(fill=tk.X, pady=(15, 0))
         
-        save_btn = tk.Button(buttons_frame, text="Æ╛ Save Budget", 
+        save_btn = tk.Button(buttons_frame, text="💾 Save Budget", 
                             command=self.save_budget,
                             font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
                             relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15521,7 +15306,7 @@ Financial Summary:
                               relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
         update_btn.pack(fill=tk.X, pady=(0, 8))
         
-        delete_btn = tk.Button(buttons_frame, text="ùæ∩╕Å Delete Budget", 
+        delete_btn = tk.Button(buttons_frame, text="🧹 Delete Budget", 
                               command=self.delete_budget,
                               font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
                               relief='solid', bd=0, padx=15, pady=8, cursor='hand2')
@@ -15864,7 +15649,7 @@ Financial Summary:
                 if transaction[2] == 'income':
                     self.transactions_tree.set(item, 'Type', '💳 Income')
                 else:
-                    self.transactions_tree.set(item, 'Type', 'Æ╕ Expense')
+                    self.transactions_tree.set(item, 'Type', '💸 Expense')
                     
         except Exception as e:
             print(f"Error loading transactions: {e}")
@@ -15924,7 +15709,7 @@ Financial Summary:
                 if transaction[2] == 'income':
                     self.transactions_tree.set(item, 'Type', '💳 Income')
                 else:
-                    self.transactions_tree.set(item, 'Type', 'Æ╕ Expense')
+                    self.transactions_tree.set(item, 'Type', '💸 Expense')
                     
         except Exception as e:
             print(f"Error filtering transactions: {e}")
@@ -16394,7 +16179,7 @@ Financial Summary:
                 {
                     'title': 'Monthly Expenses', 
                     'value': f'GHS {monthly_expense:.2f}',
-                    'icon': 'Æ╕',
+                    'icon': '💸',
                     'color': '#e74c3c',
                     'bg': '#ffeaea'
                 },
@@ -16408,14 +16193,14 @@ Financial Summary:
                 {
                     'title': 'Total Income',
                     'value': f'GHS {total_income:.2f}',
-                    'icon': 'ÆÄ',
+                    'icon': '📈',
                     'color': '#3498db',
                     'bg': '#ebf3fd'
                 },
                 {
                     'title': 'Total Expenses',
                     'value': f'GHS {total_expense:.2f}',
-                    'icon': 'Æ│',
+                    'icon': '📊',
                     'color': '#f39c12',
                     'bg': '#fef9e7'
                 },
@@ -16560,7 +16345,7 @@ Financial Summary:
         expense_column = tk.Frame(columns_frame, bg='#ffffff')
         expense_column.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
-        tk.Label(expense_column, text="Æ╕ Top Expense Categories", 
+        tk.Label(expense_column, text="💸 Top Expense Categories", 
                 font=('Segoe UI', 14, 'bold'), fg='#e74c3c', bg='#ffffff').pack(anchor='w', pady=(0, 15))
         
         self.create_category_breakdown_list(expense_column, 'expense')
@@ -16674,7 +16459,7 @@ Financial Summary:
                     trans_item_content.pack(fill=tk.X, padx=20, pady=12)
                     
                     # Transaction type icon and info
-                    type_icon = '💳' if transaction[1] == 'income' else 'Æ╕'
+                    type_icon = '💳' if transaction[1] == 'income' else '💸'
                     type_color = '#27ae60' if transaction[1] == 'income' else '#e74c3c'
                     
                     icon_label = tk.Label(trans_item_content, text=type_icon, 
@@ -17268,7 +17053,7 @@ Financial Summary:
             transactions = self.cursor.fetchall()
             
             for transaction in transactions:
-                type_display = '💳 Income' if transaction[1] == 'income' else 'Æ╕ Expense'
+                type_display = '💳 Income' if transaction[1] == 'income' else '💸 Expense'
                 amount_display = f"GHS {transaction[3]:.2f}"
                 description_short = transaction[4][:30] + '...' if len(transaction[4]) > 30 else transaction[4]
                 
@@ -17291,7 +17076,7 @@ Financial Summary:
             footer_content = tk.Frame(footer_frame, bg='#ecf0f1')
             footer_content.pack(fill=tk.X, padx=30, pady=15)
             
-            tk.Label(footer_content, text="Æ╛ Export Options:", 
+            tk.Label(footer_content, text="💾 Export Options:", 
                     font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#ecf0f1').pack(side=tk.LEFT)
             
             # Export buttons (placeholder functionality)
@@ -17566,7 +17351,7 @@ Financial Summary:
             header_content = tk.Frame(header_frame, bg='#e74c3c')
             header_content.pack(fill=tk.BOTH, padx=30, pady=20)
             
-            tk.Label(header_content, text="Æ╕ Expense Analysis Report", 
+            tk.Label(header_content, text="💸 Expense Analysis Report", 
                     font=('Segoe UI', 24, 'bold'), fg='white', bg='#e74c3c').pack(anchor='w')
             tk.Label(header_content, text=f"Period: {from_date} to {to_date}", 
                     font=('Segoe UI', 12), fg='#fadbd8', bg='#e74c3c').pack(anchor='w', pady=(5, 0))
@@ -17597,7 +17382,7 @@ Financial Summary:
             summary_container.pack(fill=tk.X, pady=(0, 20))
             
             # Total Expenses Card
-            total_card = self.create_analysis_card(summary_container, "Æ╕ Total Expenses", 
+            total_card = self.create_analysis_card(summary_container, "💸 Total Expenses", 
                                                    f"GHS {total_expenses:,.2f}", '#e74c3c')
             total_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
             
@@ -18517,7 +18302,7 @@ Financial Summary:
             header_content = tk.Frame(header_frame, bg='#16a085')
             header_content.pack(fill=tk.BOTH, padx=30, pady=15)
             
-            tk.Label(header_content, text="Æ╣ Cash Flow Report", 
+            tk.Label(header_content, text="📊 Cash Flow Report", 
                     font=('Segoe UI', 18, 'bold'), fg='white', bg='#16a085').pack(anchor='w')
             tk.Label(header_content, text=f"Period: {from_date} to {to_date}", 
                     font=('Segoe UI', 11), fg='#a7efe1', bg='#16a085').pack(anchor='w', pady=(5, 0))
@@ -19112,12 +18897,12 @@ Financial Summary:
         
         # Tab 1: Data Management
         data_tab = tk.Frame(notebook, bg='white')
-        notebook.add(data_tab, text="ùæ∩╕Å Data Management")
+        notebook.add(data_tab, text="🧹 Data Management")
         self.create_data_management_tab(data_tab)
         
         # Tab 2: Currency & Finance
         finance_tab = tk.Frame(notebook, bg='white')
-        notebook.add(finance_tab, text="Æ▒ Currency & Finance")
+        notebook.add(finance_tab, text="💳 Currency & Finance")
         self.create_currency_finance_tab(finance_tab)
         
         # Tab 3: User Management
@@ -19127,7 +18912,7 @@ Financial Summary:
         
         # Tab 4: Database Management
         db_tab = tk.Frame(notebook, bg='white')
-        notebook.add(db_tab, text="Æ╛ Database")
+        notebook.add(db_tab, text="💾 Database")
         self.create_database_management_tab(db_tab)
         
         # Tab 5: Backup & Restore
@@ -19226,7 +19011,7 @@ Financial Summary:
         content = scrollable.scrollable_frame
         
         # Currency Settings Section
-        currency_frame = tk.LabelFrame(content, text="Æ▒ Currency Settings", 
+        currency_frame = tk.LabelFrame(content, text="💳 Currency Settings", 
                                       font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50')
         currency_frame.pack(fill=tk.X, pady=(0, 20))
         
@@ -19507,7 +19292,7 @@ Financial Summary:
         header_content = tk.Frame(header_frame, bg='#e74c3c')
         header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
         
-        tk.Label(header_content, text="ùæ∩╕Å Data Management", 
+        tk.Label(header_content, text="🧹 Data Management", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#e74c3c').pack(anchor='w')
         tk.Label(header_content, text="Admin Only: Clear test data and manage database records", 
                 font=('Segoe UI', 12), fg='#fff', bg='#e74c3c').pack(anchor='w', pady=(5, 0))
@@ -19698,7 +19483,7 @@ Financial Summary:
         header_content = tk.Frame(header_frame, bg='#2c3e50')
         header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
         
-        tk.Label(header_content, text="Æ╛ Database Backup & Restore", 
+        tk.Label(header_content, text="💾 Database Backup & Restore", 
                 font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
         tk.Label(header_content, text="Protect your data with regular backups", 
                 font=('Segoe UI', 12), fg='#bdc3c7', bg='#2c3e50').pack(anchor='w', pady=(5, 0))
@@ -19737,7 +19522,7 @@ Financial Summary:
         backup_info = tk.Frame(backup_content, bg='#e8f5e9', relief=tk.RAISED, bd=1)
         backup_info.pack(fill=tk.X, pady=(10, 0))
         
-        tk.Label(backup_info, text="Æí Tip: Regular backups protect against data loss. Backup before major changes!", 
+        tk.Label(backup_info, text="💡 Tip: Regular backups protect against data loss. Backup before major changes!", 
                 font=('Segoe UI', 10), bg='#e8f5e9', fg='#2e7d32', 
                 wraplength=600, justify=tk.LEFT).pack(padx=15, pady=10)
         
@@ -20293,7 +20078,7 @@ Financial Summary:
     
     def create_ai_insights_section(self, parent):
         """Create AI insights and recommendations section"""
-        section = tk.LabelFrame(parent, text="Æí AI Recommendations & Insights", 
+        section = tk.LabelFrame(parent, text="💡 AI Recommendations & Insights", 
                                font=('Segoe UI', 13, 'bold'), bg='white', 
                                fg='#2c3e50', relief=tk.RAISED, bd=2)
         section.pack(fill=tk.X)
@@ -21082,7 +20867,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         rec_box = tk.Frame(risk_content, bg='#e3f2fd', relief=tk.RAISED, bd=1)
         rec_box.pack(fill=tk.X, pady=(10, 0))
         
-        tk.Label(rec_box, text=f"Æí Recommendation: {risk_score['recommendation']}", 
+        tk.Label(rec_box, text=f"💡 Recommendation: {risk_score['recommendation']}", 
                 font=('Segoe UI', 10, 'bold'), bg='#e3f2fd', fg='#1976d2',
                 wraplength=900, justify=tk.LEFT).pack(padx=15, pady=10)
         
@@ -21176,12 +20961,12 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         payment_card = tk.Frame(patterns_content, bg='#e8f5e9', relief=tk.RAISED, bd=1)
         payment_card.pack(fill=tk.X, pady=(0, 8))
         
-        tk.Label(payment_card, text=f"Æ│ Payment Pattern: {patterns['payment_pattern']}", 
+        tk.Label(payment_card, text=f"📊 Payment Pattern: {patterns['payment_pattern']}", 
                 font=('Segoe UI', 10, 'bold'), bg='#e8f5e9', fg='#388e3c').pack(padx=15, pady=10, anchor='w')
         
         # Behavioral insights
         if patterns['behavioral_insights']:
-            tk.Label(patterns_content, text="Æí Key Insights:", 
+            tk.Label(patterns_content, text="💡 Key Insights:", 
                     font=('Segoe UI', 11, 'bold'), bg='white').pack(anchor='w', pady=(10, 5))
             
             for insight in patterns['behavioral_insights']:
