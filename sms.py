@@ -4959,8 +4959,8 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             ("º« Math Practice", self.create_math_task),
             ("❓ Quick Quiz", self.create_quick_quiz),
             ("👥 Group Activity", self.create_group_activity),
-            ("ôó Homework Reminder", self.create_homework_reminder),
-            ("ôú Class Announcement", self.create_class_announcement),
+            ("📝 Homework Reminder", self.create_homework_reminder),
+            ("📢 Class Announcement", self.create_class_announcement),
             ("📖 Study Guide", self.create_study_guide),
             ("📁 Project Milestone", self.create_project_milestone)
         ]
@@ -5783,11 +5783,11 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def create_homework_reminder(self):
         """Create homework reminder"""
-        self.create_quick_task("Homework Reminder", "ôó")
+        self.create_quick_task("Homework Reminder", "📝")
     
     def create_class_announcement(self):
         """Create class announcement"""
-        self.create_quick_task("Class Announcement", "ôú")
+        self.create_quick_task("Class Announcement", "📢")
     
     def create_study_guide(self):
         """Create study guide task"""
@@ -7575,7 +7575,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         self.create_enhanced_action_button(actions_frame, "Send Payment Reminders", 
                                           lambda: self.send_payment_reminders(), 
-                                          "#e74c3c", "ôº")
+                                          "#e74c3c", "🔔")
     
     def generate_financial_report(self):
         """Generate and display financial report"""
@@ -10642,7 +10642,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         photo_buttons_frame = tk.Frame(photo_section, bg='#ffffff')
         photo_buttons_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        photo_upload_btn = self.create_enhanced_form_button(photo_buttons_frame, "ôü Browse Photo", 
+        photo_upload_btn = self.create_enhanced_form_button(photo_buttons_frame, "📂 Browse Photo", 
                                                            self.browse_teacher_photo, '#3498db', '#2980b9')
         photo_upload_btn.pack(fill=tk.X, pady=(0, 5))
         
@@ -10667,7 +10667,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         docs_buttons_frame = tk.Frame(docs_section, bg='#ffffff')
         docs_buttons_frame.pack(fill=tk.X, pady=(0, 10))
         
-        add_doc_btn = self.create_enhanced_form_button(docs_buttons_frame, "ôü Add Document", 
+        add_doc_btn = self.create_enhanced_form_button(docs_buttons_frame, "📂 Add Document", 
                                                       self.add_teacher_document, '#f39c12', '#e67e22')
         add_doc_btn.pack(side=tk.LEFT, padx=(0, 10))
         
