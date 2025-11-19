@@ -4859,7 +4859,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header_content = tk.Frame(header_frame, bg='#e9ecef')
         header_content.pack(fill='x', padx=15, pady=10)
         
-        tk.Label(header_content, text="ôû Lesson Plans", 
+        tk.Label(header_content, text="📚 Lesson Plans", 
                 font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef').pack(side='left')
         
         add_lesson_btn = tk.Button(header_content, text="➕ Create Lesson Plan", 
@@ -4955,13 +4955,13 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         
         quick_tasks = [
             ("ℹ️ Reading Assignment", self.create_reading_task),
-            ("✏️∩╕Å Writing Task", self.create_writing_task),
+            ("✏️ Writing Task", self.create_writing_task),
             ("º« Math Practice", self.create_math_task),
             ("❓ Quick Quiz", self.create_quick_quiz),
             ("👥 Group Activity", self.create_group_activity),
             ("ôó Homework Reminder", self.create_homework_reminder),
             ("ôú Class Announcement", self.create_class_announcement),
-            ("ôû Study Guide", self.create_study_guide),
+            ("📖 Study Guide", self.create_study_guide),
             ("📁 Project Milestone", self.create_project_milestone)
         ]
         
@@ -5307,7 +5307,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         header = tk.Frame(lesson_window, bg='#17a2b8')
         header.pack(fill='x')
         
-        tk.Label(header, text="ôû Create Lesson Plan", 
+        tk.Label(header, text="📚 Create Lesson Plan", 
                 font=('Segoe UI', 16, 'bold'), fg='white', bg='#17a2b8').pack(pady=15)
         
         # Create scrollable content
@@ -5402,7 +5402,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 messagebox.showerror("Error", f"Failed to save lesson plan: {str(e)}")
         
         # Save button
-        save_btn = tk.Button(scrollable_frame, text="ôû Save Lesson Plan", command=save_lesson_plan,
+        save_btn = tk.Button(scrollable_frame, text="📚 Save Lesson Plan", command=save_lesson_plan,
                             font=('Segoe UI', 12, 'bold'), bg='#17a2b8', fg='white',
                             relief='solid', bd=0, padx=30, pady=10)
         save_btn.pack(pady=20)
@@ -5767,7 +5767,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def create_writing_task(self):
         """Create writing task"""
-        self.create_quick_task("Writing Task", "✏️∩╕Å")
+        self.create_quick_task("Writing Task", "✏️")
     
     def create_math_task(self):
         """Create math practice task"""
@@ -5791,7 +5791,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def create_study_guide(self):
         """Create study guide task"""
-        self.create_quick_task("Study Guide", "ôû")
+        self.create_quick_task("Study Guide", "📖")
     
     def create_project_milestone(self):
         """Create project milestone"""
@@ -8897,7 +8897,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.emergency_alt_phone.pack(side=tk.LEFT, padx=(10, 0))
 
         # ========== SECTION 6: MEDICAL & HEALTH INFORMATION ==========
-        medical_section = tk.LabelFrame(form_frame, text="ÅÑ Medical & Health Information", 
+        medical_section = tk.LabelFrame(form_frame, text="🏥 Medical & Health Information", 
                                        font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
                                        bg='#f8f9fa', relief=tk.FLAT, bd=1)
         medical_section.pack(fill=tk.X, padx=20, pady=(0, 15))
@@ -9999,7 +9999,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         name_section = tk.Frame(fields_container, bg='#ffffff')
         name_section.pack(fill=tk.X, pady=(15, 10), padx=15)
         
-        name_label = tk.Label(name_section, text="Å╖∩╕Å Class Name", 
+        name_label = tk.Label(name_section, text="📝 Class Name", 
                              font=('Segoe UI', 10, 'bold'), bg='#ffffff', fg='#2c3e50')
         name_label.pack(anchor=tk.W, pady=(0, 3))
         
@@ -10647,7 +10647,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         photo_upload_btn.pack(fill=tk.X, pady=(0, 5))
         
         if CAMERA_AVAILABLE:
-            photo_capture_btn = self.create_enhanced_form_button(photo_buttons_frame, "ô╕ Capture Photo", 
+            photo_capture_btn = self.create_enhanced_form_button(photo_buttons_frame, "📷 Capture Photo", 
                                                                self.capture_teacher_photo, '#9b59b6', '#8e44ad')
             photo_capture_btn.pack(fill=tk.X, pady=(0, 5))
         
@@ -10936,7 +10936,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             header_frame.pack(fill=tk.X)
             header_frame.pack_propagate(False)
             
-            header_title = tk.Label(header_frame, text="ô╕ Photo Capture", 
+            header_title = tk.Label(header_frame, text="📷 Photo Capture", 
                                    font=('Segoe UI', 16, 'bold'), fg='white', bg='#e67e22')
             header_title.pack(expand=True)
             
@@ -11024,7 +11024,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     pass
             
             # Control buttons
-            capture_btn = self.create_enhanced_form_button(controls_frame, "ô╕ Capture", 
+            capture_btn = self.create_enhanced_form_button(controls_frame, "📷 Capture", 
                                                           capture_photo, '#27ae60', '#2ecc71')
             capture_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
             
@@ -11755,7 +11755,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             button_frame = tk.Frame(profile_window, bg='#ffffff')
             button_frame.pack(fill=tk.X, padx=20, pady=(10, 20))
             
-            print_btn = tk.Button(button_frame, text="û¿∩╕Å Print Profile", 
+            print_btn = tk.Button(button_frame, text="🖨️ Print Profile", 
                                  font=('Segoe UI', 12, 'bold'), bg='#27ae60', fg='white',
                                  relief=tk.FLAT, bd=0, pady=10,
                                  command=lambda: self.print_teacher_profile(profile_frame))
@@ -12910,7 +12910,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.activity_summary_cards.append(card2)
         
         # Card 3: Recent Logins (Today)
-        card3 = self.create_activity_card(summary_container, "öÉ Today's Logins", "0", "#f39c12")
+        card3 = self.create_activity_card(summary_container, "📱 Today's Logins", "0", "#f39c12")
         card3.pack(side='left', padx=(0, 10), expand=True, fill='both')
         self.activity_summary_cards.append(card3)
         
@@ -12925,7 +12925,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Tab 1: Login Activity
         login_tab = tk.Frame(activity_notebook, bg='#ffffff')
-        activity_notebook.add(login_tab, text="öÉ Login Activity")
+        activity_notebook.add(login_tab, text="📱 Login Activity")
         
         # Login activity table
         login_frame = tk.Frame(login_tab, bg='#ffffff')
@@ -16207,7 +16207,7 @@ Financial Summary:
                 {
                     'title': 'Net Profit',
                     'value': f'GHS {total_profit:.2f}',
-                    'icon': 'Åå' if total_profit >= 0 else '⚠️',
+                    'icon': '✅' if total_profit >= 0 else '⚠️',
                     'color': '#8e44ad' if total_profit >= 0 else '#e67e22',
                     'bg': '#f4ecf7' if total_profit >= 0 else '#fef5e7'
                 }
@@ -17552,7 +17552,7 @@ Financial Summary:
             top_header = tk.Frame(top_frame, bg='#c0392b')
             top_header.pack(fill=tk.X)
             
-            tk.Label(top_header, text="ö¥ Top 10 Largest Expenses", 
+            tk.Label(top_header, text="📊 Top 10 Largest Expenses", 
                     font=('Segoe UI', 16, 'bold'), fg='white', bg='#c0392b').pack(pady=15)
             
             top_content = tk.Frame(top_frame, bg='#ffffff')
@@ -19508,7 +19508,7 @@ Financial Summary:
         backup_options_frame = tk.Frame(backup_content, bg='white')
         backup_options_frame.pack(fill=tk.X, pady=(0, 15))
         
-        tk.Button(backup_options_frame, text="ùé∩╕Å Full Database Backup", 
+        tk.Button(backup_options_frame, text="💾 Full Database Backup", 
                  command=self.backup_database,
                  font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                  relief='flat', bd=0, padx=20, pady=12, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
