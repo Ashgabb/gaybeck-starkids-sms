@@ -3202,7 +3202,7 @@ class SchoolManagementSystem:
             ("💰   Financial Management", self.show_financial_management, "financial_management", None),  # Income & Expense Management
             ("📝   Attendance", self.show_attendance, "attendance", None),
             ("🤖   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
-            ("∩┐╜   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
+            ("🤖   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
             ("ΓÜÖ∩╕Å   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
         ]
         
@@ -7212,12 +7212,12 @@ Highest Grade: {max_grade:.1f}%
         total_students_card.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
         # Boys Card
-        boys_card = self.create_stats_card(stats_row1, "æª Boys", 
+        boys_card = self.create_stats_card(stats_row1, "👦 Boys", 
                                           str(boys_count), '#27ae60')
         boys_card.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
         
         # Girls Card  
-        girls_card = self.create_stats_card(stats_row1, "æº Girls", 
+        girls_card = self.create_stats_card(stats_row1, "👧 Girls", 
                                            str(girls_count), '#e91e63')
         girls_card.pack(side=tk.LEFT, expand=True, fill=tk.X)
         
@@ -7400,7 +7400,7 @@ Highest Grade: {max_grade:.1f}%
                 student_entry.pack(fill=tk.X, pady=(0, 12))
                 
                 # Student info
-                student_text = f"Äô {name}"
+                student_text = f"👤 {name}"
                 student_label = tk.Label(student_entry, text=student_text, 
                                        font=('Segoe UI', 11, 'bold'), bg='#f8f9fa', anchor='w', fg='#2c3e50')
                 student_label.pack(fill=tk.X)
@@ -7459,7 +7459,7 @@ Highest Grade: {max_grade:.1f}%
                 teacher_entry.pack(fill=tk.X, pady=(0, 12))
                 
                 # Teacher info
-                teacher_text = f"ºæΓÇì📚 {name}"
+                teacher_text = f"👨‍🏫 {name}"
                 teacher_label = tk.Label(teacher_entry, text=teacher_text, 
                                        font=('Segoe UI', 11, 'bold'), bg='#f8f9fa', anchor='w', fg='#2c3e50')
                 teacher_label.pack(fill=tk.X)
@@ -8075,8 +8075,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         header_content.pack(fill=tk.X, padx=20, pady=15)
         
         # Extract emoji from title if present
-        emoji = title.split()[0] if title and title[0] in '👥æªæº💳Äô📚' else "📊"
-        title_text = title[2:] if title and title[0] in '👥æªæº💳Äô📚' else title
+        emoji = title.split()[0] if title and title[0] in '👥👦👧💳🎓📚' else "📊"
+        title_text = title[2:] if title and title[0] in '👥👦👧💳🎓📚' else title
         
         icon_label = tk.Label(header_content, text=emoji, font=('Segoe UI', 16), bg=color, fg='white')
         icon_label.pack(side=tk.LEFT)
@@ -8721,7 +8721,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         current_class_dropdown.pack(side=tk.LEFT, padx=(10, 0))
         
         # ========== SECTION 3: PARENT & CONTACT INFORMATION ==========
-        contact_section = tk.LabelFrame(form_frame, text="👨‍æ⌐ΓÇìæºΓÇìæª Parent & Contact Information", 
+        contact_section = tk.LabelFrame(form_frame, text="👨‍👩‍👧 Parent & Contact Information", 
                                        font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
                                        bg='#f8f9fa', relief=tk.FLAT, bd=1)
         contact_section.pack(fill=tk.X, padx=20, pady=(0, 15))
@@ -10540,7 +10540,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         title_frame = tk.Frame(header_content, bg='#e67e22')
         title_frame.pack(fill=tk.X)
         
-        icon_label = tk.Label(title_frame, text="æ⌐ΓÇì📚", font=('Segoe UI', 40), bg='#e67e22', fg='white')
+        icon_label = tk.Label(title_frame, text="📚", font=('Segoe UI', 40), bg='#e67e22', fg='white')
         icon_label.pack(side=tk.LEFT, padx=(0, 15))
         
         title_text_frame = tk.Frame(title_frame, bg='#e67e22')
@@ -10744,7 +10744,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         qual_section = tk.Frame(form_content, bg='#ffffff')
         qual_section.pack(fill=tk.X, pady=(0, 30), padx=40)
         
-        qual_label = tk.Label(qual_section, text="Äô Educational Qualifications", 
+        qual_label = tk.Label(qual_section, text="🎓 Educational Qualifications", 
                              font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg='#2c3e50')
         qual_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -11919,7 +11919,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             qual_section = tk.Frame(profile_frame, bg='#ffffff', relief=tk.SOLID, bd=1)
             qual_section.pack(fill=tk.X, pady=(0, 20))
             
-            qual_header = tk.Label(qual_section, text="Äô Educational Qualifications",
+            qual_header = tk.Label(qual_section, text="🎓 Educational Qualifications",
                                   font=('Segoe UI', 14, 'bold'), fg='#ffffff', bg='#9b59b6')
             qual_header.pack(fill=tk.X, padx=0, pady=0, ipady=10)
             
