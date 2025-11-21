@@ -18,13 +18,14 @@ except ImportError:
     except ImportError:
         print("Could not install pywin32. Using alternative method.")
 
-def create_shortcut(target_path, shortcut_path, icon_path=None):
-    """Create a Windows shortcut"""
+def create_shortcut(python_exe, script_path, shortcut_path, app_dir, icon_path=None):
+    """Create a Windows shortcut with correct working directory"""
     try:
         shell = Dispatch("WScript.Shell")
         shortcut = shell.CreateShortcut(str(shortcut_path))
-        shortcut.TargetPath = str(target_path)
-        shortcut.WorkingDirectory = str(Path(target_path).parent)
+        shortcut.TargetPath = str(python_exe)
+        shortcut.Arguments = str(script_path)
+        shortcut.WorkingDirectory = str(app_dir)
         if icon_path and Path(icon_path).exists():
             shortcut.IconLocation = str(icon_path)
         shortcut.Save()
@@ -54,19 +55,13 @@ def main():
     
     # Create desktop shortcut
     print(f"[1/2] Creating Desktop shortcut...")
-    print(f"      Target: {sms_py}")
+    print(f"      Target: {python_exe}")
+    print(f"      Script: {sms_py}")
+    print(f"      Working Dir: {app_dir}")
     print(f"      Location: {desktop_shortcut}")
     
-    if create_shortcut(python_exe, desktop_shortcut, icon_file):
-        # Update shortcut to include script as argument
-        try:
-            shell = Dispatch("WScript.Shell")
-            shortcut = shell.CreateShortcut(str(desktop_shortcut))
-            shortcut.Arguments = str(sms_py)
-            shortcut.Save()
-            print(f"      ✓ Desktop shortcut created successfully")
-        except Exception as e:
-            print(f"      ✗ Error: {e}")
+    if create_shortcut(python_exe, sms_py, desktop_shortcut, app_dir, icon_file):
+        print(f"      ✓ Desktop shortcut created successfully")
     else:
         print(f"      ✗ Failed to create desktop shortcut")
     
@@ -76,15 +71,8 @@ def main():
     print(f"[2/2] Creating Start Menu shortcut...")
     print(f"      Location: {start_menu_shortcut}")
     
-    if create_shortcut(python_exe, start_menu_shortcut, icon_file):
-        try:
-            shell = Dispatch("WScript.Shell")
-            shortcut = shell.CreateShortcut(str(start_menu_shortcut))
-            shortcut.Arguments = str(sms_py)
-            shortcut.Save()
-            print(f"      ✓ Start Menu shortcut created successfully")
-        except Exception as e:
-            print(f"      ✗ Error: {e}")
+    if create_shortcut(python_exe, sms_py, start_menu_shortcut, app_dir, icon_file):
+        print(f"      ✓ Start Menu shortcut created successfully")
     else:
         print(f"      ✗ Failed to create Start Menu shortcut")
     
