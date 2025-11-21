@@ -1685,8 +1685,12 @@ class LoginWindow:
         self.on_success_callback = on_success_callback
         self.current_user = None
         
-        # Initialize database connection
-        self.conn = sqlite3.connect('database/school_management.db')
+        # Initialize database connection - try root first, then database subdirectory
+        db_path = 'school_management.db'
+        if not os.path.exists(db_path):
+            db_path = 'database/school_management.db'
+        
+        self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
         
         self.setup_login_window()
@@ -2136,14 +2140,24 @@ class SchoolManagementSystem:
             return data_dir
     
     def init_database(self):
-        # Get database directory using the helper method
-        db_dir = self.get_data_directory('database')
-        db_path = os.path.join(db_dir, 'school_management.db')
+        # Try to use database in root directory first (for standalone execution)
+        # Then fallback to database/ subdirectory (for source directory)
+        db_path = None
         
-        # Create directory if it doesn't exist
-        if not os.path.exists(db_dir):
-            os.makedirs(db_dir)
-            print(f"Created database directory: {db_dir}")
+        # Check root directory first
+        if os.path.exists('school_management.db'):
+            db_path = 'school_management.db'
+        else:
+            # Check database subdirectory
+            db_subdir = os.path.join('database', 'school_management.db')
+            if os.path.exists(db_subdir):
+                db_path = db_subdir
+            else:
+                # Create in database directory if neither exists
+                db_dir = self.get_data_directory('database')
+                if not os.path.exists(db_dir):
+                    os.makedirs(db_dir)
+                db_path = os.path.join(db_dir, 'school_management.db')
         
         # Connect to SQLite database
         self.conn = sqlite3.connect(db_path)
