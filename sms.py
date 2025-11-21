@@ -9721,7 +9721,11 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 self.feeding_fee_paid.set(student_data[13] or False)
     
     def clear_student_form(self):
+        # Clear student ID (need to temporarily enable it since it's readonly)
+        self.student_id.config(state='normal')
         self.student_id.delete(0, tk.END)
+        self.student_id.config(state='readonly')
+        
         self.student_name.delete(0, tk.END)
         
         # Handle DateEntry for date of birth
