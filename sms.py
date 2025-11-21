@@ -1286,7 +1286,7 @@ class ScrollableFrame(tk.Frame):
         # Configure scrolling with overflow detection
         self.scrollable_frame.bind(
             "<Configure>",
-            lambda e: self._check_overflow()
+            lambda e=None: self._check_overflow()
         )
         
         # Create window in canvas
@@ -9516,7 +9516,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         father_name = self.father_name.get()
         mother_name = self.mother_name.get()
         phone = self.phone.get()
-        address = self.address.get()
+        address = self.address_text.get('1.0', 'end-1c').strip()
         transportation = self.transportation.get()
         bus_fee = float(self.bus_fee.get()) if self.bus_fee.get() else 0.0
         monthly_fee = float(self.monthly_fee.get()) if self.monthly_fee.get() else 0.0
@@ -9616,7 +9616,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         father_name = self.father_name.get()
         mother_name = self.mother_name.get()
         phone = self.phone.get()
-        address = self.address.get()
+        address = self.address_text.get('1.0', 'end-1c').strip()
         transportation = self.transportation.get()
         bus_fee = float(self.bus_fee.get()) if self.bus_fee.get() else 0.0
         monthly_fee = float(self.monthly_fee.get()) if self.monthly_fee.get() else 0.0
@@ -9710,7 +9710,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 self.father_name.insert(0, student_data[6] or "")
                 self.mother_name.insert(0, student_data[7] or "")
                 self.phone.insert(0, student_data[8] or "")
-                self.address.insert(0, student_data[9] or "")
+                self.address_text.delete('1.0', tk.END)
+                self.address_text.insert('1.0', student_data[9] or "")
+                self.address_text.config(fg='#2c3e50')
                 self.transportation.set(student_data[10] or "Walk-in")
                 self.bus_fee.delete(0, tk.END)
                 self.bus_fee.insert(0, str(student_data[11] or "0.00"))
@@ -9734,7 +9736,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.father_name.delete(0, tk.END)
         self.mother_name.delete(0, tk.END)
         self.phone.delete(0, tk.END)
-        self.address.delete(0, tk.END)
+        self.address_text.delete('1.0', tk.END)
+        self.address_text.insert('1.0', "Enter complete home address including street, city, region...")
+        self.address_text.config(fg='#95a5a6')
         self.transportation.set("Walk-in")
         self.bus_fee.delete(0, tk.END)
         self.bus_fee.insert(0, "0.00")
