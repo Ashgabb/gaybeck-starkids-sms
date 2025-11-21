@@ -8711,7 +8711,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         self.cursor.execute("SELECT id, class_name FROM classes")
         classes = self.cursor.fetchall()
-        self.class_dict = {class_id: class_name for class_id, class_name in classes}
+        self.class_dict = {class_name: class_id for class_id, class_name in classes}
         class_names = [class_name for class_id, class_name in classes]
         
         self.current_class = tk.StringVar()
