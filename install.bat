@@ -49,30 +49,8 @@ echo [3/4] Dependencies installed successfully
 echo.
 
 REM Create desktop shortcut
-echo [4/4] Creating desktop shortcut...
-
-REM Create shortcut using PowerShell
-powershell -Command "
-try {
-    $DesktopPath = [Environment]::GetFolderPath('Desktop')
-    $AppPath = (Resolve-Path .\sms.py).Path
-    $IconPath = (Resolve-Path .\sms_icon.ico).Path
-    $ShortcutPath = Join-Path $DesktopPath 'Gaybeck Starkids SMS.lnk'
-    $PythonExe = (Get-Command python).Source
-    
-    $WshShell = New-Object -ComObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = $PythonExe
-    $Shortcut.Arguments = $AppPath
-    $Shortcut.WorkingDirectory = (Split-Path $AppPath)
-    $Shortcut.IconLocation = $IconPath
-    $Shortcut.Save()
-    
-    Write-Host 'Desktop shortcut created successfully'
-} catch {
-    Write-Host 'Warning: Could not create desktop shortcut' -ForegroundColor Yellow
-}
-"
+echo [4/4] Creating desktop and Start Menu shortcuts...
+python create_shortcuts.py
 
 echo.
 echo ================================================================

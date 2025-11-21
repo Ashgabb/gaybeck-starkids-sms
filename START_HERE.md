@@ -3,12 +3,27 @@
 ## 🚀 Quick Start (For Non-Technical Users)
 
 ### To Install:
-1. **Double-click** the file named **`INSTALL.bat`**
+1. **Double-click** the file named **`install.bat`**
 2. Wait for the installation to complete (takes 1-2 minutes)
-3. Look for the **"Gaybeck Starkids Academy"** icon on your Desktop
-4. **Double-click the icon** to launch the application
+3. You'll see shortcuts created on your Desktop and Start Menu
+4. **Double-click the Desktop icon** OR **search for "Gaybeck"** in Start Menu
 
 That's it! No technical knowledge needed.
+
+### To Launch the App:
+**Option 1 - Desktop Shortcut (Easiest):**
+- Look for **"Gaybeck Starkids SMS"** icon on your Desktop
+- Double-click it
+
+**Option 2 - Start Menu:**
+- Press **Windows key** on your keyboard
+- Type **"Gaybeck"**
+- Click on **"Gaybeck Starkids SMS"**
+
+**Option 3 - Manual Launch:**
+- Open File Explorer
+- Navigate to: `c:\Users\User\Desktop\GAYBECK STARKIDS SMS`
+- Double-click **`launch.bat`**
 
 ---
 
