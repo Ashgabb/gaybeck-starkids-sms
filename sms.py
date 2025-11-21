@@ -8836,12 +8836,12 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         transport_frame = tk.Frame(fee_row2, bg='#f8f9fa')
         transport_frame.pack(side=tk.LEFT, padx=(10, 40))
         
-        walkin_radio = tk.Radiobutton(transport_frame, text="Ü╢ Walk-in", 
+        walkin_radio = tk.Radiobutton(transport_frame, text="🚶 Walk-in", 
                                      variable=self.transportation, value="Walk-in", 
                                      bg='#f8f9fa', font=('Segoe UI', 10))
         walkin_radio.pack(side=tk.LEFT, padx=(0, 15))
         
-        bus_radio = tk.Radiobutton(transport_frame, text="Üî Bus", 
+        bus_radio = tk.Radiobutton(transport_frame, text="🚌 Bus", 
                                   variable=self.transportation, value="Bus", 
                                   bg='#f8f9fa', font=('Segoe UI', 10))
         bus_radio.pack(side=tk.LEFT)
@@ -8854,7 +8854,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.bus_fee.insert(0, "0.00")
 
         # ========== SECTION 5: EMERGENCY CONTACT INFORMATION ==========
-        emergency_section = tk.LabelFrame(form_frame, text="Ü¿ Emergency Contact Information", 
+        emergency_section = tk.LabelFrame(form_frame, text="🆘 Emergency Contact Information", 
                                          font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
                                          bg='#f8f9fa', relief=tk.FLAT, bd=1)
         emergency_section.pack(fill=tk.X, padx=20, pady=(0, 15))
@@ -9014,7 +9014,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                              self.update_student, 'primary', width=18)
         update_btn.pack(side=tk.LEFT, padx=(0, 15))
         
-        clear_btn = self.create_modern_button(button_container, "º╣ Clear Form", 
+        clear_btn = self.create_modern_button(button_container, "🧹 Clear Form", 
                                             self.clear_student_form, 'secondary', width=15)
         clear_btn.pack(side=tk.LEFT)
         
@@ -18978,7 +18978,7 @@ Financial Summary:
         danger_content = tk.Frame(danger_frame, bg='#f8d7da')
         danger_content.pack(fill=tk.X, padx=15, pady=12)
         
-        tk.Label(danger_content, text="Ü¿ DANGER ZONE", 
+        tk.Label(danger_content, text="⚠️ DANGER ZONE", 
                 font=('Segoe UI', 11, 'bold'), fg='#721c24', bg='#f8d7da').pack(anchor='w')
         tk.Label(danger_content, text="Clear ALL test data (keeps only users and class structure)", 
                 font=('Segoe UI', 10), fg='#721c24', bg='#f8d7da').pack(anchor='w', pady=(3, 8))
