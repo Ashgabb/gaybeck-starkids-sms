@@ -10280,12 +10280,12 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                             student_edit_vars['student_id']
                         ))
                         
-                        self.connection.commit()
+                        self.conn.commit()
                         messagebox.showinfo("Success", "Student information updated successfully!")
                         self.load_students()
                         edit_window.destroy()
                     except Exception as db_error:
-                        self.connection.rollback()
+                        self.conn.rollback()
                         messagebox.showerror("Database Error", f"Failed to update database: {str(db_error)}")
                     
                 except Exception as e:
