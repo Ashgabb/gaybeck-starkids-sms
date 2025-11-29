@@ -8709,7 +8709,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # List header
         list_header = tk.Frame(list_frame, bg='#ffffff')
-        list_header.pack(fill=tk.X, padx=20, pady=(20, 15))
+        list_header.pack(fill=tk.X, padx=20, pady=(10, 8))
         
         list_title = tk.Label(list_header, text="📋 All Students", 
                              font=('Segoe UI', 16, 'bold'), fg='#2c3e50', bg='#ffffff')
@@ -8717,10 +8717,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Filter section
         filter_frame = tk.Frame(list_frame, bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        filter_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+        filter_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
         
         filter_content = tk.Frame(filter_frame, bg='#f8f9fa')
-        filter_content.pack(fill=tk.X, padx=15, pady=10)
+        filter_content.pack(fill=tk.X, padx=15, pady=5)
         
         tk.Label(filter_content, text="🔍 Filter by Class:", 
                 font=('Segoe UI', 10, 'bold'), bg='#f8f9fa', fg='#2c3e50').pack(side=tk.LEFT, padx=(0, 10))
@@ -8738,7 +8738,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Enhanced treeview with modern styling
         tree_frame = tk.Frame(list_frame, bg='#ffffff')
-        tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
         
         # Treeview for students with enhanced columns
         columns = ('ID', 'Student ID', 'Name', 'Class', 'Gender', 'Admission Date', 'Phone', 'Status')
