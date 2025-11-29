@@ -10123,6 +10123,12 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             content_inner = tk.Frame(content, bg='#f8f9fa')
             content_inner.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
             
+            # Get available classes
+            self.cursor.execute("SELECT id, class_name FROM classes ORDER BY class_name")
+            classes = self.cursor.fetchall()
+            class_names = [c[1] for c in classes]
+            current_class = student_data[6] or ""
+            
             # Store student ID for later use
             student_edit_vars = {
                 'student_id': student_db_id,
@@ -10130,6 +10136,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 'date_of_birth': tk.StringVar(value=student_data[3] or ""),
                 'gender': tk.StringVar(value=student_data[4] or "Male"),
                 'date_of_admission': tk.StringVar(value=student_data[5] or ""),
+                'class_name': tk.StringVar(value=current_class),
                 'class_id': student_data[7],
                 'father_name': tk.StringVar(value=student_data[8] or ""),
                 'mother_name': tk.StringVar(value=student_data[9] or ""),
@@ -10155,6 +10162,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     ("Date of Birth", 'date_of_birth', 'entry'),
                     ("Gender", 'gender', 'combo', ['Male', 'Female', 'Other']),
                     ("Date of Admission", 'date_of_admission', 'entry'),
+                    ("Class", 'class_name', 'combo', class_names),
                 ]),
                 ("👨‍👩‍👧 Family Information", [
                     ("Father's Name", 'father_name', 'entry'),
@@ -10246,12 +10254,22 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     if 'allergies_widget' in student_edit_vars:
                         allergies_value = student_edit_vars['allergies_widget'].get('1.0', tk.END).strip()
                     
+                    # Get class ID from selected class name
+                    selected_class_name = student_edit_vars['class_name'].get()
+                    class_id = None
+                    if selected_class_name:
+                        # Find the class ID for the selected class name
+                        for class_id_lookup, class_name_lookup in classes:
+                            if class_name_lookup == selected_class_name:
+                                class_id = class_id_lookup
+                                break
+                    
                     # Update database with proper error handling
                     try:
                         self.cursor.execute('''
                             UPDATE students SET
                                 name = ?, date_of_birth = ?, gender = ?, date_of_admission = ?,
-                                father_name = ?, mother_name = ?, phone = ?, address = ?,
+                                class_id = ?, father_name = ?, mother_name = ?, phone = ?, address = ?,
                                 transportation = ?, bus_fee = ?, monthly_fee = ?, feeding_fee_paid = ?,
                                 status = ?, emergency_contact_name = ?, emergency_relationship = ?,
                                 emergency_phone = ?, emergency_alt_phone = ?, medical_allergies = ?,
@@ -10262,6 +10280,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                             student_edit_vars['date_of_birth'].get(),
                             student_edit_vars['gender'].get(),
                             student_edit_vars['date_of_admission'].get(),
+                            class_id,
                             student_edit_vars['father_name'].get(),
                             student_edit_vars['mother_name'].get(),
                             student_edit_vars['phone'].get(),
