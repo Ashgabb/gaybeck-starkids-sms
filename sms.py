@@ -1685,11 +1685,47 @@ class LoginWindow:
         self.on_success_callback = on_success_callback
         self.current_user = None
         
-        # Initialize database connection - try root first, then database subdirectory
-        db_path = 'school_management.db'
-        if not os.path.exists(db_path):
-            db_path = 'database/school_management.db'
+        # Initialize database connection with robust path handling
+        # Try multiple locations: root, database/, and AppData
+        db_paths_to_try = [
+            'school_management.db',
+            os.path.join('database', 'school_management.db'),
+        ]
         
+        # Add AppData path for installed version
+        if os.name == 'nt':  # Windows
+            app_data = os.getenv('APPDATA') or os.path.expanduser('~')
+            app_data_db = os.path.join(app_data, 'GaybeckStarkidsSMS', 'school_management.db')
+            db_paths_to_try.append(app_data_db)
+        
+        db_path = None
+        for path in db_paths_to_try:
+            if os.path.exists(path):
+                try:
+                    # Test if we can write to this location
+                    test_conn = sqlite3.connect(path)
+                    test_conn.execute("PRAGMA query_only = OFF")
+                    test_conn.close()
+                    db_path = path
+                    break
+                except:
+                    continue
+        
+        # If no existing DB found, use AppData for installed version
+        if not db_path:
+            if 'Program Files' in os.path.dirname(os.path.abspath(__file__)):
+                # Running from Program Files - use AppData
+                if os.name == 'nt':
+                    app_data = os.getenv('APPDATA') or os.path.expanduser('~')
+                    db_dir = os.path.join(app_data, 'GaybeckStarkidsSMS')
+                    os.makedirs(db_dir, exist_ok=True)
+                    db_path = os.path.join(db_dir, 'school_management.db')
+            else:
+                # Running from source - use local database directory
+                db_path = os.path.join('database', 'school_management.db')
+                os.makedirs('database', exist_ok=True)
+        
+        self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
         
@@ -2604,35 +2640,56 @@ class SchoolManagementSystem:
         """
         Generate automatic student ID with format: STU{YEAR}{SEQUENCE}
         Example: STU202400001, STU202400002, etc.
+        Ensures no duplicate IDs by continuing from the highest existing sequence.
         """
         from datetime import datetime
         
         if not year:
             year = datetime.now().year
         
-        # Get the maximum sequence number for this year
         prefix = f"STU{year}"
+        
+        # Get the highest existing sequence for this year
         self.cursor.execute('''
-            SELECT student_id FROM students 
-            WHERE student_id LIKE ? 
-            ORDER BY student_id DESC LIMIT 1
+            SELECT MAX(student_id) FROM students 
+            WHERE student_id LIKE ?
         ''', (f"{prefix}%",))
         
         result = self.cursor.fetchone()
+        max_id = result[0]
         
-        if result:
-            # Extract sequence number and increment
-            last_id = result[0]
+        if max_id:
             try:
-                sequence = int(last_id[8:]) + 1  # Extract last 5 digits and increment
+                # Extract the numeric part (last 5 digits) and convert to int
+                sequence_str = max_id[len(prefix):]
+                sequence = int(sequence_str) + 1
             except (ValueError, IndexError):
                 sequence = 1
         else:
             # First student for this year
             sequence = 1
         
+        # Safety check - prevent overflow
+        if sequence > 99999:
+            raise Exception(f"Cannot generate more student IDs for year {year} (maximum 99,999 reached)")
+        
         # Format: STU + YEAR + 5-digit sequence
-        return f"{prefix}{sequence:05d}"
+        new_id = f"{prefix}{sequence:05d}"
+        
+        # Double-check this ID doesn't exist (safety measure)
+        self.cursor.execute('SELECT COUNT(*) FROM students WHERE student_id = ?', (new_id,))
+        if self.cursor.fetchone()[0] > 0:
+            # ID exists, find next available
+            sequence += 1
+            while sequence <= 99999:
+                new_id = f"{prefix}{sequence:05d}"
+                self.cursor.execute('SELECT COUNT(*) FROM students WHERE student_id = ?', (new_id,))
+                if self.cursor.fetchone()[0] == 0:
+                    return new_id
+                sequence += 1
+            raise Exception(f"Cannot find available student ID for year {year}")
+        
+        return new_id
     
     # ==================== AUTOCOMPLETE SUGGESTION METHODS ====================
     
@@ -4278,25 +4335,30 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             return 0, 0
     
     def get_payment_status_counts(self):
-        """Get count of fee paying and scholarship students using explicit is_scholarship field"""
+        """Get count of fee paying and scholarship students based on monthly_fee"""
         try:
-            # Count fee-paying students (is_scholarship = 0)
+            # Count scholarship students (monthly_fee = 0 or NULL)
+            # Using COALESCE to handle NULL values
             self.cursor.execute('''
-                SELECT COUNT(*) FROM students WHERE is_scholarship = 0
-            ''')
-            fee_paying_result = self.cursor.fetchone()
-            fee_paying = fee_paying_result[0] if fee_paying_result else 0
-            
-            # Count scholarship students (is_scholarship = 1)
-            self.cursor.execute('''
-                SELECT COUNT(*) FROM students WHERE is_scholarship = 1
+                SELECT COUNT(*) FROM students 
+                WHERE COALESCE(monthly_fee, 0) = 0
             ''')
             scholarship_result = self.cursor.fetchone()
             scholarship = scholarship_result[0] if scholarship_result else 0
             
+            # Count fee-paying students (monthly_fee > 0)
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM students 
+                WHERE COALESCE(monthly_fee, 0) > 0
+            ''')
+            fee_paying_result = self.cursor.fetchone()
+            fee_paying = fee_paying_result[0] if fee_paying_result else 0
+            
             return fee_paying, scholarship
         except Exception as e:
             print(f"Error getting payment status counts: {e}")
+            import traceback
+            traceback.print_exc()
             return 0, 0
     
     def get_total_classes(self):
@@ -8867,7 +8929,37 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.bus_fee.pack(side=tk.LEFT, padx=(10, 0))
         self.bus_fee.insert(0, "0.00")
 
-        # ========== SECTION 5: EMERGENCY CONTACT INFORMATION ==========
+        # ========== SECTION 5: STUDENT STATUS ==========
+        status_section = tk.LabelFrame(form_frame, text="📊 Student Status", 
+                                      font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
+                                      bg='#f8f9fa', relief=tk.FLAT, bd=1)
+        status_section.pack(fill=tk.X, padx=20, pady=(0, 15))
+        
+        status_grid = tk.Frame(status_section, bg='#f8f9fa')
+        status_grid.pack(fill=tk.X, padx=15, pady=15)
+        
+        tk.Label(status_grid, text="Current Status:", font=('Segoe UI', 11, 'bold'), 
+                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
+        self.student_status = tk.StringVar(value="Active")
+        status_frame = tk.Frame(status_grid, bg='#f8f9fa')
+        status_frame.pack(side=tk.LEFT, padx=(10, 0))
+        
+        active_radio = tk.Radiobutton(status_frame, text="✅ Active", 
+                                     variable=self.student_status, value="Active", 
+                                     bg='#f8f9fa', font=('Segoe UI', 10), fg='#27ae60')
+        active_radio.pack(side=tk.LEFT, padx=(0, 20))
+        
+        inactive_radio = tk.Radiobutton(status_frame, text="❌ Inactive", 
+                                       variable=self.student_status, value="Inactive", 
+                                       bg='#f8f9fa', font=('Segoe UI', 10), fg='#e74c3c')
+        inactive_radio.pack(side=tk.LEFT, padx=(0, 20))
+        
+        suspended_radio = tk.Radiobutton(status_frame, text="⚠️ Suspended", 
+                                        variable=self.student_status, value="Suspended", 
+                                        bg='#f8f9fa', font=('Segoe UI', 10), fg='#f39c12')
+        suspended_radio.pack(side=tk.LEFT)
+
+        # ========== SECTION 6: EMERGENCY CONTACT INFORMATION ==========
         emergency_section = tk.LabelFrame(form_frame, text="🆘 Emergency Contact Information", 
                                          font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
                                          bg='#f8f9fa', relief=tk.FLAT, bd=1)
@@ -9028,6 +9120,14 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                              self.update_student, 'primary', width=18)
         update_btn.pack(side=tk.LEFT, padx=(0, 15))
         
+        delete_btn = self.create_modern_button(button_container, "🗑️ Delete Student", 
+                                             self.delete_student, 'danger', width=18)
+        delete_btn.pack(side=tk.LEFT, padx=(0, 15))
+        
+        status_btn = self.create_modern_button(button_container, "📊 Change Status", 
+                                             self.change_student_status, 'warning', width=18)
+        status_btn.pack(side=tk.LEFT, padx=(0, 15))
+        
         clear_btn = self.create_modern_button(button_container, "🧹 Clear Form", 
                                             self.clear_student_form, 'secondary', width=15)
         clear_btn.pack(side=tk.LEFT)
@@ -9094,17 +9194,22 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             self.students_tree.heading(col, text=col, anchor='w')
             self.students_tree.column(col, width=config['width'], anchor=config['anchor'])
         
-        # Scrollbars
+        # Scrollbars with grid layout for proper display
         v_scroll = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.students_tree.yview)
         h_scroll = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL, command=self.students_tree.xview)
         self.students_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
         
-        # Pack with scrollbars
-        self.students_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        # Grid layout for treeview and scrollbars
+        self.students_tree.grid(row=0, column=0, sticky='nsew')
+        v_scroll.grid(row=0, column=1, sticky='ns')
+        h_scroll.grid(row=1, column=0, sticky='ew')
         
-        # Bind selection event
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+        
+        # Bind selection event and double-click for editing
         self.students_tree.bind('<<TreeviewSelect>>', self.on_student_select)
+        self.students_tree.bind('<Double-1>', self.on_student_double_click)
         
         # Enable mouse wheel scrolling
         self.bind_treeview_mousewheel(self.students_tree)
@@ -9535,6 +9640,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         bus_fee = float(self.bus_fee.get()) if self.bus_fee.get() else 0.0
         monthly_fee = float(self.monthly_fee.get()) if self.monthly_fee.get() else 0.0
         feeding_fee_paid = 1 if self.feeding_fee_paid.get() else 0
+        student_status = self.student_status.get()
         
         if not name or not date_of_admission or not current_class_name:
             messagebox.showerror("Error", "Please fill in all required fields (*)")
@@ -9566,12 +9672,12 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 INSERT INTO students (
                     student_id, name, date_of_birth, gender, date_of_admission, 
                     class_id, father_name, mother_name, phone, address,
-                    transportation, bus_fee, monthly_fee, feeding_fee_paid
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    transportation, bus_fee, monthly_fee, feeding_fee_paid, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 student_id, name, date_of_birth, gender, date_of_admission,
                 class_id, father_name, mother_name, phone, address,
-                transportation, bus_fee, monthly_fee, feeding_fee_paid
+                transportation, bus_fee, monthly_fee, feeding_fee_paid, student_status
             ))
             
             # Update class student count
@@ -9635,6 +9741,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         bus_fee = float(self.bus_fee.get()) if self.bus_fee.get() else 0.0
         monthly_fee = float(self.monthly_fee.get()) if self.monthly_fee.get() else 0.0
         feeding_fee_paid = 1 if self.feeding_fee_paid.get() else 0
+        student_status = self.student_status.get()
         
         if not name or not date_of_admission or not current_class_name:
             messagebox.showerror("Error", "Please fill in all required fields (*)")
@@ -9652,12 +9759,12 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     student_id = ?, name = ?, date_of_birth = ?, gender = ?, 
                     date_of_admission = ?, class_id = ?, father_name = ?, 
                     mother_name = ?, phone = ?, address = ?, transportation = ?,
-                    bus_fee = ?, monthly_fee = ?, feeding_fee_paid = ?
+                    bus_fee = ?, monthly_fee = ?, feeding_fee_paid = ?, status = ?
                 WHERE id = ?
             ''', (
                 student_id, name, date_of_birth, gender, date_of_admission,
                 new_class_id, father_name, mother_name, phone, address,
-                transportation, bus_fee, monthly_fee, feeding_fee_paid, student_db_id
+                transportation, bus_fee, monthly_fee, feeding_fee_paid, student_status, student_db_id
             ))
             
             # Update class student counts if class changed
@@ -9677,17 +9784,215 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update student: {str(e)}")
 
+    def delete_student(self):
+        """Delete selected student from database"""
+        # Check permissions
+        if not self.check_permission_or_show_error('students', 'Delete Student'):
+            return
+        
+        selected = self.students_tree.selection()
+        if not selected:
+            messagebox.showerror("Error", "Please select a student to delete")
+            return
+        
+        student_db_id = self.students_tree.item(selected[0])['values'][0]
+        
+        # Get student information for confirmation
+        self.cursor.execute('''
+            SELECT s.id, s.student_id, s.name, s.class_id, c.class_name
+            FROM students s 
+            LEFT JOIN classes c ON s.class_id = c.id 
+            WHERE s.id = ?
+        ''', (student_db_id,))
+        
+        student_data = self.cursor.fetchone()
+        
+        if not student_data:
+            messagebox.showerror("Error", "Student not found")
+            return
+        
+        # For teachers, check if student is from their assigned class
+        if self.current_user.get('role') == 'teacher':
+            if student_data[3] and not self.is_teacher_authorized_for_student(student_data[3]):
+                messagebox.showerror("Access Denied", "You can only delete students from your assigned class")
+                return
+        
+        # Confirmation dialog with detailed info
+        student_id, student_name, class_name = student_data[1], student_data[2], student_data[4]
+        
+        confirmation = messagebox.askyesno(
+            "Confirm Delete",
+            f"Are you sure you want to delete this student?\n\n"
+            f"Student ID: {student_id}\n"
+            f"Name: {student_name}\n"
+            f"Class: {class_name or 'Not assigned'}\n\n"
+            f"This action cannot be undone!"
+        )
+        
+        if not confirmation:
+            return
+        
+        try:
+            # Get class ID for updating counts
+            class_id = student_data[3]
+            
+            # Delete related records first (attendance, grades, fees, etc.)
+            self.cursor.execute("DELETE FROM attendance WHERE student_id = ?", (student_db_id,))
+            self.cursor.execute("DELETE FROM grades WHERE student_id = ?", (student_db_id,))
+            self.cursor.execute("DELETE FROM fees WHERE student_id = ?", (student_db_id,))
+            
+            # Delete the student
+            self.cursor.execute("DELETE FROM students WHERE id = ?", (student_db_id,))
+            
+            # Update class student count
+            if class_id:
+                self.cursor.execute('''
+                    UPDATE classes SET current_students = current_students - 1 
+                    WHERE id = ? AND current_students > 0
+                ''', (class_id,))
+            
+            self.conn.commit()
+            messagebox.showinfo("Success", f"Student '{student_name}' has been deleted successfully")
+            
+            # Reload student list and clear form
+            self.load_students()
+            self.clear_student_form()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete student: {str(e)}")
+
+    def change_student_status(self):
+        """Change the status of a selected student"""
+        # Check permissions
+        if not self.check_permission_or_show_error('students', 'Update Student'):
+            return
+        
+        selected = self.students_tree.selection()
+        if not selected:
+            messagebox.showerror("Error", "Please select a student to change status")
+            return
+        
+        student_db_id = self.students_tree.item(selected[0])['values'][0]
+        
+        # Get current student info
+        self.cursor.execute('''
+            SELECT s.id, s.student_id, s.name, s.status
+            FROM students s 
+            WHERE s.id = ?
+        ''', (student_db_id,))
+        
+        student_data = self.cursor.fetchone()
+        
+        if not student_data:
+            messagebox.showerror("Error", "Student not found")
+            return
+        
+        # For teachers, check if student is from their assigned class
+        if self.current_user.get('role') == 'teacher':
+            self.cursor.execute("SELECT class_id FROM students WHERE id = ?", (student_db_id,))
+            student_class_result = self.cursor.fetchone()
+            if student_class_result and not self.is_teacher_authorized_for_student(student_class_result[0]):
+                messagebox.showerror("Access Denied", "You can only manage students from your assigned class")
+                return
+        
+        student_id, student_name, current_status = student_data[1], student_data[2], student_data[3]
+        
+        # Create status change window
+        status_window = tk.Toplevel(self.root)
+        status_window.title("Change Student Status")
+        status_window.geometry("400x250")
+        status_window.resizable(False, False)
+        
+        # Center window
+        status_window.update_idletasks()
+        x = (status_window.winfo_screenwidth() // 2) - (400 // 2)
+        y = (status_window.winfo_screenheight() // 2) - (250 // 2)
+        status_window.geometry(f"+{x}+{y}")
+        
+        # Header
+        header_frame = tk.Frame(status_window, bg='#3498db', height=50)
+        header_frame.pack(fill=tk.X)
+        
+        tk.Label(header_frame, text=f"Change Status: {student_name} ({student_id})", 
+                font=('Segoe UI', 12, 'bold'), bg='#3498db', fg='white').pack(pady=10)
+        
+        # Current status display
+        content_frame = tk.Frame(status_window, bg='#f8f9fa')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        tk.Label(content_frame, text="Current Status:", font=('Segoe UI', 11, 'bold'), 
+                bg='#f8f9fa', fg='#2c3e50').pack(anchor=tk.W, pady=(0, 5))
+        
+        current_status_label = tk.Label(content_frame, text=f"● {current_status}", 
+                                       font=('Segoe UI', 11, 'bold'), 
+                                       fg='#27ae60' if current_status == 'Active' else '#e74c3c' if current_status == 'Inactive' else '#f39c12',
+                                       bg='#f8f9fa')
+        current_status_label.pack(anchor=tk.W, pady=(0, 20))
+        
+        # New status selection
+        tk.Label(content_frame, text="Select New Status:", font=('Segoe UI', 11, 'bold'), 
+                bg='#f8f9fa', fg='#2c3e50').pack(anchor=tk.W, pady=(0, 10))
+        
+        new_status_var = tk.StringVar(value=current_status)
+        
+        status_options = [
+            ("✅ Active", "Active", "#27ae60"),
+            ("❌ Inactive", "Inactive", "#e74c3c"),
+            ("⚠️ Suspended", "Suspended", "#f39c12")
+        ]
+        
+        for text, value, color in status_options:
+            rb = tk.Radiobutton(content_frame, text=text, variable=new_status_var, value=value,
+                              font=('Segoe UI', 10), bg='#f8f9fa', fg=color, activebackground='#f8f9fa')
+            rb.pack(anchor=tk.W, pady=5)
+        
+        # Buttons frame
+        button_frame = tk.Frame(status_window, bg='#ffffff', relief=tk.RAISED, bd=1)
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        
+        def save_status():
+            new_status = new_status_var.get()
+            if new_status != current_status:
+                try:
+                    self.cursor.execute("UPDATE students SET status = ? WHERE id = ?", 
+                                       (new_status, student_db_id))
+                    self.conn.commit()
+                    messagebox.showinfo("Success", f"Student status changed to '{new_status}'")
+                    self.load_students()
+                    self.clear_student_form()
+                    status_window.destroy()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to update status: {str(e)}")
+            else:
+                messagebox.showinfo("Info", "Status is already set to this value")
+                status_window.destroy()
+        
+        def cancel():
+            status_window.destroy()
+        
+        save_btn = tk.Button(button_frame, text="✓ Save", command=save_status,
+                            font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
+                            relief=tk.FLAT, bd=0, padx=20, pady=8)
+        save_btn.pack(side=tk.LEFT, padx=10, pady=10)
+        
+        cancel_btn = tk.Button(button_frame, text="✕ Cancel", command=cancel,
+                              font=('Segoe UI', 10, 'bold'), bg='#95a5a6', fg='white',
+                              relief=tk.FLAT, bd=0, padx=20, pady=8)
+        cancel_btn.pack(side=tk.LEFT)
+
     def on_student_select(self, event):
         selected = self.students_tree.selection()
         if selected:
             # Get student ID from selection
             student_db_id = self.students_tree.item(selected[0])['values'][0]
             
-            # Fetch complete student data with class name
+            # Fetch complete student data with class name and all fields
             self.cursor.execute('''
                 SELECT s.student_id, s.name, s.date_of_birth, s.gender, s.date_of_admission,
                        c.class_name, s.father_name, s.mother_name, s.phone, s.address,
-                       s.transportation, s.bus_fee, s.monthly_fee, s.feeding_fee_paid
+                       s.transportation, s.bus_fee, s.monthly_fee, s.feeding_fee_paid, s.status,
+                       s.emergency_contact_name, s.emergency_relationship, s.emergency_phone,
+                       s.emergency_alt_phone, s.medical_conditions, s.parent_email
                 FROM students s 
                 JOIN classes c ON s.class_id = c.id 
                 WHERE s.id = ?
@@ -9724,15 +10029,63 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 self.father_name.insert(0, student_data[6] or "")
                 self.mother_name.insert(0, student_data[7] or "")
                 self.phone.insert(0, student_data[8] or "")
+                self.parent_email.insert(0, student_data[20] or "")
+                
                 self.address_text.delete('1.0', tk.END)
                 self.address_text.insert('1.0', student_data[9] or "")
                 self.address_text.config(fg='#2c3e50')
+                
                 self.transportation.set(student_data[10] or "Walk-in")
                 self.bus_fee.delete(0, tk.END)
                 self.bus_fee.insert(0, str(student_data[11] or "0.00"))
                 self.monthly_fee.delete(0, tk.END)
                 self.monthly_fee.insert(0, str(student_data[12] or "0.00"))
                 self.feeding_fee_paid.set(student_data[13] or False)
+                self.student_status.set(student_data[14] or "Active")
+                
+                # Load emergency contact information
+                self.emergency_contact_name.delete(0, tk.END)
+                self.emergency_contact_name.insert(0, student_data[15] or "")
+                self.emergency_relationship.set(student_data[16] or "")
+                self.emergency_phone.delete(0, tk.END)
+                self.emergency_phone.insert(0, student_data[17] or "")
+                self.emergency_alt_phone.delete(0, tk.END)
+                self.emergency_alt_phone.insert(0, student_data[18] or "")
+                
+                # Load medical/allergies information
+                self.allergies_text.delete('1.0', tk.END)
+                if student_data[19]:
+                    self.allergies_text.insert('1.0', student_data[19])
+                    self.allergies_text.config(fg='#2c3e50')
+                else:
+                    self.allergies_text.insert('1.0', "List any known allergies, medications, or medical conditions (e.g., asthma, diabetes, food allergies, medications being taken...)")
+                    self.allergies_text.config(fg='#95a5a6')
+    
+    def on_student_double_click(self, event):
+        """Handle double-click on student to open edit form"""
+        # First load the student data
+        self.on_student_select(event)
+        
+        # Scroll the canvas to show the student form section
+        try:
+            # Get the scrollable frame and scroll to top to show the form
+            scrollable_frame = self.students_tree.winfo_parent()
+            canvas = self.students_tree.winfo_parent()
+            
+            # Try to get the parent scrollable frame
+            while canvas and not isinstance(canvas, tk.Canvas):
+                canvas = self.nametowidget(canvas).winfo_parent() if self.nametowidget(canvas).winfo_parent() else None
+            
+            # Focus on the student name field and select it
+            self.student_name.focus()
+            self.student_name.select_range(0, tk.END)
+        except:
+            # If scrolling fails, just focus the form
+            try:
+                self.student_name.focus()
+                self.student_name.select_range(0, tk.END)
+            except:
+                pass
     
     def clear_student_form(self):
         # Clear student ID (need to temporarily enable it since it's readonly)
@@ -9754,15 +10107,34 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.father_name.delete(0, tk.END)
         self.mother_name.delete(0, tk.END)
         self.phone.delete(0, tk.END)
+        self.parent_email.delete(0, tk.END)
+        
         self.address_text.delete('1.0', tk.END)
         self.address_text.insert('1.0', "Enter complete home address including street, city, region...")
         self.address_text.config(fg='#95a5a6')
+        
         self.transportation.set("Walk-in")
         self.bus_fee.delete(0, tk.END)
         self.bus_fee.insert(0, "0.00")
         self.monthly_fee.delete(0, tk.END)
         self.monthly_fee.insert(0, "0.00")
         self.feeding_fee_paid.set(False)
+        self.student_status.set("Active")
+        
+        # Clear emergency contact information
+        self.emergency_contact_name.delete(0, tk.END)
+        self.emergency_relationship.set('')
+        self.emergency_phone.delete(0, tk.END)
+        self.emergency_alt_phone.delete(0, tk.END)
+        
+        # Clear medical/allergies information
+        self.allergies_text.delete('1.0', tk.END)
+        self.allergies_text.insert('1.0', "List any known allergies, medications, or medical conditions (e.g., asthma, diabetes, food allergies, medications being taken...)")
+        self.allergies_text.config(fg='#95a5a6')
+        
+        # Clear document upload
+        self.student_file_path_var.set('')
+        self.student_file_info.config(text="📊 No file selected")
     
     def update_student_statistics(self):
         """Update the student statistics display in real-time"""
@@ -9799,7 +10171,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 if selected_class != "All Classes":
                     query = '''
                         SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                               s.date_of_admission, s.phone, s.status, s.class_id
+                               s.date_of_admission, s.phone, s.status, s.class_id, s.monthly_fee
                         FROM students s 
                         LEFT JOIN classes c ON s.class_id = c.id
                         WHERE c.class_name = ?
@@ -9809,7 +10181,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 else:
                     query = '''
                         SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                               s.date_of_admission, s.phone, s.status, s.class_id
+                               s.date_of_admission, s.phone, s.status, s.class_id, s.monthly_fee
                         FROM students s 
                         LEFT JOIN classes c ON s.class_id = c.id
                         ORDER BY s.name
@@ -9821,7 +10193,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 if teacher_class_id:
                     query = '''
                         SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                               s.date_of_admission, s.phone, s.status, s.class_id
+                               s.date_of_admission, s.phone, s.status, s.class_id, s.monthly_fee
                         FROM students s 
                         LEFT JOIN classes c ON s.class_id = c.id
                         WHERE s.class_id = ?
@@ -9837,7 +10209,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 if selected_class != "All Classes":
                     query = '''
                         SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                               s.date_of_admission, s.phone, s.status, s.class_id
+                               s.date_of_admission, s.phone, s.status, s.class_id, s.monthly_fee
                         FROM students s 
                         LEFT JOIN classes c ON s.class_id = c.id
                         WHERE c.class_name = ?
@@ -9847,7 +10219,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 else:
                     query = '''
                         SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
-                               s.date_of_admission, s.phone, s.status, s.class_id
+                               s.date_of_admission, s.phone, s.status, s.class_id, s.monthly_fee
                         FROM students s 
                         LEFT JOIN classes c ON s.class_id = c.id
                         ORDER BY s.name
@@ -9859,11 +10231,26 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             students = self.cursor.fetchall()
             
             for student in students:
+                # Check if student is on scholarship (monthly_fee = 0 or None)
+                monthly_fee = student[9] if len(student) > 9 else None
+                
+                # Convert to float for comparison, handle various types
+                try:
+                    if monthly_fee is None:
+                        is_scholarship = True
+                    else:
+                        monthly_fee_float = float(monthly_fee) if monthly_fee else 0.0
+                        is_scholarship = monthly_fee_float == 0.0
+                except (ValueError, TypeError):
+                    is_scholarship = False
+                
+                scholarship_indicator = "🎓 SCHOLARSHIP" if is_scholarship else ""
+                
                 # Format the data for display
                 formatted_student = (
                     student[0],  # ID
                     student[1] or "N/A",  # Student ID
-                    student[2],  # Name
+                    f"{student[2]} {scholarship_indicator}".strip(),  # Name with scholarship indicator
                     student[3] or "No Class",  # Class name
                     student[4],  # Gender
                     student[5],  # Admission date
@@ -19535,6 +19922,11 @@ Financial Summary:
                  font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
                  relief='flat', bd=0, padx=20, pady=12, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
         
+        tk.Button(backup_options_frame, text="🚀 Portable Backup (ZIP)", 
+                 command=self.create_portable_backup,
+                 font=('Segoe UI', 11, 'bold'), bg='#9b59b6', fg='white',
+                 relief='flat', bd=0, padx=20, pady=12, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+        
         tk.Button(backup_options_frame, text="📊 Export to CSV", 
                  command=self.export_database_to_csv,
                  font=('Segoe UI', 11, 'bold'), bg='#3498db', fg='white',
@@ -19613,19 +20005,32 @@ Financial Summary:
             self.conn = sqlite3.connect(db_path)
             self.cursor = self.conn.cursor()
             
-            # Log the backup
-            self.cursor.execute('''
-                INSERT INTO logs (action, user, timestamp, details)
-                VALUES (?, ?, ?, ?)
-            ''', ('DATABASE_BACKUP', self.current_user.get('username', 'System'), 
-                  datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                  f'Full database backup created: {backup_filename}'))
-            self.conn.commit()
+            # Create a backup metadata file
+            import json
+            metadata = {
+                'backup_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'backup_file': backup_filename,
+                'app_version': '2.0.3',
+                'database_name': 'school_management.db',
+                'user': self.current_user.get('username', 'System')
+            }
+            
+            metadata_path = os.path.join(backup_dir, f'{backup_filename}.meta')
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            # Get file size
+            backup_size_kb = os.path.getsize(backup_path) / 1024
             
             messagebox.showinfo("Backup Successful", 
-                              f"Database backed up successfully!\n\n"
-                              f"Backup saved to:\n{backup_path}\n\n"
-                              f"File size: {os.path.getsize(backup_path) / 1024:.2f} KB")
+                              f"✓ Database backed up successfully!\n\n"
+                              f"Backup file:\n{backup_filename}\n\n"
+                              f"Location:\n{backup_dir}\n\n"
+                              f"File size: {backup_size_kb:.2f} KB\n\n"
+                              f"Backup can be:\n"
+                              f"• Restored via the app\n"
+                              f"• Transferred to another device\n"
+                              f"• Archived for safekeeping")
             
             # Refresh the backup list if we're on that screen
             self.show_backup_restore_menu()
@@ -19640,13 +20045,156 @@ Financial Summary:
             except:
                 pass
     
+    def create_portable_backup(self):
+        """Create a portable backup that can be transferred to another device"""
+        try:
+            from datetime import datetime
+            import shutil
+            import os
+            import json
+            import zipfile
+            
+            # Create backups directory if it doesn't exist
+            backup_dir = os.path.join(os.path.dirname(__file__), 'database_backups')
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+            
+            # Generate backup filename with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            # Create a temporary directory for backup contents
+            temp_backup_dir = os.path.join(backup_dir, f'portable_backup_{timestamp}')
+            if not os.path.exists(temp_backup_dir):
+                os.makedirs(temp_backup_dir)
+            
+            try:
+                # Close connection temporarily
+                self.conn.close()
+                
+                # Copy database file
+                db_path = os.path.join(os.path.dirname(__file__), 'database', 'school.db')
+                shutil.copy2(db_path, os.path.join(temp_backup_dir, 'school.db'))
+                
+                # Reconnect to database
+                self.conn = sqlite3.connect(db_path)
+                self.cursor = self.conn.cursor()
+                
+                # Create backup metadata
+                metadata = {
+                    'backup_type': 'Portable',
+                    'backup_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'app_version': '2.0.3',
+                    'database_name': 'school_management.db',
+                    'created_by': self.current_user.get('username', 'System'),
+                    'instructions': [
+                        '1. Extract this backup on the target device',
+                        '2. Open the SMS application',
+                        '3. Go to Admin → Backup & Restore',
+                        '4. Click "Restore Database"',
+                        '5. Select the school.db file from this backup',
+                        '6. Confirm the restoration'
+                    ]
+                }
+                
+                # Save metadata
+                with open(os.path.join(temp_backup_dir, 'BACKUP_INFO.json'), 'w') as f:
+                    json.dump(metadata, f, indent=2)
+                
+                # Create a README file
+                readme = f"""GAYBECK STARKIDS SMS - PORTABLE DATABASE BACKUP
+
+Backup Date: {metadata['backup_date']}
+Created By: {metadata['created_by']}
+App Version: {metadata['app_version']}
+
+CONTENTS:
+- school.db: Database file (main backup)
+- BACKUP_INFO.json: Backup metadata
+- README.txt: This file
+
+HOW TO RESTORE ON ANOTHER DEVICE:
+
+Step 1: Copy this backup folder to the Gaybeck Starkids SMS installation directory
+        on the target device
+
+Step 2: Open the SMS application on the target device
+
+Step 3: Go to Admin → Backup & Restore
+
+Step 4: Click "Restore Database"
+
+Step 5: Select the 'school.db' file from this backup folder
+
+Step 6: Confirm when prompted
+
+IMPORTANT NOTES:
+✓ Make a backup of current data before restoring
+✓ All current data will be replaced
+✓ The restoration cannot be undone without a backup
+✓ Ensure both devices have the same app version
+
+For support, contact: support@gaybeckstarkids.edu.gh
+"""
+                
+                with open(os.path.join(temp_backup_dir, 'README.txt'), 'w') as f:
+                    f.write(readme)
+                
+                # Create ZIP file
+                zip_filename = f'gaybeck_sms_backup_{timestamp}.zip'
+                zip_path = os.path.join(backup_dir, zip_filename)
+                
+                with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for root, dirs, files in os.walk(temp_backup_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, temp_backup_dir)
+                            zipf.write(file_path, arcname)
+                
+                # Clean up temporary directory
+                shutil.rmtree(temp_backup_dir)
+                
+                # Get file size
+                backup_size_mb = os.path.getsize(zip_path) / (1024 * 1024)
+                
+                messagebox.showinfo("Portable Backup Created", 
+                                  f"✓ Portable backup created successfully!\n\n"
+                                  f"Filename: {zip_filename}\n"
+                                  f"File size: {backup_size_mb:.2f} MB\n\n"
+                                  f"Location:\n{backup_dir}\n\n"
+                                  f"This backup can be:\n"
+                                  f"• Email to another device\n"
+                                  f"• Copy via USB drive\n"
+                                  f"• Upload to cloud storage\n"
+                                  f"• Archived for long-term backup\n\n"
+                                  f"The ZIP file contains:\n"
+                                  f"• school.db (database)\n"
+                                  f"• BACKUP_INFO.json (metadata)\n"
+                                  f"• README.txt (instructions)")
+                
+                # Refresh the backup list
+                self.show_backup_restore_menu()
+                
+            except Exception as e:
+                messagebox.showerror("Portable Backup Failed", f"Failed to create portable backup:\n{str(e)}")
+                # Try to reconnect if connection was closed
+                try:
+                    db_path = os.path.join(os.path.dirname(__file__), 'database', 'school.db')
+                    self.conn = sqlite3.connect(db_path)
+                    self.cursor = self.conn.cursor()
+                except:
+                    pass
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Unexpected error: {str(e)}")
+    
     def restore_database(self):
-        """Restore database from a backup file"""
+        """Restore database from a backup file (supports both .db and .zip)"""
         try:
             from tkinter import filedialog
             import shutil
             import os
             from datetime import datetime
+            import zipfile
             
             # Ask for confirmation
             confirm = messagebox.askyesno("Confirm Restore", 
@@ -19661,7 +20209,7 @@ Financial Summary:
             backup_file = filedialog.askopenfilename(
                 title="Select Backup File",
                 initialdir=os.path.join(os.path.dirname(__file__), 'database_backups'),
-                filetypes=[("Database files", "*.db"), ("All files", "*.*")]
+                filetypes=[("Database files", "*.db"), ("ZIP Portable Backups", "*.zip"), ("All files", "*.*")]
             )
             
             if not backup_file:
@@ -19678,26 +20226,43 @@ Financial Summary:
             # Create safety backup
             shutil.copy2(db_path, safety_backup)
             
-            # Restore from selected backup
-            shutil.copy2(backup_file, db_path)
+            # Handle ZIP file
+            if backup_file.lower().endswith('.zip'):
+                # Extract ZIP backup
+                temp_extract_dir = os.path.join(os.path.dirname(__file__), 'database_backups', 'temp_restore')
+                if os.path.exists(temp_extract_dir):
+                    shutil.rmtree(temp_extract_dir)
+                os.makedirs(temp_extract_dir)
+                
+                with zipfile.ZipFile(backup_file, 'r') as zip_ref:
+                    zip_ref.extractall(temp_extract_dir)
+                
+                # Find school.db in extracted files
+                extracted_db = os.path.join(temp_extract_dir, 'school.db')
+                if not os.path.exists(extracted_db):
+                    raise FileNotFoundError("school.db not found in ZIP backup")
+                
+                # Restore from extracted backup
+                shutil.copy2(extracted_db, db_path)
+                
+                # Clean up temp directory
+                shutil.rmtree(temp_extract_dir)
+                
+                restore_source = os.path.basename(backup_file)
+            else:
+                # Restore from direct .db file
+                shutil.copy2(backup_file, db_path)
+                restore_source = os.path.basename(backup_file)
             
             # Reconnect
             self.conn = sqlite3.connect(db_path)
             self.cursor = self.conn.cursor()
             
-            # Log the restore
-            self.cursor.execute('''
-                INSERT INTO logs (action, user, timestamp, details)
-                VALUES (?, ?, ?, ?)
-            ''', ('DATABASE_RESTORE', self.current_user.get('username', 'System'), 
-                  datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                  f'Database restored from: {os.path.basename(backup_file)}'))
-            self.conn.commit()
-            
             messagebox.showinfo("Restore Successful", 
-                              f"Database restored successfully!\n\n"
-                              f"Restored from:\n{os.path.basename(backup_file)}\n\n"
-                              f"A safety backup was saved to:\n{os.path.basename(safety_backup)}\n\n"
+                              f"✓ Database restored successfully!\n\n"
+                              f"Restored from:\n{restore_source}\n\n"
+                              f"Safety backup saved:\n{os.path.basename(safety_backup)}\n\n"
+                              f"Location: {os.path.dirname(safety_backup)}\n\n"
                               f"Please restart the application for changes to take full effect.")
             
         except Exception as e:
