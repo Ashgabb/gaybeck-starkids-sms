@@ -8699,91 +8699,117 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         form_tab = ttk.Frame(notebook)
         notebook.add(form_tab, text="📝 Add/Edit Student")
         
-        # Form container with modern styling
+        # Form container with modern styling - using scrollable frame like edit window
         form_container = ScrollableFrame(form_tab, bg='#f8f9fa')
-        form_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        form_container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
         form_frame = form_container.get_frame()
         
+        # Header
+        header = tk.Frame(form_frame, bg='#2c3e50', height=60)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+        
+        header_content = tk.Frame(header, bg='#2c3e50')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        tk.Label(header_content, text="✏️ Add/Edit Student Information", 
+                font=('Segoe UI', 16, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
+        tk.Label(header_content, text="Complete all required fields (*) to add or update a student record", 
+                font=('Segoe UI', 10), fg='#bdc3c7', bg='#2c3e50').pack(anchor='w', pady=(2, 0))
+        
+        # Content frame with padding
+        content_inner = tk.Frame(form_frame, bg='#f8f9fa')
+        content_inner.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
         # ========== SECTION 1: PERSONAL INFORMATION ==========
-        personal_section = tk.LabelFrame(form_frame, text="👤 Personal Information", 
-                                        font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                        bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        personal_section.pack(fill=tk.X, padx=20, pady=(20, 15))
+        personal_section = tk.LabelFrame(content_inner, text="👤 Personal Information", 
+                                        font=('Segoe UI', 11, 'bold'), bg='white',
+                                        fg='#2c3e50', relief=tk.RAISED, bd=1)
+        personal_section.pack(fill=tk.X, pady=(0, 15))
         
-        personal_grid = tk.Frame(personal_section, bg='#f8f9fa')
-        personal_grid.pack(fill=tk.X, padx=15, pady=15)
+        personal_content = tk.Frame(personal_section, bg='white')
+        personal_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        # Personal Row 1: Student ID and Full Name
-        personal_row1 = tk.Frame(personal_grid, bg='#f8f9fa')
-        personal_row1.pack(fill=tk.X, pady=(0, 12))
+        # Student ID and Full Name
+        id_name_frame = tk.Frame(personal_content, bg='white')
+        id_name_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(personal_row1, text="Student ID:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.student_id = tk.Entry(personal_row1, width=25, font=('Segoe UI', 11), 
+        id_frame = tk.Frame(id_name_frame, bg='white')
+        id_frame.pack(side=tk.LEFT, padx=(0, 20))
+        tk.Label(id_frame, text="Student ID*", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.student_id = tk.Entry(id_frame, width=20, font=('Segoe UI', 10), 
                                   relief=tk.SOLID, bd=1, state='readonly', 
                                   fg='#7f8c8d', bg='#ecf0f1')
-        self.student_id.pack(side=tk.LEFT, padx=(10, 10))
+        self.student_id.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        # Auto-generate button for Student ID
-        auto_id_btn = tk.Button(personal_row1, text="🔄 Auto", 
+        auto_id_btn = tk.Button(id_frame, text="🔄 Auto-Generate", 
                                 font=('Segoe UI', 9, 'bold'),
                                 bg='#3498db', fg='white', relief=tk.FLAT,
-                                cursor='hand2', padx=8, pady=2,
+                                cursor='hand2', padx=10, pady=3,
                                 command=self.auto_generate_student_id)
-        auto_id_btn.pack(side=tk.LEFT, padx=(0, 20))
+        auto_id_btn.pack(anchor='w', pady=(5, 0))
         
-        tk.Label(personal_row1, text="Full Name:*", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.student_name = tk.Entry(personal_row1, width=40, font=('Segoe UI', 11), 
+        name_frame = tk.Frame(id_name_frame, bg='white')
+        name_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(name_frame, text="Full Name*", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.student_name = tk.Entry(name_frame, font=('Segoe UI', 10), 
                                    relief=tk.SOLID, bd=1)
-        self.student_name.pack(side=tk.LEFT, padx=(10, 0))
+        self.student_name.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        # Personal Row 2: Date of Birth and Gender
-        personal_row2 = tk.Frame(personal_grid, bg='#f8f9fa')
-        personal_row2.pack(fill=tk.X, pady=(0, 12))
+        # Date of Birth and Gender
+        dob_gender_frame = tk.Frame(personal_content, bg='white')
+        dob_gender_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(personal_row2, text="Date of Birth:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.date_of_birth = DateEntry(personal_row2, width=15, background='#3498db',
+        dob_frame = tk.Frame(dob_gender_frame, bg='white')
+        dob_frame.pack(side=tk.LEFT, padx=(0, 20))
+        tk.Label(dob_frame, text="Date of Birth", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.date_of_birth = DateEntry(dob_frame, width=15, background='#3498db',
                                       foreground='white', borderwidth=1, year=2010,
                                       font=('Segoe UI', 10))
-        self.date_of_birth.pack(side=tk.LEFT, padx=(10, 40))
+        self.date_of_birth.pack(anchor='w', pady=(3, 0))
         
-        tk.Label(personal_row2, text="Gender:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
+        gender_frame = tk.Frame(dob_gender_frame, bg='white')
+        gender_frame.pack(side=tk.LEFT)
+        tk.Label(gender_frame, text="Gender", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        
         self.gender = tk.StringVar(value="Male")
-        gender_frame = tk.Frame(personal_row2, bg='#f8f9fa')
-        gender_frame.pack(side=tk.LEFT, padx=(10, 0))
-        
-        male_radio = tk.Radiobutton(gender_frame, text="♂️ Male", variable=self.gender, 
-                                   value="Male", bg='#f8f9fa', font=('Segoe UI', 10))
-        male_radio.pack(side=tk.LEFT, padx=(0, 20))
-        female_radio = tk.Radiobutton(gender_frame, text="♀️ Female", variable=self.gender, 
-                                     value="Female", bg='#f8f9fa', font=('Segoe UI', 10))
-        female_radio.pack(side=tk.LEFT)
+        gender_opt = tk.Frame(gender_frame, bg='white')
+        gender_opt.pack(anchor='w', pady=(3, 0))
+        tk.Radiobutton(gender_opt, text="Male", variable=self.gender, value="Male",
+                      bg='white', font=('Segoe UI', 10)).pack(side=tk.LEFT, padx=(0, 15))
+        tk.Radiobutton(gender_opt, text="Female", variable=self.gender, value="Female",
+                      bg='white', font=('Segoe UI', 10)).pack(side=tk.LEFT)
         
         # ========== SECTION 2: ACADEMIC INFORMATION ==========
-        academic_section = tk.LabelFrame(form_frame, text="🎓 Academic Information", 
-                                        font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                        bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        academic_section.pack(fill=tk.X, padx=20, pady=(0, 15))
+        academic_section = tk.LabelFrame(content_inner, text="🎓 Academic Information", 
+                                        font=('Segoe UI', 11, 'bold'), bg='white',
+                                        fg='#2c3e50', relief=tk.RAISED, bd=1)
+        academic_section.pack(fill=tk.X, pady=(0, 15))
         
-        academic_grid = tk.Frame(academic_section, bg='#f8f9fa')
-        academic_grid.pack(fill=tk.X, padx=15, pady=15)
+        academic_content = tk.Frame(academic_section, bg='white')
+        academic_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        # Academic Row 1: Admission Date and Current Class
-        academic_row1 = tk.Frame(academic_grid, bg='#f8f9fa')
-        academic_row1.pack(fill=tk.X, pady=(0, 12))
+        # Admission Date and Class
+        admit_class_frame = tk.Frame(academic_content, bg='white')
+        admit_class_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(academic_row1, text="Date of Admission:*", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.date_of_admission = DateEntry(academic_row1, width=15, background='#3498db',
+        admit_frame = tk.Frame(admit_class_frame, bg='white')
+        admit_frame.pack(side=tk.LEFT, padx=(0, 20))
+        tk.Label(admit_frame, text="Date of Admission*", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.date_of_admission = DateEntry(admit_frame, width=15, background='#3498db',
                                           foreground='white', borderwidth=1, 
                                           date_pattern='y-mm-dd', font=('Segoe UI', 10))
-        self.date_of_admission.pack(side=tk.LEFT, padx=(10, 40))
+        self.date_of_admission.pack(anchor='w', pady=(3, 0))
         
-        tk.Label(academic_row1, text="Current Class:*", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
+        class_frame = tk.Frame(admit_class_frame, bg='white')
+        class_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(class_frame, text="Current Class*", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
         
         self.cursor.execute("SELECT id, class_name FROM classes")
         classes = self.cursor.fetchall()
@@ -8791,64 +8817,71 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         class_names = [class_name for class_id, class_name in classes]
         
         self.current_class = tk.StringVar()
-        current_class_dropdown = ttk.Combobox(academic_row1, textvariable=self.current_class, 
-                                             values=class_names, state="readonly", width=25,
-                                             font=('Segoe UI', 11))
-        current_class_dropdown.pack(side=tk.LEFT, padx=(10, 0))
+        current_class_dropdown = ttk.Combobox(class_frame, textvariable=self.current_class, 
+                                             values=class_names, state="readonly", width=30,
+                                             font=('Segoe UI', 10))
+        current_class_dropdown.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
         # ========== SECTION 3: PARENT & CONTACT INFORMATION ==========
-        contact_section = tk.LabelFrame(form_frame, text="👨‍👩‍👧 Parent & Contact Information", 
-                                       font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                       bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        contact_section.pack(fill=tk.X, padx=20, pady=(0, 15))
+        contact_section = tk.LabelFrame(content_inner, text="👨‍👩‍👧 Parent & Contact Information", 
+                                       font=('Segoe UI', 11, 'bold'), bg='white',
+                                       fg='#2c3e50', relief=tk.RAISED, bd=1)
+        contact_section.pack(fill=tk.X, pady=(0, 15))
         
-        contact_grid = tk.Frame(contact_section, bg='#f8f9fa')
-        contact_grid.pack(fill=tk.X, padx=15, pady=15)
+        contact_content = tk.Frame(contact_section, bg='white')
+        contact_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        # Contact Row 1: Father's and Mother's Names
-        contact_row1 = tk.Frame(contact_grid, bg='#f8f9fa')
-        contact_row1.pack(fill=tk.X, pady=(0, 12))
+        # Father and Mother
+        parents_frame = tk.Frame(contact_content, bg='white')
+        parents_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(contact_row1, text="Father's Name:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.father_name = tk.Entry(contact_row1, width=30, font=('Segoe UI', 11), 
+        father_frame = tk.Frame(parents_frame, bg='white')
+        father_frame.pack(side=tk.LEFT, padx=(0, 20), fill=tk.BOTH, expand=True)
+        tk.Label(father_frame, text="Father's Name", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.father_name = tk.Entry(father_frame, font=('Segoe UI', 10), 
                                    relief=tk.SOLID, bd=1)
-        self.father_name.pack(side=tk.LEFT, padx=(10, 40))
+        self.father_name.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        tk.Label(contact_row1, text="Mother's Name:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.mother_name = tk.Entry(contact_row1, width=30, font=('Segoe UI', 11), 
+        mother_frame = tk.Frame(parents_frame, bg='white')
+        mother_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(mother_frame, text="Mother's Name", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.mother_name = tk.Entry(mother_frame, font=('Segoe UI', 10), 
                                    relief=tk.SOLID, bd=1)
-        self.mother_name.pack(side=tk.LEFT, padx=(10, 0))
+        self.mother_name.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        # Contact Row 2: Phone and Email
-        contact_row2 = tk.Frame(contact_grid, bg='#f8f9fa')
-        contact_row2.pack(fill=tk.X, pady=(0, 12))
+        # Phone and Email
+        contact_info_frame = tk.Frame(contact_content, bg='white')
+        contact_info_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(contact_row2, text="Phone Number:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.phone = tk.Entry(contact_row2, width=25, font=('Segoe UI', 11), 
+        phone_frame = tk.Frame(contact_info_frame, bg='white')
+        phone_frame.pack(side=tk.LEFT, padx=(0, 20), fill=tk.BOTH, expand=True)
+        tk.Label(phone_frame, text="Phone Number", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.phone = tk.Entry(phone_frame, font=('Segoe UI', 10), 
                              relief=tk.SOLID, bd=1)
-        self.phone.pack(side=tk.LEFT, padx=(10, 40))
+        self.phone.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        tk.Label(contact_row2, text="Email Address:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.parent_email = tk.Entry(contact_row2, width=40, font=('Segoe UI', 11), 
+        email_frame = tk.Frame(contact_info_frame, bg='white')
+        email_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(email_frame, text="Email Address", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.parent_email = tk.Entry(email_frame, font=('Segoe UI', 10), 
                                     relief=tk.SOLID, bd=1)
-        self.parent_email.pack(side=tk.LEFT, padx=(10, 0))
+        self.parent_email.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        # Contact Row 3: Home Address
-        contact_row3 = tk.Frame(contact_grid, bg='#f8f9fa')
-        contact_row3.pack(fill=tk.X, pady=(0, 5))
+        # Address
+        address_label_frame = tk.Frame(contact_content, bg='white')
+        address_label_frame.pack(fill=tk.X, pady=(0, 5))
+        tk.Label(address_label_frame, text="Home Address", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
         
-        tk.Label(contact_row3, text="Home Address:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(anchor=tk.W, pady=(0, 8))
+        address_text_frame = tk.Frame(contact_content, bg='white')
+        address_text_frame.pack(fill=tk.X, pady=(3, 0))
         
-        address_text_frame = tk.Frame(contact_row3, bg='#f8f9fa')
-        address_text_frame.pack(fill=tk.X)
-        
-        self.address_text = tk.Text(address_text_frame, height=4, width=100, 
-                                   font=('Segoe UI', 11), wrap=tk.WORD, 
+        self.address_text = tk.Text(address_text_frame, height=4, width=40, 
+                                   font=('Segoe UI', 10), wrap=tk.WORD, 
                                    relief=tk.SOLID, bd=1)
         address_scrollbar = tk.Scrollbar(address_text_frame, orient=tk.VERTICAL, 
                                         command=self.address_text.yview)
@@ -8857,8 +8890,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.address_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         address_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Add placeholder text for address
-        placeholder_address = "Enter complete home address including street, city, region..."
+        placeholder_address = "Enter complete home address..."
         self.address_text.insert('1.0', placeholder_address)
         self.address_text.config(fg='#95a5a6')
         
@@ -8875,153 +8907,128 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.address_text.bind('<FocusIn>', on_address_focus_in)
         self.address_text.bind('<FocusOut>', on_address_focus_out)
         
-        # ========== SECTION 4: FEE & TRANSPORTATION INFORMATION ==========
-        fee_section = tk.LabelFrame(form_frame, text="💵 Fee & Transportation Information", 
-                                   font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                   bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        fee_section.pack(fill=tk.X, padx=20, pady=(0, 15))
+        # ========== SECTION 4: FEES & TRANSPORTATION ==========
+        fee_section = tk.LabelFrame(content_inner, text="💵 Fees & Transportation", 
+                                   font=('Segoe UI', 11, 'bold'), bg='white',
+                                   fg='#2c3e50', relief=tk.RAISED, bd=1)
+        fee_section.pack(fill=tk.X, pady=(0, 15))
         
-        fee_grid = tk.Frame(fee_section, bg='#f8f9fa')
-        fee_grid.pack(fill=tk.X, padx=15, pady=15)
+        fee_content = tk.Frame(fee_section, bg='white')
+        fee_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        # Fee Row 1: Monthly Fee and Feeding Fee
-        fee_row1 = tk.Frame(fee_grid, bg='#f8f9fa')
-        fee_row1.pack(fill=tk.X, pady=(0, 12))
+        # Monthly Fee and Feeding Fee
+        fee_row1 = tk.Frame(fee_content, bg='white')
+        fee_row1.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(fee_row1, text="Monthly Fee (GHS):", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.monthly_fee = tk.Entry(fee_row1, width=15, font=('Segoe UI', 11), 
+        monthly_frame = tk.Frame(fee_row1, bg='white')
+        monthly_frame.pack(side=tk.LEFT, padx=(0, 20))
+        tk.Label(monthly_frame, text="Monthly Fee (GHS)", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.monthly_fee = tk.Entry(monthly_frame, width=15, font=('Segoe UI', 10), 
                                    relief=tk.SOLID, bd=1)
-        self.monthly_fee.pack(side=tk.LEFT, padx=(10, 40))
+        self.monthly_fee.pack(anchor='w', pady=(3, 0))
         self.monthly_fee.insert(0, "0.00")
         
-        tk.Label(fee_row1, text="Feeding Fee Paid:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
+        feeding_frame = tk.Frame(fee_row1, bg='white')
+        feeding_frame.pack(side=tk.LEFT)
+        tk.Label(feeding_frame, text="Feeding Fee Paid", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
         self.feeding_fee_paid = tk.BooleanVar()
-        feeding_check = tk.Checkbutton(fee_row1, variable=self.feeding_fee_paid, 
-                                      bg='#f8f9fa', text="✅ Yes", font=('Segoe UI', 10))
-        feeding_check.pack(side=tk.LEFT, padx=(10, 0))
+        feeding_check = tk.Checkbutton(feeding_frame, variable=self.feeding_fee_paid, 
+                                      bg='white', text="Yes", font=('Segoe UI', 10))
+        feeding_check.pack(anchor='w', pady=(3, 0))
         
-        # Fee Row 2: Transportation Options
-        fee_row2 = tk.Frame(fee_grid, bg='#f8f9fa')
-        fee_row2.pack(fill=tk.X, pady=(0, 12))
+        # Transportation
+        transport_frame_outer = tk.Frame(fee_content, bg='white')
+        transport_frame_outer.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(fee_row2, text="Transportation Mode:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
+        tk.Label(transport_frame_outer, text="Transportation", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w', pady=(0, 5))
+        
         self.transportation = tk.StringVar(value="Walk-in")
-        transport_frame = tk.Frame(fee_row2, bg='#f8f9fa')
-        transport_frame.pack(side=tk.LEFT, padx=(10, 40))
+        transport_opt = tk.Frame(transport_frame_outer, bg='white')
+        transport_opt.pack(anchor='w')
+        tk.Radiobutton(transport_opt, text="Walk-in", variable=self.transportation, 
+                      value="Walk-in", bg='white', font=('Segoe UI', 10)).pack(side=tk.LEFT, padx=(0, 20))
+        tk.Radiobutton(transport_opt, text="Bus", variable=self.transportation, 
+                      value="Bus", bg='white', font=('Segoe UI', 10)).pack(side=tk.LEFT)
         
-        walkin_radio = tk.Radiobutton(transport_frame, text="🚶 Walk-in", 
-                                     variable=self.transportation, value="Walk-in", 
-                                     bg='#f8f9fa', font=('Segoe UI', 10))
-        walkin_radio.pack(side=tk.LEFT, padx=(0, 15))
-        
-        bus_radio = tk.Radiobutton(transport_frame, text="🚌 Bus", 
-                                  variable=self.transportation, value="Bus", 
-                                  bg='#f8f9fa', font=('Segoe UI', 10))
-        bus_radio.pack(side=tk.LEFT)
-        
-        tk.Label(fee_row2, text="Bus Fee (GHS):", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.bus_fee = tk.Entry(fee_row2, width=15, font=('Segoe UI', 11), 
+        bus_frame = tk.Frame(fee_content, bg='white')
+        bus_frame.pack(fill=tk.X, pady=(0, 10))
+        tk.Label(bus_frame, text="Bus Fee (GHS)", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.bus_fee = tk.Entry(bus_frame, width=15, font=('Segoe UI', 10), 
                                relief=tk.SOLID, bd=1)
-        self.bus_fee.pack(side=tk.LEFT, padx=(10, 0))
+        self.bus_fee.pack(anchor='w', fill=tk.X, pady=(3, 0))
         self.bus_fee.insert(0, "0.00")
 
-        # ========== SECTION 5: STUDENT STATUS ==========
-        status_section = tk.LabelFrame(form_frame, text="📊 Student Status", 
-                                      font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                      bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        status_section.pack(fill=tk.X, padx=20, pady=(0, 15))
+        # ========== SECTION 5: EMERGENCY CONTACT ==========
+        emergency_section = tk.LabelFrame(content_inner, text="🆘 Emergency Contact", 
+                                         font=('Segoe UI', 11, 'bold'), bg='white',
+                                         fg='#2c3e50', relief=tk.RAISED, bd=1)
+        emergency_section.pack(fill=tk.X, pady=(0, 15))
         
-        status_grid = tk.Frame(status_section, bg='#f8f9fa')
-        status_grid.pack(fill=tk.X, padx=15, pady=15)
+        emergency_content = tk.Frame(emergency_section, bg='white')
+        emergency_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        tk.Label(status_grid, text="Current Status:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.student_status = tk.StringVar(value="Active")
-        status_frame = tk.Frame(status_grid, bg='#f8f9fa')
-        status_frame.pack(side=tk.LEFT, padx=(10, 0))
+        # Contact Name and Relationship
+        emerg_row1 = tk.Frame(emergency_content, bg='white')
+        emerg_row1.pack(fill=tk.X, pady=(0, 10))
         
-        active_radio = tk.Radiobutton(status_frame, text="✅ Active", 
-                                     variable=self.student_status, value="Active", 
-                                     bg='#f8f9fa', font=('Segoe UI', 10), fg='#27ae60')
-        active_radio.pack(side=tk.LEFT, padx=(0, 20))
-        
-        inactive_radio = tk.Radiobutton(status_frame, text="❌ Inactive", 
-                                       variable=self.student_status, value="Inactive", 
-                                       bg='#f8f9fa', font=('Segoe UI', 10), fg='#e74c3c')
-        inactive_radio.pack(side=tk.LEFT, padx=(0, 20))
-        
-        suspended_radio = tk.Radiobutton(status_frame, text="⚠️ Suspended", 
-                                        variable=self.student_status, value="Suspended", 
-                                        bg='#f8f9fa', font=('Segoe UI', 10), fg='#f39c12')
-        suspended_radio.pack(side=tk.LEFT)
-
-        # ========== SECTION 6: EMERGENCY CONTACT INFORMATION ==========
-        emergency_section = tk.LabelFrame(form_frame, text="🆘 Emergency Contact Information", 
-                                         font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                         bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        emergency_section.pack(fill=tk.X, padx=20, pady=(0, 15))
-        
-        emergency_grid = tk.Frame(emergency_section, bg='#f8f9fa')
-        emergency_grid.pack(fill=tk.X, padx=15, pady=15)
-        
-        # Emergency Row 1: Contact Name and Relationship
-        emerg_row1 = tk.Frame(emergency_grid, bg='#f8f9fa')
-        emerg_row1.pack(fill=tk.X, pady=(0, 12))
-        
-        tk.Label(emerg_row1, text="Emergency Contact Name:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.emergency_contact_name = tk.Entry(emerg_row1, width=25, font=('Segoe UI', 11), 
+        emerg_name_frame = tk.Frame(emerg_row1, bg='white')
+        emerg_name_frame.pack(side=tk.LEFT, padx=(0, 20), fill=tk.BOTH, expand=True)
+        tk.Label(emerg_name_frame, text="Contact Name", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.emergency_contact_name = tk.Entry(emerg_name_frame, font=('Segoe UI', 10), 
                                               relief=tk.SOLID, bd=1)
-        self.emergency_contact_name.pack(side=tk.LEFT, padx=(10, 40))
+        self.emergency_contact_name.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        tk.Label(emerg_row1, text="Relationship:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
+        emerg_rel_frame = tk.Frame(emerg_row1, bg='white')
+        emerg_rel_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(emerg_rel_frame, text="Relationship", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
         self.emergency_relationship = tk.StringVar()
-        relationship_dropdown = ttk.Combobox(emerg_row1, textvariable=self.emergency_relationship, 
+        relationship_dropdown = ttk.Combobox(emerg_rel_frame, textvariable=self.emergency_relationship, 
                                            values=["Parent", "Guardian", "Relative", "Family Friend", "Other"], 
-                                           state="readonly", width=18, font=('Segoe UI', 10))
-        relationship_dropdown.pack(side=tk.LEFT, padx=(10, 0))
+                                           state="readonly", font=('Segoe UI', 10))
+        relationship_dropdown.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        # Emergency Row 2: Contact Phone Numbers
-        emerg_row2 = tk.Frame(emergency_grid, bg='#f8f9fa')
-        emerg_row2.pack(fill=tk.X, pady=(0, 5))
+        # Phone Numbers
+        emerg_phones_frame = tk.Frame(emergency_content, bg='white')
+        emerg_phones_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Label(emerg_row2, text="Primary Phone:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.emergency_phone = tk.Entry(emerg_row2, width=18, font=('Segoe UI', 11), 
+        emerg_phone_frame = tk.Frame(emerg_phones_frame, bg='white')
+        emerg_phone_frame.pack(side=tk.LEFT, padx=(0, 20), fill=tk.BOTH, expand=True)
+        tk.Label(emerg_phone_frame, text="Primary Phone", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.emergency_phone = tk.Entry(emerg_phone_frame, font=('Segoe UI', 10), 
                                        relief=tk.SOLID, bd=1)
-        self.emergency_phone.pack(side=tk.LEFT, padx=(10, 40))
+        self.emergency_phone.pack(anchor='w', fill=tk.X, pady=(3, 0))
         
-        tk.Label(emerg_row2, text="Alternative Phone:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(side=tk.LEFT)
-        self.emergency_alt_phone = tk.Entry(emerg_row2, width=18, font=('Segoe UI', 11), 
+        emerg_alt_frame = tk.Frame(emerg_phones_frame, bg='white')
+        emerg_alt_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        tk.Label(emerg_alt_frame, text="Alternative Phone", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w')
+        self.emergency_alt_phone = tk.Entry(emerg_alt_frame, font=('Segoe UI', 10), 
                                            relief=tk.SOLID, bd=1)
-        self.emergency_alt_phone.pack(side=tk.LEFT, padx=(10, 0))
+        self.emergency_alt_phone.pack(anchor='w', fill=tk.X, pady=(3, 0))
 
-        # ========== SECTION 6: MEDICAL & HEALTH INFORMATION ==========
-        medical_section = tk.LabelFrame(form_frame, text="🏥 Medical & Health Information", 
-                                       font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                       bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        medical_section.pack(fill=tk.X, padx=20, pady=(0, 15))
+        # ========== SECTION 6: MEDICAL INFORMATION ==========
+        medical_section = tk.LabelFrame(content_inner, text="🏥 Medical Information", 
+                                       font=('Segoe UI', 11, 'bold'), bg='white',
+                                       fg='#2c3e50', relief=tk.RAISED, bd=1)
+        medical_section.pack(fill=tk.X, pady=(0, 15))
         
-        medical_grid = tk.Frame(medical_section, bg='#f8f9fa')
-        medical_grid.pack(fill=tk.X, padx=15, pady=15)
+        medical_content = tk.Frame(medical_section, bg='white')
+        medical_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        # Medical Information
-        med_row1 = tk.Frame(medical_grid, bg='#f8f9fa')
-        med_row1.pack(fill=tk.X, pady=(0, 5))
+        tk.Label(medical_content, text="Allergies & Medical Conditions", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w', pady=(0, 5))
         
-        tk.Label(med_row1, text="Medical Conditions & Allergies:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(anchor=tk.W, pady=(0, 8))
-        
-        allergies_text_frame = tk.Frame(med_row1, bg='#f8f9fa')
+        allergies_text_frame = tk.Frame(medical_content, bg='white')
         allergies_text_frame.pack(fill=tk.X)
         
-        self.allergies_text = tk.Text(allergies_text_frame, height=3, width=80, 
+        self.allergies_text = tk.Text(allergies_text_frame, height=3, width=40, 
                                      font=('Segoe UI', 10), wrap=tk.WORD, 
                                      relief=tk.SOLID, bd=1)
         allergies_scrollbar = tk.Scrollbar(allergies_text_frame, orient=tk.VERTICAL, 
@@ -9031,8 +9038,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.allergies_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         allergies_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Add placeholder for allergies
-        placeholder_allergies = "List any known allergies, medications, or medical conditions (e.g., asthma, diabetes, food allergies, medications being taken...)"
+        placeholder_allergies = "List allergies, medications, medical conditions..."
         self.allergies_text.insert('1.0', placeholder_allergies)
         self.allergies_text.config(fg='#95a5a6')
         
@@ -9049,45 +9055,57 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.allergies_text.bind('<FocusIn>', on_allergies_focus_in)
         self.allergies_text.bind('<FocusOut>', on_allergies_focus_out)
 
-        # ========== SECTION 7: DOCUMENT MANAGEMENT ==========
-        doc_section = tk.LabelFrame(form_frame, text="📄 Document Management", 
-                                   font=('Segoe UI', 12, 'bold'), fg='#2c3e50', 
-                                   bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        doc_section.pack(fill=tk.X, padx=20, pady=(0, 15))
+        # ========== SECTION 7: STUDENT STATUS ==========
+        status_section = tk.LabelFrame(content_inner, text="📊 Student Status", 
+                                      font=('Segoe UI', 11, 'bold'), bg='white',
+                                      fg='#2c3e50', relief=tk.RAISED, bd=1)
+        status_section.pack(fill=tk.X, pady=(0, 15))
         
-        doc_grid = tk.Frame(doc_section, bg='#f8f9fa')
-        doc_grid.pack(fill=tk.X, padx=15, pady=15)
+        status_content = tk.Frame(status_section, bg='white')
+        status_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        # Document upload section
-        upload_row = tk.Frame(doc_grid, bg='#f8f9fa')
-        upload_row.pack(fill=tk.X, pady=(0, 8))
+        tk.Label(status_content, text="Current Status", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w', pady=(0, 5))
         
-        tk.Label(upload_row, text="Upload Important Documents:", font=('Segoe UI', 11, 'bold'), 
-                bg='#f8f9fa', fg='#34495e').pack(anchor=tk.W, pady=(0, 8))
+        self.student_status = tk.StringVar(value="Active")
+        status_opts = tk.Frame(status_content, bg='white')
+        status_opts.pack(anchor='w')
+        tk.Radiobutton(status_opts, text="Active", variable=self.student_status, 
+                      value="Active", bg='white', font=('Segoe UI', 10), fg='#27ae60').pack(side=tk.LEFT, padx=(0, 20))
+        tk.Radiobutton(status_opts, text="Inactive", variable=self.student_status, 
+                      value="Inactive", bg='white', font=('Segoe UI', 10), fg='#e74c3c').pack(side=tk.LEFT, padx=(0, 20))
+        tk.Radiobutton(status_opts, text="Suspended", variable=self.student_status, 
+                      value="Suspended", bg='white', font=('Segoe UI', 10), fg='#f39c12').pack(side=tk.LEFT)
+
+        # ========== SECTION 8: DOCUMENT MANAGEMENT ==========
+        doc_section = tk.LabelFrame(content_inner, text="📄 Document Management", 
+                                   font=('Segoe UI', 11, 'bold'), bg='white',
+                                   fg='#2c3e50', relief=tk.RAISED, bd=1)
+        doc_section.pack(fill=tk.X, pady=(0, 20))
         
-        # Document types info
-        doc_info = tk.Label(upload_row, text="Accepted: Birth Certificate, Medical Records, Previous School Records, Photos (PDF, DOC, Images)", 
-                           font=('Segoe UI', 9, 'italic'), bg='#f8f9fa', fg='#7f8c8d')
-        doc_info.pack(anchor=tk.W, pady=(0, 10))
+        doc_content = tk.Frame(doc_section, bg='white')
+        doc_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
         
-        upload_frame = tk.Frame(upload_row, bg='#f8f9fa')
-        upload_frame.pack(fill=tk.X)
+        tk.Label(doc_content, text="Upload Documents", font=('Segoe UI', 10, 'bold'),
+                fg='#34495e', bg='white').pack(anchor='w', pady=(0, 5))
+        
+        upload_frame = tk.Frame(doc_content, bg='white')
+        upload_frame.pack(fill=tk.X, pady=(3, 0))
         
         self.student_file_path_var = tk.StringVar()
         self.student_file_entry = tk.Entry(upload_frame, textvariable=self.student_file_path_var, 
-                                          width=60, font=('Segoe UI', 10), state='readonly',
+                                          font=('Segoe UI', 10), state='readonly',
                                           relief=tk.SOLID, bd=1)
-        self.student_file_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
+        self.student_file_entry.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        upload_btn = tk.Button(upload_frame, text="📂 Browse Files", 
+        upload_btn = tk.Button(upload_frame, text="📂 Browse", 
                               font=('Segoe UI', 10, 'bold'), 
                               bg='#3498db', fg='#ffffff', 
                               relief=tk.FLAT, bd=0, cursor='hand2',
                               command=self.browse_student_document,
-                              padx=15, pady=8)
+                              padx=15, pady=6)
         upload_btn.pack(side=tk.RIGHT)
         
-        # Add hover effects to upload button
         def on_upload_enter(e):
             upload_btn.configure(bg='#2980b9')
         
@@ -9097,40 +9115,42 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         upload_btn.bind("<Enter>", on_upload_enter)
         upload_btn.bind("<Leave>", on_upload_leave)
         
-        # File status display
-        self.student_file_info = tk.Label(upload_row, text="📊 No file selected", 
-                                         font=('Segoe UI', 10), 
-                                         bg='#f8f9fa', fg='#7f8c8d')
-        self.student_file_info.pack(anchor=tk.W, pady=(8, 0))
+        self.student_file_info = tk.Label(doc_content, text="📊 No file selected", 
+                                         font=('Segoe UI', 9), 
+                                         bg='white', fg='#7f8c8d')
+        self.student_file_info.pack(anchor='w', pady=(8, 0))
         
-        # ========== ACTION BUTTONS SECTION ==========
-        button_section = tk.LabelFrame(form_frame, text="⚡ Actions", 
-                                      font=('Segoe UI', 11, 'bold'), fg='#2c3e50', 
-                                      bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        button_section.pack(fill=tk.X, padx=20, pady=(0, 20))
+        # ========== ACTION BUTTONS ==========
+        button_frame = tk.Frame(form_frame, bg='#f8f9fa')
+        button_frame.pack(fill=tk.X, padx=20, pady=20)
         
-        button_container = tk.Frame(button_section, bg='#f8f9fa')
-        button_container.pack(anchor=tk.CENTER, pady=15)
+        button_container = tk.Frame(button_frame, bg='#f8f9fa')
+        button_container.pack(anchor=tk.CENTER)
         
-        add_btn = self.create_modern_button(button_container, "➕ Add Student", 
-                                          self.add_student, 'success', width=18)
-        add_btn.pack(side=tk.LEFT, padx=(0, 15))
+        add_btn = tk.Button(button_container, text="➕ Add Student", command=self.add_student,
+                           font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
+                           relief=tk.FLAT, bd=0, padx=20, pady=10, cursor='hand2')
+        add_btn.pack(side=tk.LEFT, padx=5)
         
-        update_btn = self.create_modern_button(button_container, "🔄 Update Student", 
-                                             self.update_student, 'primary', width=18)
-        update_btn.pack(side=tk.LEFT, padx=(0, 15))
+        update_btn = tk.Button(button_container, text="🔄 Update Student", command=self.update_student,
+                              font=('Segoe UI', 11, 'bold'), bg='#3498db', fg='white',
+                              relief=tk.FLAT, bd=0, padx=20, pady=10, cursor='hand2')
+        update_btn.pack(side=tk.LEFT, padx=5)
         
-        delete_btn = self.create_modern_button(button_container, "🗑️ Delete Student", 
-                                             self.delete_student, 'danger', width=18)
-        delete_btn.pack(side=tk.LEFT, padx=(0, 15))
+        delete_btn = tk.Button(button_container, text="🗑️ Delete Student", command=self.delete_student,
+                              font=('Segoe UI', 11, 'bold'), bg='#e74c3c', fg='white',
+                              relief=tk.FLAT, bd=0, padx=20, pady=10, cursor='hand2')
+        delete_btn.pack(side=tk.LEFT, padx=5)
         
-        status_btn = self.create_modern_button(button_container, "📊 Change Status", 
-                                             self.change_student_status, 'warning', width=18)
-        status_btn.pack(side=tk.LEFT, padx=(0, 15))
+        status_btn = tk.Button(button_container, text="📊 Change Status", command=self.change_student_status,
+                              font=('Segoe UI', 11, 'bold'), bg='#f39c12', fg='white',
+                              relief=tk.FLAT, bd=0, padx=20, pady=10, cursor='hand2')
+        status_btn.pack(side=tk.LEFT, padx=5)
         
-        clear_btn = self.create_modern_button(button_container, "🧹 Clear Form", 
-                                            self.clear_student_form, 'secondary', width=15)
-        clear_btn.pack(side=tk.LEFT)
+        clear_btn = tk.Button(button_container, text="🧹 Clear Form", command=self.clear_student_form,
+                             font=('Segoe UI', 11, 'bold'), bg='#95a5a6', fg='white',
+                             relief=tk.FLAT, bd=0, padx=20, pady=10, cursor='hand2')
+        clear_btn.pack(side=tk.LEFT, padx=5)
         
         # Students List Tab
         list_tab = ttk.Frame(notebook)
