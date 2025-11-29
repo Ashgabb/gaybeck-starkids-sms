@@ -10062,30 +10062,248 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     self.allergies_text.config(fg='#95a5a6')
     
     def on_student_double_click(self, event):
-        """Handle double-click on student to open edit form"""
-        # First load the student data
-        self.on_student_select(event)
-        
-        # Scroll the canvas to show the student form section
+        """Handle double-click on student to open dedicated edit window"""
+        selected = self.students_tree.selection()
+        if selected:
+            # Get student ID from selection
+            student_db_id = self.students_tree.item(selected[0])['values'][0]
+            
+            # Open student edit window
+            self.open_student_edit_window(student_db_id)
+    
+    def open_student_edit_window(self, student_db_id):
+        """Open a dedicated window for editing student details"""
         try:
-            # Get the scrollable frame and scroll to top to show the form
-            scrollable_frame = self.students_tree.winfo_parent()
-            canvas = self.students_tree.winfo_parent()
+            # Fetch student data
+            self.cursor.execute('''
+                SELECT s.id, s.student_id, s.name, s.date_of_birth, s.gender, s.date_of_admission,
+                       c.class_name, s.class_id, s.father_name, s.mother_name, s.phone, s.address,
+                       s.transportation, s.bus_fee, s.monthly_fee, s.feeding_fee_paid, s.status,
+                       s.emergency_contact_name, s.emergency_relationship, s.emergency_phone,
+                       s.emergency_alt_phone, s.medical_allergies, s.parent_email
+                FROM students s 
+                LEFT JOIN classes c ON s.class_id = c.id 
+                WHERE s.id = ?
+            ''', (student_db_id,))
             
-            # Try to get the parent scrollable frame
-            while canvas and not isinstance(canvas, tk.Canvas):
-                canvas = self.nametowidget(canvas).winfo_parent() if self.nametowidget(canvas).winfo_parent() else None
+            student_data = self.cursor.fetchone()
+            if not student_data:
+                messagebox.showerror("Error", "Student not found")
+                return
             
-            # Focus on the student name field and select it
-            self.student_name.focus()
-            self.student_name.select_range(0, tk.END)
-        except:
-            # If scrolling fails, just focus the form
-            try:
-                self.student_name.focus()
-                self.student_name.select_range(0, tk.END)
-            except:
-                pass
+            # Create edit window
+            edit_window = tk.Toplevel(self.root)
+            edit_window.title(f"Edit Student - {student_data[2]}")
+            edit_window.geometry("900x750")
+            edit_window.configure(bg='#f8f9fa')
+            
+            # Make window modal
+            edit_window.transient(self.root)
+            edit_window.grab_set()
+            
+            # Header
+            header = tk.Frame(edit_window, bg='#2c3e50', height=60)
+            header.pack(fill=tk.X)
+            header.pack_propagate(False)
+            
+            header_content = tk.Frame(header, bg='#2c3e50')
+            header_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+            
+            tk.Label(header_content, text=f"✏️ Edit Student: {student_data[2]}", 
+                    font=('Segoe UI', 16, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
+            tk.Label(header_content, text=f"ID: {student_data[1]}", 
+                    font=('Segoe UI', 10), fg='#bdc3c7', bg='#2c3e50').pack(anchor='w', pady=(2, 0))
+            
+            # Scrollable content
+            scrollable = ScrollableFrame(edit_window, bg='#f8f9fa')
+            scrollable.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
+            content = scrollable.get_frame()
+            
+            # Content frame with padding
+            content_inner = tk.Frame(content, bg='#f8f9fa')
+            content_inner.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            # Store student ID for later use
+            student_edit_vars = {
+                'student_id': student_db_id,
+                'student_name': tk.StringVar(value=student_data[2] or ""),
+                'date_of_birth': tk.StringVar(value=student_data[3] or ""),
+                'gender': tk.StringVar(value=student_data[4] or "Male"),
+                'date_of_admission': tk.StringVar(value=student_data[5] or ""),
+                'class_id': student_data[7],
+                'father_name': tk.StringVar(value=student_data[8] or ""),
+                'mother_name': tk.StringVar(value=student_data[9] or ""),
+                'phone': tk.StringVar(value=student_data[10] or ""),
+                'address': tk.StringVar(value=student_data[11] or ""),
+                'transportation': tk.StringVar(value=student_data[12] or "Walk-in"),
+                'bus_fee': tk.StringVar(value=str(student_data[13] or "0.00")),
+                'monthly_fee': tk.StringVar(value=str(student_data[14] or "0.00")),
+                'feeding_fee_paid': tk.BooleanVar(value=bool(student_data[15])),
+                'status': tk.StringVar(value=student_data[16] or "Active"),
+                'emergency_contact_name': tk.StringVar(value=student_data[17] or ""),
+                'emergency_relationship': tk.StringVar(value=student_data[18] or ""),
+                'emergency_phone': tk.StringVar(value=student_data[19] or ""),
+                'emergency_alt_phone': tk.StringVar(value=student_data[20] or ""),
+                'allergies': tk.StringVar(value=student_data[21] or ""),
+                'parent_email': tk.StringVar(value=student_data[22] or "")
+            }
+            
+            # Create sections
+            sections = [
+                ("👤 Personal Information", [
+                    ("Full Name", 'student_name', 'entry'),
+                    ("Date of Birth", 'date_of_birth', 'entry'),
+                    ("Gender", 'gender', 'combo', ['Male', 'Female', 'Other']),
+                    ("Date of Admission", 'date_of_admission', 'entry'),
+                ]),
+                ("👨‍👩‍👧 Family Information", [
+                    ("Father's Name", 'father_name', 'entry'),
+                    ("Mother's Name", 'mother_name', 'entry'),
+                    ("Parent Email", 'parent_email', 'entry'),
+                    ("Phone", 'phone', 'entry'),
+                ]),
+                ("🏠 Address & Transportation", [
+                    ("Address", 'address', 'text'),
+                    ("Transportation", 'transportation', 'combo', ['Walk-in', 'Bus']),
+                    ("Bus Fee (₦)", 'bus_fee', 'entry'),
+                ]),
+                ("💳 Fees", [
+                    ("Monthly Fee (₦)", 'monthly_fee', 'entry'),
+                    ("Feeding Fee Paid", 'feeding_fee_paid', 'check'),
+                ]),
+                ("🆘 Emergency Contact", [
+                    ("Contact Name", 'emergency_contact_name', 'entry'),
+                    ("Relationship", 'emergency_relationship', 'entry'),
+                    ("Phone", 'emergency_phone', 'entry'),
+                    ("Alt Phone", 'emergency_alt_phone', 'entry'),
+                ]),
+                ("⚕️ Medical Information", [
+                    ("Allergies/Medical Info", 'allergies', 'text'),
+                ]),
+                ("📊 Status", [
+                    ("Student Status", 'status', 'combo', ['Active', 'Inactive']),
+                ])
+            ]
+            
+            for section_title, fields in sections:
+                section_frame = tk.LabelFrame(content_inner, text=section_title, 
+                                             font=('Segoe UI', 11, 'bold'), bg='white',
+                                             fg='#2c3e50', relief=tk.RAISED, bd=1)
+                section_frame.pack(fill=tk.X, pady=(0, 15))
+                
+                section_content = tk.Frame(section_frame, bg='white')
+                section_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+                
+                for field_info in fields:
+                    field_name = field_info[0]
+                    var_name = field_info[1]
+                    field_type = field_info[2]
+                    
+                    field_frame = tk.Frame(section_content, bg='white')
+                    field_frame.pack(fill=tk.X, pady=(0, 10))
+                    
+                    tk.Label(field_frame, text=field_name, font=('Segoe UI', 10, 'bold'),
+                            fg='#34495e', bg='white').pack(anchor='w')
+                    
+                    if field_type == 'entry':
+                        entry = tk.Entry(field_frame, textvariable=student_edit_vars[var_name],
+                                       font=('Segoe UI', 10), relief=tk.SOLID, bd=1)
+                        entry.pack(anchor='w', fill=tk.X, pady=(3, 0))
+                    
+                    elif field_type == 'combo':
+                        options = field_info[3]
+                        combo = ttk.Combobox(field_frame, textvariable=student_edit_vars[var_name],
+                                           values=options, font=('Segoe UI', 10), state='readonly')
+                        combo.pack(anchor='w', fill=tk.X, pady=(3, 0))
+                    
+                    elif field_type == 'text':
+                        text = tk.Text(field_frame, height=4, width=40, 
+                                      font=('Segoe UI', 10), relief=tk.SOLID, bd=1)
+                        text.pack(fill=tk.X, pady=(3, 0))
+                        text.insert('1.0', student_edit_vars[var_name].get())
+                        student_edit_vars[var_name + '_widget'] = text
+                    
+                    elif field_type == 'check':
+                        check = tk.Checkbutton(field_frame, variable=student_edit_vars[var_name],
+                                             bg='white', fg='#2c3e50', font=('Segoe UI', 10))
+                        check.pack(anchor='w', pady=(3, 0))
+            
+            # Button frame
+            button_frame = tk.Frame(edit_window, bg='#f8f9fa')
+            button_frame.pack(fill=tk.X, padx=20, pady=15)
+            
+            def save_changes():
+                """Save changes to student record"""
+                try:
+                    # Get text widget values
+                    for var_name in student_edit_vars:
+                        if var_name.endswith('_widget'):
+                            continue
+                        if isinstance(student_edit_vars[var_name], tk.StringVar):
+                            if var_name + '_widget' in student_edit_vars:
+                                widget = student_edit_vars[var_name + '_widget']
+                                value = widget.get('1.0', tk.END).strip()
+                                student_edit_vars[var_name].set(value)
+                    
+                    # Update database
+                    self.cursor.execute('''
+                        UPDATE students SET
+                            name = ?, date_of_birth = ?, gender = ?, date_of_admission = ?,
+                            father_name = ?, mother_name = ?, phone = ?, address = ?,
+                            transportation = ?, bus_fee = ?, monthly_fee = ?, feeding_fee_paid = ?,
+                            status = ?, emergency_contact_name = ?, emergency_relationship = ?,
+                            emergency_phone = ?, emergency_alt_phone = ?, medical_allergies = ?,
+                            parent_email = ?
+                        WHERE id = ?
+                    ''', (
+                        student_edit_vars['student_name'].get(),
+                        student_edit_vars['date_of_birth'].get(),
+                        student_edit_vars['gender'].get(),
+                        student_edit_vars['date_of_admission'].get(),
+                        student_edit_vars['father_name'].get(),
+                        student_edit_vars['mother_name'].get(),
+                        student_edit_vars['phone'].get(),
+                        student_edit_vars['address'].get(),
+                        student_edit_vars['transportation'].get(),
+                        float(student_edit_vars['bus_fee'].get() or 0),
+                        float(student_edit_vars['monthly_fee'].get() or 0),
+                        1 if student_edit_vars['feeding_fee_paid'].get() else 0,
+                        student_edit_vars['status'].get(),
+                        student_edit_vars['emergency_contact_name'].get(),
+                        student_edit_vars['emergency_relationship'].get(),
+                        student_edit_vars['emergency_phone'].get(),
+                        student_edit_vars['emergency_alt_phone'].get(),
+                        student_edit_vars['allergies'].get() or student_edit_vars.get('allergies_widget', tk.StringVar()).get('1.0', tk.END).strip(),
+                        student_edit_vars['parent_email'].get(),
+                        student_edit_vars['student_id']
+                    ))
+                    
+                    self.connection.commit()
+                    messagebox.showinfo("Success", "Student information updated successfully!")
+                    self.load_students()
+                    edit_window.destroy()
+                    
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save changes: {str(e)}")
+            
+            save_btn = tk.Button(button_frame, text="💾 Save Changes", command=save_changes,
+                               font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
+                               relief=tk.FLAT, bd=0, padx=20, pady=10, cursor='hand2')
+            save_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            close_btn = tk.Button(button_frame, text="❌ Cancel", command=edit_window.destroy,
+                                font=('Segoe UI', 11, 'bold'), bg='#e74c3c', fg='white',
+                                relief=tk.FLAT, bd=0, padx=20, pady=10, cursor='hand2')
+            close_btn.pack(side=tk.LEFT)
+            
+            # Center window on parent
+            edit_window.update_idletasks()
+            x = self.root.winfo_x() + (self.root.winfo_width() - edit_window.winfo_width()) // 2
+            y = self.root.winfo_y() + (self.root.winfo_height() - edit_window.winfo_height()) // 2
+            edit_window.geometry(f"+{x}+{y}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open edit window: {str(e)}")
     
     def clear_student_form(self):
         # Clear student ID (need to temporarily enable it since it's readonly)
