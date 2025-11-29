@@ -10235,53 +10235,58 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             def save_changes():
                 """Save changes to student record"""
                 try:
-                    # Get text widget values
-                    for var_name in student_edit_vars:
-                        if var_name.endswith('_widget'):
-                            continue
-                        if isinstance(student_edit_vars[var_name], tk.StringVar):
-                            if var_name + '_widget' in student_edit_vars:
-                                widget = student_edit_vars[var_name + '_widget']
-                                value = widget.get('1.0', tk.END).strip()
-                                student_edit_vars[var_name].set(value)
+                    # Get all field values, including text widgets
+                    address_value = student_edit_vars['address'].get()
+                    allergies_value = student_edit_vars['allergies'].get()
                     
-                    # Update database
-                    self.cursor.execute('''
-                        UPDATE students SET
-                            name = ?, date_of_birth = ?, gender = ?, date_of_admission = ?,
-                            father_name = ?, mother_name = ?, phone = ?, address = ?,
-                            transportation = ?, bus_fee = ?, monthly_fee = ?, feeding_fee_paid = ?,
-                            status = ?, emergency_contact_name = ?, emergency_relationship = ?,
-                            emergency_phone = ?, emergency_alt_phone = ?, medical_allergies = ?,
-                            parent_email = ?
-                        WHERE id = ?
-                    ''', (
-                        student_edit_vars['student_name'].get(),
-                        student_edit_vars['date_of_birth'].get(),
-                        student_edit_vars['gender'].get(),
-                        student_edit_vars['date_of_admission'].get(),
-                        student_edit_vars['father_name'].get(),
-                        student_edit_vars['mother_name'].get(),
-                        student_edit_vars['phone'].get(),
-                        student_edit_vars['address'].get(),
-                        student_edit_vars['transportation'].get(),
-                        float(student_edit_vars['bus_fee'].get() or 0),
-                        float(student_edit_vars['monthly_fee'].get() or 0),
-                        1 if student_edit_vars['feeding_fee_paid'].get() else 0,
-                        student_edit_vars['status'].get(),
-                        student_edit_vars['emergency_contact_name'].get(),
-                        student_edit_vars['emergency_relationship'].get(),
-                        student_edit_vars['emergency_phone'].get(),
-                        student_edit_vars['emergency_alt_phone'].get(),
-                        student_edit_vars['allergies'].get() or student_edit_vars.get('allergies_widget', tk.StringVar()).get('1.0', tk.END).strip(),
-                        student_edit_vars['parent_email'].get(),
-                        student_edit_vars['student_id']
-                    ))
+                    # Check if we have text widgets and get their values
+                    if 'address_widget' in student_edit_vars:
+                        address_value = student_edit_vars['address_widget'].get('1.0', tk.END).strip()
                     
-                    self.connection.commit()
-                    messagebox.showinfo("Success", "Student information updated successfully!")
-                    self.load_students()
-                    edit_window.destroy()
+                    if 'allergies_widget' in student_edit_vars:
+                        allergies_value = student_edit_vars['allergies_widget'].get('1.0', tk.END).strip()
+                    
+                    # Update database with proper error handling
+                    try:
+                        self.cursor.execute('''
+                            UPDATE students SET
+                                name = ?, date_of_birth = ?, gender = ?, date_of_admission = ?,
+                                father_name = ?, mother_name = ?, phone = ?, address = ?,
+                                transportation = ?, bus_fee = ?, monthly_fee = ?, feeding_fee_paid = ?,
+                                status = ?, emergency_contact_name = ?, emergency_relationship = ?,
+                                emergency_phone = ?, emergency_alt_phone = ?, medical_allergies = ?,
+                                parent_email = ?
+                            WHERE id = ?
+                        ''', (
+                            student_edit_vars['student_name'].get(),
+                            student_edit_vars['date_of_birth'].get(),
+                            student_edit_vars['gender'].get(),
+                            student_edit_vars['date_of_admission'].get(),
+                            student_edit_vars['father_name'].get(),
+                            student_edit_vars['mother_name'].get(),
+                            student_edit_vars['phone'].get(),
+                            address_value,
+                            student_edit_vars['transportation'].get(),
+                            float(student_edit_vars['bus_fee'].get() or 0),
+                            float(student_edit_vars['monthly_fee'].get() or 0),
+                            1 if student_edit_vars['feeding_fee_paid'].get() else 0,
+                            student_edit_vars['status'].get(),
+                            student_edit_vars['emergency_contact_name'].get(),
+                            student_edit_vars['emergency_relationship'].get(),
+                            student_edit_vars['emergency_phone'].get(),
+                            student_edit_vars['emergency_alt_phone'].get(),
+                            allergies_value,
+                            student_edit_vars['parent_email'].get(),
+                            student_edit_vars['student_id']
+                        ))
+                        
+                        self.connection.commit()
+                        messagebox.showinfo("Success", "Student information updated successfully!")
+                        self.load_students()
+                        edit_window.destroy()
+                    except Exception as db_error:
+                        self.connection.rollback()
+                        messagebox.showerror("Database Error", f"Failed to update database: {str(db_error)}")
                     
                 except Exception as e:
                     messagebox.showerror("Error", f"Failed to save changes: {str(e)}")
