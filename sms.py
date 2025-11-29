@@ -15072,6 +15072,7 @@ Financial Summary:
         self.create_category_management_tab()
         self.create_financial_reports_tab()
         self.create_budget_planning_tab()
+        self.create_financial_analytics_tab()
         
         # Load initial data
         self.refresh_financial_data()
@@ -16197,6 +16198,208 @@ Financial Summary:
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load transaction for editing: {str(e)}")
+    
+    def create_financial_analytics_tab(self):
+        """Create financial analytics and insights tab with advanced analytics"""
+        analytics_frame = ttk.Frame(self.financial_notebook)
+        self.financial_notebook.add(analytics_frame, text="📊 Analytics & Insights")
+        
+        # Create scrollable main container
+        scrollable_container = ScrollableFrame(analytics_frame, bg='#f8f9fa')
+        scrollable_container.pack(fill=tk.BOTH, expand=True)
+        main = scrollable_container.get_frame()
+        
+        # Header
+        header = tk.Frame(main, bg='#2c3e50', relief=tk.FLAT, bd=0)
+        header.pack(fill=tk.X, padx=0, pady=(0, 20))
+        
+        header_content = tk.Frame(header, bg='#2c3e50')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=25, pady=20)
+        
+        tk.Label(header_content, text="📊 Financial Analytics & Insights", 
+                font=('Segoe UI', 20, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
+        tk.Label(header_content, text="Real-time financial analysis, trends, and recommendations",
+                font=('Segoe UI', 11), fg='#bdc3c7', bg='#2c3e50').pack(anchor='w', pady=(5, 0))
+        
+        # Content area
+        content = tk.Frame(main, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        
+        # Section 1: Key Financial Metrics
+        metrics_frame = tk.LabelFrame(content, text="📈 Key Financial Metrics", 
+                                     font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50',
+                                     relief=tk.RAISED, bd=1)
+        metrics_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        metrics_content = tk.Frame(metrics_frame, bg='white')
+        metrics_content.pack(fill=tk.X, padx=20, pady=20)
+        
+        # Create 4-column metric display
+        metric_cols = tk.Frame(metrics_content, bg='white')
+        metric_cols.pack(fill=tk.X)
+        
+        # Total Income
+        self.create_metric_card(metric_cols, "💰 Total Income", "₦0.00", 
+                               side=tk.LEFT, padx=(0, 10))
+        # Total Expenses
+        self.create_metric_card(metric_cols, "📉 Total Expenses", "₦0.00", 
+                               side=tk.LEFT, padx=(0, 10))
+        # Net Balance
+        self.create_metric_card(metric_cols, "⚖️ Net Balance", "₦0.00", 
+                               side=tk.LEFT, padx=(0, 10))
+        # Budget Status
+        self.create_metric_card(metric_cols, "📊 Budget Status", "On Track", 
+                               side=tk.LEFT)
+        
+        # Section 2: Category Breakdown
+        breakdown_frame = tk.LabelFrame(content, text="🔍 Category Breakdown Analysis", 
+                                       font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50',
+                                       relief=tk.RAISED, bd=1)
+        breakdown_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        breakdown_content = tk.Frame(breakdown_frame, bg='white')
+        breakdown_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Category analysis table
+        breakdown_cols = ('Category', 'Count', 'Total Amount', '% of Total', 'Trend')
+        self.analytics_tree = ttk.Treeview(breakdown_content, columns=breakdown_cols, 
+                                          show='headings', height=8)
+        
+        for col in breakdown_cols:
+            self.analytics_tree.heading(col, text=col)
+            self.analytics_tree.column(col, width=120 if col != 'Category' else 150)
+        
+        scrollbar = ttk.Scrollbar(breakdown_content, orient=tk.VERTICAL, 
+                                 command=self.analytics_tree.yview)
+        self.analytics_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.analytics_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Section 3: Trends and Recommendations
+        trends_frame = tk.LabelFrame(content, text="📈 Trends & Recommendations", 
+                                    font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50',
+                                    relief=tk.RAISED, bd=1)
+        trends_frame.pack(fill=tk.BOTH, expand=True)
+        
+        trends_content = tk.Frame(trends_frame, bg='white')
+        trends_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Trends text area
+        self.trends_text = tk.Text(trends_content, height=8, width=60, 
+                                  font=('Segoe UI', 10), bg='#f8f9fa', 
+                                  relief=tk.SOLID, bd=1, wrap=tk.WORD)
+        self.trends_text.pack(fill=tk.BOTH, expand=True)
+        self.trends_text.insert('1.0', 'Loading financial insights...')
+        self.trends_text.config(state=tk.DISABLED)
+        
+        # Refresh button
+        refresh_btn = tk.Button(trends_content, text="🔄 Refresh Analytics", 
+                              command=self.refresh_financial_analytics,
+                              font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
+                              relief=tk.FLAT, bd=0, padx=20, pady=8, cursor='hand2')
+        refresh_btn.pack(pady=(10, 0))
+        
+        # Load initial analytics data
+        self.refresh_financial_analytics()
+    
+    def create_metric_card(self, parent, title, value, side=tk.LEFT, padx=(0, 0)):
+        """Create a metric card for displaying financial data"""
+        card = tk.Frame(parent, bg='#ecf0f1', relief=tk.RAISED, bd=1)
+        card.pack(side=side, fill=tk.BOTH, expand=True, padx=padx, pady=5)
+        
+        card_content = tk.Frame(card, bg='#ecf0f1')
+        card_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+        
+        tk.Label(card_content, text=title, font=('Segoe UI', 10, 'bold'), 
+                fg='#34495e', bg='#ecf0f1').pack(anchor='w')
+        tk.Label(card_content, text=value, font=('Segoe UI', 16, 'bold'), 
+                fg='#27ae60', bg='#ecf0f1').pack(anchor='w', pady=(3, 0))
+    
+    def refresh_financial_analytics(self):
+        """Refresh financial analytics data"""
+        try:
+            # Calculate total income, expenses, and net balance
+            self.cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='Income'")
+            income_result = self.cursor.fetchone()
+            total_income = income_result[0] if income_result[0] else 0
+            
+            self.cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='Expense'")
+            expense_result = self.cursor.fetchone()
+            total_expenses = expense_result[0] if expense_result[0] else 0
+            
+            net_balance = total_income - total_expenses
+            
+            # Get category breakdown
+            self.cursor.execute('''
+                SELECT c.category_name, COUNT(t.id) as count, SUM(t.amount) as total
+                FROM transactions t
+                JOIN transaction_categories c ON t.category_id = c.id
+                GROUP BY c.category_name
+                ORDER BY total DESC
+            ''')
+            categories = self.cursor.fetchall()
+            
+            # Update analytics tree
+            for item in self.analytics_tree.get_children():
+                self.analytics_tree.delete(item)
+            
+            for cat_name, count, total in categories:
+                percentage = (total / total_income * 100) if total_income > 0 else 0
+                trend = "↑" if count > 0 else "→"
+                self.analytics_tree.insert('', tk.END, 
+                                          values=(cat_name, count, f"₦{total:.2f}", 
+                                                 f"{percentage:.1f}%", trend))
+            
+            # Generate insights and recommendations
+            insights = self._generate_financial_insights(total_income, total_expenses, 
+                                                        net_balance, categories)
+            
+            self.trends_text.config(state=tk.NORMAL)
+            self.trends_text.delete('1.0', tk.END)
+            self.trends_text.insert('1.0', insights)
+            self.trends_text.config(state=tk.DISABLED)
+            
+        except Exception as e:
+            print(f"Error refreshing analytics: {e}")
+    
+    def _generate_financial_insights(self, income, expenses, balance, categories):
+        """Generate financial insights and recommendations"""
+        insights = f"""
+📊 FINANCIAL SUMMARY
+{'='*50}
+
+💰 Total Income:        ₦{income:,.2f}
+📉 Total Expenses:      ₦{expenses:,.2f}
+⚖️  Net Balance:        ₦{balance:,.2f}
+
+📈 TRENDS & ANALYSIS
+{'='*50}
+
+"""
+        if balance > 0:
+            insights += f"✓ Positive Balance: Your school has a surplus of ₦{balance:,.2f}\n"
+            insights += "  Action: Consider allocating surplus to reserves or improvements.\n\n"
+        else:
+            insights += f"⚠ Deficit Alert: Your school has a deficit of ₦{abs(balance):,.2f}\n"
+            insights += "  Action: Review expenses and consider increasing revenue sources.\n\n"
+        
+        if len(categories) > 0:
+            highest_expense = categories[0]
+            insights += f"📌 Highest Expense Category: {highest_expense[0]}\n"
+            insights += f"   Amount: ₦{highest_expense[2]:,.2f} ({highest_expense[1]} transactions)\n"
+            insights += "   Consider reviewing this category for cost optimization.\n\n"
+        
+        expense_ratio = (expenses / income * 100) if income > 0 else 0
+        insights += f"📊 Expense Ratio: {expense_ratio:.1f}%\n"
+        if expense_ratio > 80:
+            insights += "  ⚠ High! Consider reducing expenses.\n"
+        elif expense_ratio < 50:
+            insights += "  ✓ Good! Expenses are well managed.\n"
+        else:
+            insights += "  → Acceptable expense level.\n"
+        
+        return insights
     
     def refresh_financial_data(self):
         """Refresh all financial management data"""
@@ -20875,6 +21078,290 @@ For support, contact: support@gaybeckstarkids.edu.gh
         
         except Exception as e:
             print(f"Stats display error: {e}")
+    
+    def show_comprehensive_reporting_analytics(self):
+        """Show comprehensive reporting analytics dashboard"""
+        if not AI_AVAILABLE:
+            messagebox.showwarning("AI Not Available", 
+                                  "AI features require scikit-learn and pandas.\n\n"
+                                  "Install with: pip install scikit-learn pandas")
+            return
+        
+        self.clear_content_frame()
+        
+        # Create scrollable container
+        scrollable = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+        scrollable.pack(fill='both', expand=True)
+        main = scrollable.scrollable_frame
+        
+        # Header
+        header = tk.Frame(main, bg='#1a5490', height=100)
+        header.pack(fill=tk.X, padx=0, pady=0)
+        header.pack_propagate(False)
+        
+        header_content = tk.Frame(header, bg='#1a5490')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=15)
+        
+        tk.Label(header_content, text="📊 Comprehensive Reporting Analytics", 
+                font=('Segoe UI', 22, 'bold'), fg='white', bg='#1a5490').pack(anchor='w')
+        tk.Label(header_content, text="Advanced analytics, predictions, and data-driven insights",
+                font=('Segoe UI', 11), fg='#b8d4f1', bg='#1a5490').pack(anchor='w', pady=(3, 0))
+        
+        # Content
+        content = tk.Frame(main, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        
+        # Section 1: Student Performance Analytics
+        perf_frame = tk.LabelFrame(content, text="📈 Student Performance Analytics", 
+                                   font=('Segoe UI', 12, 'bold'), bg='white', 
+                                   fg='#2c3e50', relief=tk.RAISED, bd=1)
+        perf_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        perf_content = tk.Frame(perf_frame, bg='white')
+        perf_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        perf_stats = [
+            ('👤 Total Students', str(self._get_total_students()), '#3498db'),
+            ('✓ Active Students', str(self._get_active_students()), '#27ae60'),
+            ('⚠️ At-Risk Students', str(self._get_at_risk_students()), '#f39c12'),
+            ('❌ Inactive Students', str(self._get_inactive_students()), '#e74c3c')
+        ]
+        
+        for label, value, color in perf_stats:
+            stat_card = tk.Frame(perf_content, bg=color, relief=tk.RAISED, bd=0)
+            stat_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+            
+            tk.Label(stat_card, text=label, font=('Segoe UI', 10), 
+                    bg=color, fg='white').pack(pady=(8, 3))
+            tk.Label(stat_card, text=value, font=('Segoe UI', 18, 'bold'), 
+                    bg=color, fg='white').pack(pady=(0, 8))
+        
+        # Section 2: Attendance Analytics
+        att_frame = tk.LabelFrame(content, text="📅 Attendance Analytics", 
+                                  font=('Segoe UI', 12, 'bold'), bg='white', 
+                                  fg='#2c3e50', relief=tk.RAISED, bd=1)
+        att_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        att_content = tk.Frame(att_frame, bg='white')
+        att_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        avg_attendance = self._calculate_average_attendance()
+        
+        att_stats = [
+            ('📊 Average Attendance Rate', f"{avg_attendance:.1f}%", '#16a085'),
+            ('✓ Present Today', str(self._get_present_today()), '#27ae60'),
+            ('❌ Absent Today', str(self._get_absent_today()), '#e74c3c'),
+            ('❓ Unrecorded', str(self._get_unrecorded_today()), '#95a5a6')
+        ]
+        
+        for label, value, color in att_stats:
+            stat_card = tk.Frame(att_content, bg=color, relief=tk.RAISED, bd=0)
+            stat_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+            
+            tk.Label(stat_card, text=label, font=('Segoe UI', 10), 
+                    bg=color, fg='white').pack(pady=(8, 3))
+            tk.Label(stat_card, text=value, font=('Segoe UI', 18, 'bold'), 
+                    bg=color, fg='white').pack(pady=(0, 8))
+        
+        # Section 3: Financial Analytics
+        fin_frame = tk.LabelFrame(content, text="💰 Financial Analytics", 
+                                  font=('Segoe UI', 12, 'bold'), bg='white', 
+                                  fg='#2c3e50', relief=tk.RAISED, bd=1)
+        fin_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        fin_content = tk.Frame(fin_frame, bg='white')
+        fin_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        total_fees = self._calculate_total_fees()
+        collected_fees = self._calculate_collected_fees()
+        outstanding_fees = total_fees - collected_fees
+        collection_rate = (collected_fees / total_fees * 100) if total_fees > 0 else 0
+        
+        fin_stats = [
+            ('💳 Total Fees Due', f"₦{total_fees:,.2f}", '#8e44ad'),
+            ('✓ Collected', f"₦{collected_fees:,.2f}", '#27ae60'),
+            ('⏳ Outstanding', f"₦{outstanding_fees:,.2f}", '#e74c3c'),
+            ('📊 Collection Rate', f"{collection_rate:.1f}%", '#3498db')
+        ]
+        
+        for label, value, color in fin_stats:
+            stat_card = tk.Frame(fin_content, bg=color, relief=tk.RAISED, bd=0)
+            stat_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+            
+            tk.Label(stat_card, text=label, font=('Segoe UI', 10), 
+                    bg=color, fg='white').pack(pady=(8, 3))
+            tk.Label(stat_card, text=value, font=('Segoe UI', 14, 'bold'), 
+                    bg=color, fg='white').pack(pady=(0, 8))
+        
+        # Section 4: Insights and Recommendations
+        insights_frame = tk.LabelFrame(content, text="💡 System Insights & Recommendations",
+                                      font=('Segoe UI', 12, 'bold'), bg='white',
+                                      fg='#2c3e50', relief=tk.RAISED, bd=1)
+        insights_frame.pack(fill=tk.BOTH, expand=True)
+        
+        insights_content = tk.Frame(insights_frame, bg='white')
+        insights_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        insights_text = tk.Text(insights_content, height=10, width=80,
+                               font=('Segoe UI', 10), bg='#f8f9fa',
+                               relief=tk.SOLID, bd=1, wrap=tk.WORD)
+        insights_text.pack(fill=tk.BOTH, expand=True)
+        
+        # Generate insights
+        insights = self._generate_system_insights(avg_attendance, collection_rate)
+        insights_text.insert('1.0', insights)
+        insights_text.config(state=tk.DISABLED)
+    
+    def _get_total_students(self):
+        """Get total number of students"""
+        try:
+            self.cursor.execute("SELECT COUNT(*) FROM students")
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except:
+            return 0
+    
+    def _get_active_students(self):
+        """Get number of active students"""
+        try:
+            self.cursor.execute("SELECT COUNT(*) FROM students WHERE status='Active'")
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except:
+            return 0
+    
+    def _get_inactive_students(self):
+        """Get number of inactive students"""
+        try:
+            self.cursor.execute("SELECT COUNT(*) FROM students WHERE status='Inactive'")
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except:
+            return 0
+    
+    def _get_at_risk_students(self):
+        """Get number of at-risk students (low attendance or fee arrears)"""
+        try:
+            self.cursor.execute("""
+                SELECT COUNT(*) FROM students s
+                WHERE s.id IN (
+                    SELECT DISTINCT student_id FROM attendance 
+                    WHERE CAST(status AS TEXT) NOT IN ('Present')
+                    GROUP BY student_id HAVING COUNT(*) > 5
+                )
+            """)
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except:
+            return 0
+    
+    def _calculate_average_attendance(self):
+        """Calculate average attendance rate across all students"""
+        try:
+            self.cursor.execute("""
+                SELECT 
+                    COUNT(CASE WHEN CAST(status AS TEXT)='Present' THEN 1 END) * 100.0 / 
+                    NULLIF(COUNT(*), 0) as attendance_rate
+                FROM attendance
+            """)
+            result = self.cursor.fetchone()
+            return result[0] if result and result[0] else 0
+        except:
+            return 0
+    
+    def _get_present_today(self):
+        """Get number of students present today"""
+        try:
+            today = date.today().strftime('%Y-%m-%d')
+            self.cursor.execute("""
+                SELECT COUNT(*) FROM attendance 
+                WHERE date=? AND CAST(status AS TEXT)='Present'
+            """, (today,))
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except:
+            return 0
+    
+    def _get_absent_today(self):
+        """Get number of students absent today"""
+        try:
+            today = date.today().strftime('%Y-%m-%d')
+            self.cursor.execute("""
+                SELECT COUNT(*) FROM attendance 
+                WHERE date=? AND CAST(status AS TEXT)='Absent'
+            """, (today,))
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except:
+            return 0
+    
+    def _get_unrecorded_today(self):
+        """Get number of students without attendance record today"""
+        try:
+            today = date.today().strftime('%Y-%m-%d')
+            self.cursor.execute("""
+                SELECT COUNT(*) FROM students s
+                WHERE s.status='Active'
+                AND s.id NOT IN (
+                    SELECT DISTINCT student_id FROM attendance WHERE date=?
+                )
+            """, (today,))
+            result = self.cursor.fetchone()
+            return result[0] if result else 0
+        except:
+            return 0
+    
+    def _calculate_total_fees(self):
+        """Calculate total fees owed by all students"""
+        try:
+            self.cursor.execute("SELECT SUM(monthly_fee) FROM students")
+            result = self.cursor.fetchone()
+            return result[0] if result[0] else 0
+        except:
+            return 0
+    
+    def _calculate_collected_fees(self):
+        """Calculate total fees collected"""
+        try:
+            self.cursor.execute("SELECT SUM(amount_paid) FROM fee_payments WHERE status='Completed'")
+            result = self.cursor.fetchone()
+            return result[0] if result[0] else 0
+        except:
+            return 0
+    
+    def _generate_system_insights(self, attendance_rate, collection_rate):
+        """Generate actionable system insights"""
+        insights = """
+📊 SYSTEM INSIGHTS & RECOMMENDATIONS
+{'='*60}
+
+"""
+        insights += f"📈 Attendance Performance: {attendance_rate:.1f}%\n"
+        if attendance_rate >= 90:
+            insights += "   ✓ Excellent! Maintain current attendance standards.\n\n"
+        elif attendance_rate >= 75:
+            insights += "   → Good. Consider strategies to improve attendance.\n\n"
+        else:
+            insights += "   ⚠ Low attendance rate. Urgent intervention needed.\n\n"
+        
+        insights += f"💳 Fee Collection Rate: {collection_rate:.1f}%\n"
+        if collection_rate >= 85:
+            insights += "   ✓ Excellent! Strong financial position.\n\n"
+        elif collection_rate >= 70:
+            insights += "   → Acceptable. Follow up on outstanding payments.\n\n"
+        else:
+            insights += "   ⚠ Low collection rate. Implement payment collection strategy.\n\n"
+        
+        insights += """📋 RECOMMENDED ACTIONS:
+   1. Review low-attendance students and contact parents
+   2. Monitor at-risk students for academic support
+   3. Send payment reminders for outstanding fees
+   4. Schedule parent-teacher meetings for failing students
+   5. Plan intervention programs for struggling classes
+
+For more detailed analysis, use individual report generators.
+"""
+        return insights
     
     def generate_class_report_ui(self):
         """Generate and display class performance report"""
