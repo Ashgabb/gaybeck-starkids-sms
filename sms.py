@@ -8744,63 +8744,6 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         columns = ('ID', 'Student ID', 'Name', 'Class', 'Gender', 'Admission Date', 'Phone', 'Status')
         self.students_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
         
-        # ========== SECTION 1: PERSONAL INFORMATION ==========
-        personal_section = tk.LabelFrame(content_inner, text="👤 Personal Information", 
-                                        font=('Segoe UI', 11, 'bold'), bg='white',
-                                        fg='#2c3e50', relief=tk.RAISED, bd=1)
-        personal_section.pack(fill=tk.X, pady=(0, 15))
-        
-        personal_content = tk.Frame(personal_section, bg='white')
-        personal_content.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
-        
-        # Student ID and Full Name
-        id_name_frame = tk.Frame(personal_content, bg='white')
-        id_name_frame.pack(fill=tk.X, pady=(0, 10))
-        
-
-        
-        # List container with modern styling
-        list_container = ScrollableFrame(list_tab, bg='#ffffff')
-        list_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        list_frame = list_container.get_frame()
-        
-        # List header
-        list_header = tk.Frame(list_frame, bg='#ffffff')
-        list_header.pack(fill=tk.X, padx=20, pady=(20, 15))
-        
-        list_title = tk.Label(list_header, text="📋 All Students", 
-                             font=('Segoe UI', 16, 'bold'), fg='#2c3e50', bg='#ffffff')
-        list_title.pack(anchor=tk.W)
-        
-        # Filter section
-        filter_frame = tk.Frame(list_frame, bg='#f8f9fa', relief=tk.FLAT, bd=1)
-        filter_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
-        
-        filter_content = tk.Frame(filter_frame, bg='#f8f9fa')
-        filter_content.pack(fill=tk.X, padx=15, pady=10)
-        
-        tk.Label(filter_content, text="🔍 Filter by Class:", 
-                font=('Segoe UI', 10, 'bold'), bg='#f8f9fa', fg='#2c3e50').pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Get all classes for filter
-        self.cursor.execute("SELECT id, class_name FROM classes ORDER BY class_name")
-        classes = self.cursor.fetchall()
-        class_options = ["All Classes"] + [c[1] for c in classes]
-        
-        self.student_class_filter_var = tk.StringVar(value="All Classes")
-        student_class_filter = ttk.Combobox(filter_content, textvariable=self.student_class_filter_var, 
-                                           values=class_options, state="readonly", width=20)
-        student_class_filter.pack(side=tk.LEFT, padx=(0, 15))
-        student_class_filter.bind('<<ComboboxSelected>>', lambda e: self.load_students())
-        
-        # Enhanced treeview with modern styling
-        tree_frame = tk.Frame(list_frame, bg='#ffffff')
-        tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
-        
-        # Treeview for students with enhanced columns
-        columns = ('ID', 'Student ID', 'Name', 'Class', 'Gender', 'Admission Date', 'Phone', 'Status')
-        self.students_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
-        
         # Configure column headers and widths
         column_config = {
             'ID': {'width': 60, 'anchor': 'center'},
