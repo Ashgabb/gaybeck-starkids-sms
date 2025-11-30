@@ -12065,6 +12065,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         self.add_teacher_document()
 
     def add_teacher(self):
+        # Check permissions
+        if not self.check_permission_or_show_error('teachers', 'Add Teacher'):
+            return
+            
         name = self.teacher_name_entry.get().strip()
         
         # Handle DateEntry for hire date
@@ -12136,6 +12140,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             messagebox.showerror("Error", str(e))
 
     def update_teacher(self):
+        # Check permissions
+        if not self.check_permission_or_show_error('teachers', 'Update Teacher'):
+            return
+            
         sel = self.teachers_tree.selection()
         if not sel: 
             messagebox.showerror("Error","Select teacher")
@@ -12249,6 +12257,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             self.clear_teacher_photo()
 
     def delete_teacher(self):
+        # Check permissions
+        if not self.check_permission_or_show_error('teachers', 'Delete Teacher'):
+            return
+            
         sel = self.teachers_tree.selection()
         if not sel: messagebox.showerror("Error","Select teacher"); return
         tid = self.teachers_tree.item(sel[0])['values'][0]
