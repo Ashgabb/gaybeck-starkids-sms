@@ -12068,56 +12068,56 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         # Check permissions
         if not self.check_permission_or_show_error('teachers', 'Add Teacher'):
             return
-            
-        name = self.teacher_name_entry.get().strip()
         
-        # Handle DateEntry for hire date
-        hire = self.teacher_hire_entry.get_date().strftime('%Y-%m-%d')
-            
-        class_name = self.teacher_class_var.get().strip()
-        salary = self.teacher_salary_entry.get().strip() or 0
-        phone = self.teacher_phone_entry.get().strip()
-        email = self.teacher_email_entry.get().strip()
-        
-        # Get qualifications and skills
-        qualifications = self.teacher_qualifications_text.get('1.0', 'end-1c').strip()
-        placeholder_qual = "Enter educational qualifications (e.g., Bachelor of Education, Master's in Mathematics, Teaching Certificate, etc.)"
-        if qualifications == placeholder_qual:
-            qualifications = ""
-            
-        skills = self.teacher_skills_text.get('1.0', 'end-1c').strip()
-        placeholder_skills = "Enter additional skills (e.g., Computer literacy, Language proficiency, Sports coaching, Music, etc.)"
-        if skills == placeholder_skills:
-            skills = ""
-            
-        document_path = self.teacher_file_path_var.get().strip()
-        
-        # Get photo data
-        photo_data = None
-        if hasattr(self, 'teacher_photo_data') and self.teacher_photo_data:
-            photo_data = self.teacher_photo_data
-        
-        class_id = None
-        if class_name:
-            self.cursor.execute("SELECT id FROM classes WHERE class_name = ?", (class_name,))
-            r = self.cursor.fetchone(); class_id = r[0] if r else None
-            
-        if not name:
-            messagebox.showerror("Error","Enter teacher name")
-            return
-            
-        if not qualifications:
-            messagebox.showerror("Error", "Please enter educational qualifications")
-            return
-            
         try:
+            name = self.teacher_name_entry.get().strip()
+            
+            # Handle DateEntry for hire date
+            hire = self.teacher_hire_entry.get_date().strftime('%Y-%m-%d')
+                
+            class_name = self.teacher_class_var.get().strip()
+            salary = self.teacher_salary_entry.get().strip() or 0
+            phone = self.teacher_phone_entry.get().strip()
+            email = self.teacher_email_entry.get().strip()
+            
+            # Get qualifications and skills
+            qualifications = self.teacher_qualifications_text.get('1.0', 'end-1c').strip()
+            placeholder_qual = "Enter educational qualifications (e.g., Bachelor of Education, Master's in Mathematics, Teaching Certificate, etc.)"
+            if qualifications == placeholder_qual:
+                qualifications = ""
+                
+            skills = self.teacher_skills_text.get('1.0', 'end-1c').strip()
+            placeholder_skills = "Enter additional skills (e.g., Computer literacy, Language proficiency, Sports coaching, Music, etc.)"
+            if skills == placeholder_skills:
+                skills = ""
+                
+            document_path = self.teacher_file_path_var.get().strip()
+            
+            # Get photo data
+            photo_data = None
+            if hasattr(self, 'teacher_photo_data') and self.teacher_photo_data:
+                photo_data = self.teacher_photo_data
+            
+            class_id = None
+            if class_name:
+                self.cursor.execute("SELECT id FROM classes WHERE class_name = ?", (class_name,))
+                r = self.cursor.fetchone(); class_id = r[0] if r else None
+                
+            if not name:
+                messagebox.showerror("Error","Enter teacher name")
+                return
+                
+            if not qualifications:
+                messagebox.showerror("Error", "Please enter educational qualifications")
+                return
+                
             # Insert teacher without document_path (will be handled separately)
             self.cursor.execute("""INSERT INTO teachers 
-                               (name, hire_date, class_id, starting_salary, qualifications, 
-                                skills, phone, email, photo) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                                (name, hire, class_id, float(salary), qualifications, 
-                                 skills, phone, email, photo_data))
+                                   (name, hire_date, class_id, starting_salary, qualifications, 
+                                    skills, phone, email, photo) 
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                    (name, hire, class_id, float(salary), qualifications, 
+                                     skills, phone, email, photo_data))
             
             # Get the newly inserted teacher ID
             teacher_id = self.cursor.lastrowid
