@@ -9594,15 +9594,23 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
     def auto_gen_popup_id(self, form_vars):
         """Auto-generate student ID for popup form"""
         try:
-            self.cursor.execute("SELECT MAX(id) FROM students")
-            result = self.cursor.fetchone()
-            max_id = result[0] if result[0] else 0
-            new_id = f"STU{max_id + 1:05d}"
+            # Get year of admission if date is set
+            year = None
+            try:
+                admission_date = form_vars['date_of_admission'].get_date()
+                year = admission_date.year
+            except:
+                pass
+            
+            # Generate new ID using proper format: STU{YEAR}{SEQUENCE}
+            new_id = self.generate_student_id(year)
             
             form_vars['student_id'].config(state='normal')
             form_vars['student_id'].delete(0, tk.END)
             form_vars['student_id'].insert(0, new_id)
             form_vars['student_id'].config(state='readonly')
+            
+            messagebox.showinfo("ID Generated", f"New Student ID: {new_id}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate ID: {str(e)}")
@@ -9626,10 +9634,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             # Get student ID (auto-generate if empty)
             student_id = form_vars['student_id'].get()
             if not student_id:
-                self.cursor.execute("SELECT MAX(id) FROM students")
-                result = self.cursor.fetchone()
-                max_id = result[0] if result[0] else 0
-                student_id = f"STU{max_id + 1:05d}"
+                admission_date = form_vars['date_of_admission'].get_date()
+                student_id = self.generate_student_id(admission_date.year)
             
             # Get address from text widget
             address_value = form_vars['address_text'].get('1.0', tk.END).strip()
