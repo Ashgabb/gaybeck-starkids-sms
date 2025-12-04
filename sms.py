@@ -11095,12 +11095,12 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         content_area.pack(fill=tk.BOTH, expand=True, padx=30, pady=(0, 30))
         
         # Create modern tabbed interface
-        notebook = ttk.Notebook(content_area)
-        notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        self.teacher_mgmt_notebook = ttk.Notebook(content_area)
+        self.teacher_mgmt_notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
 
         # Teacher Form Tab with Modern Design
-        form_tab = ttk.Frame(notebook)
-        notebook.add(form_tab, text="📝 Teacher Information Form")
+        form_tab = ttk.Frame(self.teacher_mgmt_notebook)
+        self.teacher_mgmt_notebook.add(form_tab, text="📝 Teacher Information Form")
         
         # Form container with modern styling
         form_container = tk.Frame(form_tab, bg='#ffffff', relief=tk.FLAT, bd=0)
@@ -11453,8 +11453,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         clear_btn.pack(fill=tk.X, pady=(10, 0))
 
         # Teachers List Tab with Modern Design
-        list_tab = ttk.Frame(notebook)
-        notebook.add(list_tab, text="👥 Staff Directory")
+        list_tab = ttk.Frame(self.teacher_mgmt_notebook)
+        self.teacher_mgmt_notebook.add(list_tab, text="👥 Staff Directory")
         
         # List container with modern styling
         list_container = tk.Frame(list_tab, bg='#ffffff', relief=tk.FLAT, bd=0)
@@ -11517,9 +11517,27 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         
         # Bind selection event
         self.teachers_tree.bind('<<TreeviewSelect>>', self.on_teacher_select)
+        self.teachers_tree.bind('<Double-1>', lambda e: self.edit_selected_teacher())
+        self.teachers_tree.bind('<Button-3>', self.show_teacher_context_menu)
         
         # Enable mouse wheel scrolling
         self.bind_treeview_mousewheel(self.teachers_tree)
+        
+        # Action buttons for list view
+        list_action_frame = tk.Frame(list_content, bg='#ffffff')
+        list_action_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+        
+        edit_btn = self.create_enhanced_form_button(list_action_frame, "✏️ Edit Selected", 
+                                                    self.edit_selected_teacher, '#3498db', '#2980b9')
+        edit_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        
+        delete_btn = self.create_enhanced_form_button(list_action_frame, "🧹 Delete Selected", 
+                                                      self.delete_teacher, '#c0392b', '#e74c3c')
+        delete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        
+        refresh_btn = self.create_enhanced_form_button(list_action_frame, "🔄 Refresh", 
+                                                       self.load_teachers, '#7f8c8d', '#95a5a6')
+        refresh_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         # Load teachers data
         self.load_teachers()
@@ -11938,6 +11956,33 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 self.clear_teacher_photo()
         else:
             self.clear_teacher_photo()
+
+    def edit_selected_teacher(self):
+        """Edit selected teacher from list - switches to form tab"""
+        sel = self.teachers_tree.selection()
+        if not sel:
+            messagebox.showerror("Error", "Please select a teacher to edit")
+            return
+        
+        # Switch to form tab
+        self.teacher_mgmt_notebook.select(0)
+    
+    def show_teacher_context_menu(self, event):
+        """Show right-click context menu for teacher"""
+        sel = self.teachers_tree.selection()
+        if not sel:
+            return
+        
+        context_menu = tk.Menu(self.root, tearoff=False)
+        context_menu.add_command(label="✏️ Edit", command=self.edit_selected_teacher)
+        context_menu.add_command(label="🧹 Delete", command=self.delete_teacher)
+        context_menu.add_separator()
+        context_menu.add_command(label="🔄 Refresh", command=self.load_teachers)
+        
+        try:
+            context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            context_menu.grab_release()
 
     def add_teacher_document(self):
         """Add a document to the teacher's document list"""
