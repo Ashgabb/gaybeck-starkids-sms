@@ -11205,6 +11205,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         classes = self.cursor.fetchall()
         class_names = ["None"] + [c[1] for c in classes]
         self.teacher_class_var = tk.StringVar()
+        self.teacher_file_path_var = tk.StringVar()
         
         class_combo_frame = tk.Frame(class_section, bg='#f8f9fa', relief=tk.FLAT, bd=1)
         class_combo_frame.pack(fill=tk.X, ipady=4)
