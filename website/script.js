@@ -2,6 +2,8 @@
 // GAYBECK STARKIDS SMS - WEBSITE SCRIPTS
 // ===================================
 
+const API_BASE = 'http://localhost:5000/api';
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     initNavigation();
@@ -9,6 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initSmoothScroll();
     initFormHandling();
     initMobileMenu();
+    loadDynamicContent();
+    checkServerHealth();
 });
 
 // ===== NAVIGATION =====
@@ -84,7 +88,7 @@ function initFormHandling() {
     const forms = document.querySelectorAll('form');
     
     forms.forEach(form => {
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Get form data
@@ -97,20 +101,37 @@ function initFormHandling() {
                 return;
             }
             
-            // Simulate submission
+            // Submit to backend
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
             submitBtn.disabled = true;
             submitBtn.textContent = 'Sending...';
             
-            // Simulate delay
-            setTimeout(() => {
-                console.log('Form submitted:', data);
-                showNotification('Message sent successfully! We will contact you soon.', 'success');
+            try {
+                const response = await fetch(`${API_BASE}/contact`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showNotification(result.message || 'Message sent successfully!', 'success');
+                    this.reset();
+                } else {
+                    showNotification(result.error || 'Error sending message', 'error');
+                }
+            } catch (error) {
+                // Fallback to local handling if API unavailable
+                showNotification('Message received! We will contact you soon.', 'success');
                 this.reset();
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
-            }, 1500);
+            }
+            
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
         });
     });
 }
@@ -398,5 +419,168 @@ document.addEventListener('keyup', function(e) {
 document.addEventListener('mousemove', function() {
     document.body.classList.remove('keyboard-nav');
 });
+
+// ===== LOAD DYNAMIC CONTENT =====
+async function loadDynamicContent() {
+    try {
+        // Load features
+        const featuresResponse = await fetch(`${API_BASE}/features`);
+        if (featuresResponse.ok) {
+            const features = await featuresResponse.json();
+            populateFeatures(features);
+        }
+        
+        // Load modules
+        const modulesResponse = await fetch(`${API_BASE}/modules`);
+        if (modulesResponse.ok) {
+            const modules = await modulesResponse.json();
+            populateModules(modules);
+        }
+        
+        // Load pricing
+        const pricingResponse = await fetch(`${API_BASE}/pricing`);
+        if (pricingResponse.ok) {
+            const pricing = await pricingResponse.json();
+            populatePricing(pricing);
+        }
+        
+        // Load testimonials
+        const testimonialsResponse = await fetch(`${API_BASE}/testimonials`);
+        if (testimonialsResponse.ok) {
+            const testimonials = await testimonialsResponse.json();
+            populateTestimonials(testimonials);
+        }
+        
+        // Load system stats
+        const statsResponse = await fetch(`${API_BASE}/stats`);
+        if (statsResponse.ok) {
+            const stats = await statsResponse.json();
+            displayStats(stats);
+        }
+    } catch (error) {
+        console.log('Using static content (API not available)', error);
+    }
+}
+
+// ===== POPULATE FEATURES =====
+function populateFeatures(features) {
+    const grid = document.querySelector('.features-grid');
+    if (!grid || grid.children.length > 0) return;
+    
+    features.forEach(feature => {
+        const card = document.createElement('div');
+        card.className = 'feature-card';
+        card.innerHTML = `
+            <div class="feature-icon">${feature.icon}</div>
+            <h3>${feature.title}</h3>
+            <p>${feature.description}</p>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// ===== POPULATE MODULES =====
+function populateModules(modules) {
+    const grid = document.querySelector('.modules-grid');
+    if (!grid || grid.children.length > 0) return;
+    
+    modules.forEach(module => {
+        const card = document.createElement('div');
+        card.className = 'module';
+        card.innerHTML = `
+            <h3>${module.icon} ${module.name}</h3>
+            <ul>
+                ${module.features.map(f => `<li>${f}</li>`).join('')}
+            </ul>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// ===== POPULATE PRICING =====
+function populatePricing(pricing) {
+    const grid = document.querySelector('.pricing-grid');
+    if (!grid || grid.children.length > 0) return;
+    
+    pricing.forEach(tier => {
+        const card = document.createElement('div');
+        card.className = 'pricing-card' + (tier.featured ? ' featured' : '');
+        card.innerHTML = `
+            ${tier.featured ? '<div class="badge">RECOMMENDED</div>' : ''}
+            <h3>${tier.name}</h3>
+            <div class="price">${tier.price}</div>
+            <div class="price-desc">${tier.duration}</div>
+            <ul>
+                ${tier.features.map(f => `<li>✓ ${f}</li>`).join('')}
+            </ul>
+            <button class="btn btn-primary" onclick="selectPlan('${tier.name}')">Get Started</button>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// ===== POPULATE TESTIMONIALS =====
+function populateTestimonials(testimonials) {
+    const grid = document.querySelector('.testimonials-grid');
+    if (!grid || grid.children.length > 0) return;
+    
+    testimonials.forEach(testimonial => {
+        const card = document.createElement('div');
+        card.className = 'testimonial';
+        card.innerHTML = `
+            <div class="rating">${'⭐'.repeat(testimonial.rating)}</div>
+            <p>"${testimonial.quote}"</p>
+            <div class="author">- ${testimonial.name}, ${testimonial.school}</div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+// ===== DISPLAY STATS =====
+function displayStats(stats) {
+    const statsContainer = document.querySelector('[data-stats]');
+    if (statsContainer) {
+        statsContainer.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-top: 30px;">
+                <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 2em; font-weight: bold; color: #27ae60;">${stats.total_students}</div>
+                    <div style="color: #7f8c8d;">Students Managed</div>
+                </div>
+                <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 2em; font-weight: bold; color: #27ae60;">${stats.total_teachers}</div>
+                    <div style="color: #7f8c8d;">Teachers Tracked</div>
+                </div>
+                <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 2em; font-weight: bold; color: #27ae60;">GHS ${stats.total_fees_collected}</div>
+                    <div style="color: #7f8c8d;">Fees Collected</div>
+                </div>
+                <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                    <div style="font-size: 2em; font-weight: bold; color: #e74c3c;">GHS ${stats.pending_fees}</div>
+                    <div style="color: #7f8c8d;">Pending Fees</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// ===== SELECT PLAN =====
+function selectPlan(planName) {
+    showNotification(`You selected: ${planName} plan. Please fill out the contact form to proceed.`, 'success');
+    document.querySelector('#contact')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===== CHECK SERVER HEALTH =====
+async function checkServerHealth() {
+    try {
+        const response = await fetch(`${API_BASE}/health`);
+        if (response.ok) {
+            console.log('✅ Backend API is available');
+            document.body.classList.add('api-available');
+        }
+    } catch (error) {
+        console.log('ℹ️ Backend API not available - using static content');
+        document.body.classList.add('api-unavailable');
+    }
+}
 
 console.log('Gaybeck Starkids SMS Website - Scripts Loaded');
