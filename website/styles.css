@@ -809,3 +809,92 @@ section h2 {
         width: 100%;
     }
 }
+
+/* ===== CHECKOUT STYLES ===== */
+.checkout-summary {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(41, 128, 185, 0.1));
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--secondary-color);
+}
+
+.checkout-summary div {
+    font-size: 1.1em;
+}
+
+#checkoutForm input[type="text"],
+#checkoutForm input[type="email"],
+#checkoutForm input[type="tel"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 1em;
+    transition: all 0.2s;
+}
+
+#checkoutForm input[type="text"]:focus,
+#checkoutForm input[type="email"]:focus,
+#checkoutForm input[type="tel"]:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+    outline: none;
+}
+
+/* Payment method radio buttons */
+#checkoutForm label[style*="cursor: pointer"] {
+    background: white;
+    cursor: pointer;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+#checkoutForm label[style*="cursor: pointer"]:hover {
+    border-color: var(--secondary-color);
+    background: rgba(52, 152, 219, 0.05);
+}
+
+#checkoutForm input[type="radio"] {
+    margin-right: 5px;
+}
+
+#checkoutForm input[type="radio"]:checked + span,
+#checkoutForm label[style*="cursor: pointer"]:has(input:checked) {
+    border-color: var(--secondary-color);
+    background: rgba(52, 152, 219, 0.1);
+    font-weight: bold;
+}
+
+#paymentDetails {
+    background: linear-gradient(135deg, #f0f8ff, #e8f4ff);
+    padding: 15px;
+    border-radius: 5px;
+    border-left: 4px solid var(--secondary-color);
+    margin-bottom: 20px;
+}
+
+#paymentDetails p {
+    margin: 0;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+#paymentInfo {
+    margin-top: 10px;
+    font-family: 'Courier New', monospace;
+    background: white;
+    padding: 12px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9em;
+    color: var(--text-color);
+    line-height: 1.5;
+}

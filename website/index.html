@@ -318,6 +318,54 @@
         </div>
     </div>
 
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="modal-close" onclick="closeCheckoutModal()">&times;</button>
+            <h2>Complete Your Purchase</h2>
+            
+            <div class="checkout-summary">
+                <div style="display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #eee;">
+                    <span><strong id="checkoutPlanName">Plan</strong></span>
+                    <span id="checkoutPlanPrice">GHS 0</span>
+                </div>
+            </div>
+
+            <form id="checkoutForm" style="margin-top: 20px;">
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 10px;">School/Contact Information</label>
+                    <input type="text" name="school_name" placeholder="School Name" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+                    <input type="text" name="contact_person" placeholder="Contact Person" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+                    <input type="email" name="email" placeholder="Email Address" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+                    <input type="tel" name="phone" placeholder="Phone Number" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 10px;">Payment Method</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                        <label style="cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 5px; text-align: center; transition: all 0.2s;">
+                            <input type="radio" name="payment_method" value="momo" required> 📱 Mobile Money
+                        </label>
+                        <label style="cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 5px; text-align: center; transition: all 0.2s;">
+                            <input type="radio" name="payment_method" value="card" required> 💳 Card
+                        </label>
+                        <label style="cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 5px; text-align: center; transition: all 0.2s;">
+                            <input type="radio" name="payment_method" value="bank" required> 🏦 Bank Transfer
+                        </label>
+                    </div>
+                </div>
+
+                <div id="paymentDetails" style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px; display: none;">
+                    <p id="paymentInstructions"></p>
+                    <div id="paymentInfo" style="margin-top: 10px; font-family: monospace; background: white; padding: 10px; border-radius: 3px;"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1em; margin-bottom: 10px;">Complete Purchase</button>
+                <button type="button" class="btn btn-secondary" style="width: 100%; padding: 12px; font-size: 1em;" onclick="closeCheckoutModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Testimonials -->
     <section class="testimonials">
         <div class="container">

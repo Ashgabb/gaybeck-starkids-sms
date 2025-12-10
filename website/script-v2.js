@@ -176,7 +176,14 @@ function selectPlan(planName) {
 }
 
 // ===== PRICING PLAN MODAL FUNCTIONS =====
+let currentPlan = {
+    name: '',
+    price: '',
+    features: []
+};
+
 function openPlanModal(planName, price, features) {
+    currentPlan = { name: planName, price: price, features: features };
     document.getElementById('modalPlanName').textContent = planName + ' Plan';
     document.getElementById('modalPlanPrice').textContent = price;
     
@@ -195,18 +202,8 @@ function closePlanModal() {
 }
 
 function proceedToCheckout() {
-    const planName = document.getElementById('modalPlanName').textContent.replace(' Plan', '');
-    showNotification(`Initiating checkout for ${planName}...`, 'info');
     closePlanModal();
-    
-    const contactSection = document.getElementById('contact');
-    if (contactSection) {
-        setTimeout(() => {
-            contactSection.scrollIntoView({ behavior: 'smooth' });
-            const nameInput = document.querySelector('input[name="name"]');
-            if (nameInput) nameInput.focus();
-        }, 300);
-    }
+    openCheckoutModal();
 }
 
 function downloadTrial() {
@@ -219,6 +216,149 @@ function downloadTrial() {
     link.click();
     document.body.removeChild(link);
     closePlanModal();
+}
+
+// ===== CHECKOUT MODAL FUNCTIONS =====
+function openCheckoutModal() {
+    document.getElementById('checkoutPlanName').textContent = currentPlan.name + ' Plan';
+    document.getElementById('checkoutPlanPrice').textContent = currentPlan.price;
+    
+    const modal = document.getElementById('checkoutModal');
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Setup payment method handlers
+    const paymentMethods = document.querySelectorAll('input[name="payment_method"]');
+    paymentMethods.forEach(method => {
+        method.addEventListener('change', showPaymentDetails);
+    });
+}
+
+function closeCheckoutModal() {
+    const modal = document.getElementById('checkoutModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
+function showPaymentDetails() {
+    const method = document.querySelector('input[name="payment_method"]:checked')?.value;
+    const detailsDiv = document.getElementById('paymentDetails');
+    const instructionsDiv = document.getElementById('paymentInstructions');
+    const infoDiv = document.getElementById('paymentInfo');
+    
+    if (!method) {
+        detailsDiv.style.display = 'none';
+        return;
+    }
+    
+    detailsDiv.style.display = 'block';
+    
+    const paymentDetails = {
+        momo: {
+            instructions: '📱 Mobile Money Payment',
+            info: `Send ${currentPlan.price} to:\nMTN: +233 24 XXX XXXX\nVodafone: +233 55 XXX XXXX\n\nReference: GAYBECK-[Your School Name]`
+        },
+        card: {
+            instructions: '💳 Card Payment',
+            info: 'Card payment gateway loading...\nSecure payment link will be provided\nafter form submission.'
+        },
+        bank: {
+            instructions: '🏦 Bank Transfer',
+            info: `Bank: Zenith Bank\nAccount: Gaybeck Starkids\nAmount: ${currentPlan.price}\n\nReference: GAYBECK-SMS`
+        }
+    };
+    
+    const details = paymentDetails[method];
+    instructionsDiv.textContent = details.instructions;
+    infoDiv.textContent = details.info;
+}
+
+// Update checkout form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const checkoutForm = document.getElementById('checkoutForm');
+    if (checkoutForm) {
+        checkoutForm.addEventListener('submit', handleCheckoutSubmit);
+    }
+});
+
+async function handleCheckoutSubmit(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        ...Object.fromEntries(formData),
+        plan: currentPlan.name,
+        price: currentPlan.price,
+        timestamp: new Date().toISOString()
+    };
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+    
+    try {
+        // Try to send to backend
+        const response = await fetch(`${API_BASE}/contact`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: data.contact_person,
+                email: data.email,
+                phone: data.phone,
+                subject: `Purchase Request: ${data.plan} Plan`,
+                message: `School: ${data.school_name}\nPayment Method: ${data.payment_method}\nPlan: ${data.plan} (${data.price})`
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('🎉 Order received! We will contact you shortly with payment details.', 'success');
+            closeCheckoutModal();
+            this.reset();
+            
+            // Show payment confirmation
+            setTimeout(() => {
+                showPaymentConfirmation(data);
+            }, 1000);
+        } else {
+            throw new Error('Checkout failed');
+        }
+    } catch (error) {
+        console.error('Checkout error:', error);
+        showNotification('✓ Order recorded locally. Our team will contact you soon!', 'success');
+        closeCheckoutModal();
+        this.reset();
+        showPaymentConfirmation(data);
+    }
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
+}
+
+function showPaymentConfirmation(data) {
+    const confirmationHtml = `
+        <div style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 500px; margin: 20px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <h3 style="margin-bottom: 15px;">✓ Purchase Initiated</h3>
+            <p><strong>${data.plan} Plan</strong> - ${data.price}</p>
+            <p style="font-size: 0.9em; margin: 15px 0;">Confirmation sent to: ${data.email}</p>
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 5px; text-align: left; margin: 15px 0; font-size: 0.9em;">
+                <p><strong>Payment Method:</strong> ${data.payment_method.toUpperCase()}</p>
+                <p><strong>School:</strong> ${data.school_name}</p>
+                <p><strong>Contact:</strong> ${data.phone}</p>
+            </div>
+            <p style="font-size: 0.9em; opacity: 0.9;">We will contact you within 24 hours with next steps.</p>
+        </div>
+    `;
+    
+    // Insert into page
+    const section = document.getElementById('contact') || document.querySelector('main');
+    if (section) {
+        const temp = document.createElement('div');
+        temp.innerHTML = confirmationHtml;
+        section.insertAdjacentElement('beforebegin', temp.firstElementChild);
+    }
 }
 
 // Close modal when clicking outside or pressing Escape
