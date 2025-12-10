@@ -175,6 +175,71 @@ function selectPlan(planName) {
     }
 }
 
+// ===== PRICING PLAN MODAL FUNCTIONS =====
+function openPlanModal(planName, price, features) {
+    document.getElementById('modalPlanName').textContent = planName + ' Plan';
+    document.getElementById('modalPlanPrice').textContent = price;
+    
+    const featuresList = document.getElementById('modalFeaturesList');
+    featuresList.innerHTML = features.map(f => `<li>✓ ${f}</li>`).join('');
+    
+    const modal = document.getElementById('planModal');
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePlanModal() {
+    const modal = document.getElementById('planModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = 'auto';
+}
+
+function proceedToCheckout() {
+    const planName = document.getElementById('modalPlanName').textContent.replace(' Plan', '');
+    showNotification(`Initiating checkout for ${planName}...`, 'info');
+    closePlanModal();
+    
+    const contactSection = document.getElementById('contact');
+    if (contactSection) {
+        setTimeout(() => {
+            contactSection.scrollIntoView({ behavior: 'smooth' });
+            const nameInput = document.querySelector('input[name="name"]');
+            if (nameInput) nameInput.focus();
+        }, 300);
+    }
+}
+
+function downloadTrial() {
+    showNotification('Starting download of trial version...', 'success');
+    // Trigger download
+    const link = document.createElement('a');
+    link.href = '../sms_backup.py';
+    link.download = 'GaybeckStarkids_SMS_Trial.py';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    closePlanModal();
+}
+
+// Close modal when clicking outside or pressing Escape
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('planModal');
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closePlanModal();
+            }
+        });
+    }
+    
+    // Escape key handler
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closePlanModal();
+        }
+    });
+});
+
 // ===== CHECK SERVER HEALTH =====
 async function checkServerHealth() {
     try {

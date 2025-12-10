@@ -267,7 +267,7 @@
                         <li>✓ Sample data</li>
                         <li>✓ Documentation</li>
                     </ul>
-                    <button class="btn btn-secondary">Try Now</button>
+                    <button class="btn btn-secondary" onclick="openPlanModal('Free Trial', 'Free', ['Full features', 'No time limit', 'Sample data', 'Documentation'])">Try Now</button>
                 </div>
                 
                 <div class="pricing-card featured">
@@ -282,7 +282,7 @@
                         <li>✓ Lifetime updates</li>
                         <li>✓ Data migration</li>
                     </ul>
-                    <button class="btn btn-primary">Buy Now</button>
+                    <button class="btn btn-primary" onclick="openPlanModal('Professional', 'GHS 500', ['All features', 'Unlimited students', 'Priority support', 'Lifetime updates', 'Data migration'])">Buy Now</button>
                 </div>
                 
                 <div class="pricing-card">
@@ -294,11 +294,29 @@
                         <li>✓ Multi-school setup</li>
                         <li>✓ Training included</li>
                     </ul>
-                    <button class="btn btn-secondary">Contact Sales</button>
+                    <button class="btn btn-secondary" onclick="openPlanModal('Enterprise', 'Custom', ['Custom development', 'Dedicated support', 'Multi-school setup', 'Training included'])">Contact Sales</button>
                 </div>
             </div>
         </div>
     </section>
+
+    <!-- Plan Details Modal -->
+    <div id="planModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closePlanModal()">&times;</button>
+            <h2 id="modalPlanName">Plan Name</h2>
+            <div class="plan-details">
+                <p>Price: <strong id="modalPlanPrice">GHS 0</strong></p>
+                <h3>Features Included:</h3>
+                <ul id="modalFeaturesList" style="margin-top: 15px; margin-bottom: 20px;">
+                </ul>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" style="flex: 1; margin: 0;" onclick="proceedToCheckout()">Proceed to Checkout</button>
+                <button class="btn btn-secondary" style="flex: 1; margin: 0;" onclick="downloadTrial()">Download Trial</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Testimonials -->
     <section class="testimonials">
