@@ -21,6 +21,9 @@ urlpatterns = [
     path('fees/', include('fees.urls', namespace='fees')),
     path('grading/', include('grading.urls', namespace='grading')),
     path('analytics/', include('analytics.urls', namespace='analytics')),
+    path('timetables/', include('timetables.urls', namespace='timetables')),
+    path('financial/', include('financial.urls', namespace='financial')),
+    path('classes/', include('classes.urls', namespace='classes')),
 ]
 
 if settings.DEBUG:

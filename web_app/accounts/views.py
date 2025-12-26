@@ -24,7 +24,8 @@ class LoginView(View):
         if form.is_valid():
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
-            user = authenticate(request, username=email, password=password)
+            # Use the custom email authentication backend
+            user = authenticate(request, email=email, password=password)
             if user is not None:
                 login(request, user)
                 ActivityLog.objects.create(

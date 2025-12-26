@@ -41,6 +41,9 @@ INSTALLED_APPS = [
     'grading.apps.GradingConfig',
     'analytics.apps.AnalyticsConfig',
     'dashboard.apps.DashboardConfig',
+    'timetables.apps.TimetablesConfig',
+    'financial.apps.FinancialConfig',
+    'classes.apps.ClassesConfig',
 ]
 
 MIDDLEWARE = [
@@ -140,6 +143,12 @@ CORS_ALLOWED_ORIGINS = [
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'dashboard:home'
 LOGOUT_REDIRECT_URL = 'accounts:login'
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailAuthenticationBackend',
+    'django.contrib.auth.backends.ModelBackend',  # Keep default as fallback
+]
 
 # User roles
 ROLE_CHOICES = (
