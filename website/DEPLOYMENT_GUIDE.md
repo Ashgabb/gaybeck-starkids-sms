@@ -9,6 +9,47 @@ python -m http.server 8000
 ```
 Then open: http://localhost:8000
 
+### With Backend API
+```batch
+cd website
+pip install -r requirements-backend.txt
+python app.py
+```
+Then open: http://localhost:5000
+
+---
+
+## What's New: Testing & Demo Features
+
+### 🆕 "Try Before You Buy" Section
+- Interactive demo tabs with sample data
+- All 6 modules demonstrated
+- No login/registration required
+- Full feature preview
+
+### 🆕 Feature Comparison Page
+- Desktop vs Web App vs Demo comparison
+- Side-by-side feature matrix
+- Pricing and recommendation guide
+- Links to testing environment
+
+### 🆕 Sample Data
+- 8+ sample students
+- Multiple classes
+- Attendance records
+- Grade data
+- Financial summaries
+- Analytics insights
+
+### 🆕 Backend API Endpoints
+- `/api/demo/students` - Sample student data
+- `/api/demo/attendance/<class>` - Attendance records
+- `/api/demo/grades/<student>` - Grade information
+- `/api/demo/analytics` - Analytics data
+- `/api/demo/financial` - Financial summaries
+
+See `TESTING_GUIDE.md` for complete testing documentation.
+
 ---
 
 ## Deployment Options
@@ -22,7 +63,7 @@ cd c:\Users\User\Desktop\GAYBECK STARKIDS SMS
 
 # Add website folder if not already tracked
 git add website/
-git commit -m "feat: Add professional marketing website"
+git commit -m "feat: Add professional marketing website with testing demo"
 git push origin main
 ```
 
@@ -38,6 +79,8 @@ git push origin main
 
 ### Step 3: Access Your Website
 - **URL**: `https://ashgabb.github.io/gaybeck-starkids-sms/`
+- **Demo**: `https://ashgabb.github.io/gaybeck-starkids-sms/#demo`
+- **Comparison**: `https://ashgabb.github.io/gaybeck-starkids-sms/comparison.html`
 - Wait 2-3 minutes for GitHub to build and deploy
 - Check "Actions" tab to see deployment status
 

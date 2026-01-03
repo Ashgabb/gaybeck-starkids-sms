@@ -569,18 +569,186 @@ function selectPlan(planName) {
     document.querySelector('#contact')?.scrollIntoView({ behavior: 'smooth' });
 }
 
-// ===== CHECK SERVER HEALTH =====
-async function checkServerHealth() {
-    try {
-        const response = await fetch(`${API_BASE}/health`);
-        if (response.ok) {
-            console.log('✅ Backend API is available');
-            document.body.classList.add('api-available');
-        }
-    } catch (error) {
-        console.log('ℹ️ Backend API not available - using static content');
-        document.body.classList.add('api-unavailable');
+// ===== DEMO FUNCTIONALITY =====
+function switchDemoTab(tabName) {
+    // Hide all tabs
+    const allTabs = document.querySelectorAll('.demo-tab-content');
+    allTabs.forEach(tab => tab.classList.remove('active'));
+    
+    // Remove active class from all buttons
+    const allButtons = document.querySelectorAll('.demo-tab');
+    allButtons.forEach(btn => btn.classList.remove('active'));
+    
+    // Show selected tab
+    const selectedTab = document.getElementById(`${tabName}-tab`);
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
+    
+    // Mark button as active
+    event.target.classList.add('active');
+    
+    // Load data if needed
+    if (tabName === 'students') {
+        loadStudentData();
+    } else if (tabName === 'attendance') {
+        loadAttendanceData();
+    } else if (tabName === 'grades') {
+        loadGradeData();
     }
 }
 
-console.log('Gaybeck Starkids SMS Website - Scripts Loaded');
+// Sample Student Data
+const sampleStudents = [
+    { id: 'STU001', name: 'Ama Mensah', class: 'Form 2A', gender: 'Female', dob: '2008-03-15', status: 'Active' },
+    { id: 'STU002', name: 'Kwame Osei', class: 'Form 2A', gender: 'Male', dob: '2008-05-22', status: 'Active' },
+    { id: 'STU003', name: 'Abena Kusi', class: 'Form 1B', gender: 'Female', dob: '2009-07-10', status: 'Active' },
+    { id: 'STU004', name: 'Kofi Agyeman', class: 'Form 1A', gender: 'Male', dob: '2009-02-14', status: 'Active' },
+    { id: 'STU005', name: 'Efua Boateng', class: 'Form 2B', gender: 'Female', dob: '2008-11-20', status: 'Active' },
+    { id: 'STU006', name: 'Benjamin Addo', class: 'Form 1B', gender: 'Male', dob: '2009-04-08', status: 'Active' },
+    { id: 'STU007', name: 'Yaa Asante', class: 'Form 2B', gender: 'Female', dob: '2008-08-30', status: 'Active' },
+    { id: 'STU008', name: 'Akosua Debrah', class: 'Form 1A', gender: 'Female', dob: '2009-01-25', status: 'Active' }
+];
+
+function loadStudentData() {
+    const tableBody = document.getElementById('studentTable');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = sampleStudents.map(student => `
+        <tr>
+            <td>${student.id}</td>
+            <td>${student.name}</td>
+            <td>${student.class}</td>
+            <td>${student.gender}</td>
+            <td>${student.dob}</td>
+            <td><span style="color: #27ae60;">● ${student.status}</span></td>
+        </tr>
+    `).join('');
+}
+
+function filterStudents(searchTerm) {
+    const tableBody = document.getElementById('studentTable');
+    if (!tableBody) return;
+    
+    const filtered = sampleStudents.filter(s => 
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.class.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (filtered.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No students found</td></tr>';
+    } else {
+        tableBody.innerHTML = filtered.map(student => `
+            <tr>
+                <td>${student.id}</td>
+                <td>${student.name}</td>
+                <td>${student.class}</td>
+                <td>${student.gender}</td>
+                <td>${student.dob}</td>
+                <td><span style="color: #27ae60;">● ${student.status}</span></td>
+            </tr>
+        `).join('');
+    }
+}
+
+// Sample Attendance Data
+const sampleAttendance = {
+    'Form 1A': [
+        { student: 'Kofi Agyeman', status: 'Present', time: '08:00 AM', notes: '-' },
+        { student: 'Akosua Debrah', status: 'Present', time: '08:02 AM', notes: '-' },
+        { student: 'John Mensah', status: 'Late', time: '08:35 AM', notes: 'Traffic' },
+        { student: 'Mary Owusu', status: 'Absent', time: '-', notes: 'Sick leave (parent informed)' },
+        { student: 'Samuel Boateng', status: 'Present', time: '08:01 AM', notes: '-' }
+    ],
+    'Form 1B': [
+        { student: 'Abena Kusi', status: 'Present', time: '08:00 AM', notes: '-' },
+        { student: 'Benjamin Addo', status: 'Present', time: '08:02 AM', notes: '-' },
+        { student: 'Victoria Asante', status: 'Excused', time: '-', notes: 'Medical appointment' }
+    ],
+    'Form 2A': [
+        { student: 'Ama Mensah', status: 'Present', time: '08:00 AM', notes: '-' },
+        { student: 'Kwame Osei', status: 'Present', time: '08:01 AM', notes: '-' }
+    ]
+};
+
+function loadAttendanceData() {
+    const tableBody = document.getElementById('attendanceTable');
+    if (!tableBody) return;
+    
+    const classSelect = document.getElementById('classSelect');
+    const selectedClass = classSelect ? classSelect.value : 'Form 1A';
+    const data = sampleAttendance[selectedClass] || sampleAttendance['Form 1A'];
+    
+    tableBody.innerHTML = data.map(att => `
+        <tr>
+            <td>${att.student}</td>
+            <td>${att.status}</td>
+            <td>${att.time}</td>
+            <td>${att.notes}</td>
+        </tr>
+    `).join('');
+}
+
+function updateAttendanceData() {
+    loadAttendanceData();
+}
+
+function loadGradeData() {
+    // Grades are static in HTML, just make sure they're visible
+    const gradesTable = document.getElementById('gradesTable');
+    if (gradesTable && !gradesTable.innerHTML.includes('Mathematics')) {
+        gradesTable.innerHTML = `
+            <tr>
+                <td>Mathematics</td>
+                <td>75</td>
+                <td>82</td>
+                <td>88</td>
+                <td>82</td>
+                <td><span class="grade-a">A</span></td>
+            </tr>
+            <tr>
+                <td>English</td>
+                <td>88</td>
+                <td>90</td>
+                <td>85</td>
+                <td>88</td>
+                <td><span class="grade-a">A</span></td>
+            </tr>
+            <tr>
+                <td>Science</td>
+                <td>70</td>
+                <td>76</td>
+                <td>80</td>
+                <td>76</td>
+                <td><span class="grade-b">B</span></td>
+            </tr>
+            <tr>
+                <td>Social Studies</td>
+                <td>92</td>
+                <td>88</td>
+                <td>91</td>
+                <td>90</td>
+                <td><span class="grade-a">A</span></td>
+            </tr>
+        `;
+    }
+}
+
+function updateGradesData() {
+    // In a real app, this would load different data based on selection
+    loadGradeData();
+}
+
+function launchDemo(demoType) {
+    const message = demoType === 'admin' 
+        ? 'Admin Dashboard with full system access, user management, and configuration options.'
+        : demoType === 'teacher'
+        ? 'Teacher Portal for marking attendance, inputting grades, and accessing class information.'
+        : demoType === 'accountant'
+        ? 'Accountant Module for processing payments, managing invoices, and financial reporting.'
+        : 'Advanced Analytics with AI-powered insights and predictive analysis.';
+    
+    alert(`📊 ${message}\n\nThis would launch the web app or desktop app in a real scenario.\n\nFor now, download the desktop app or contact us for a web app demo.`);
+}
+

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desktop vs Web App Comparison - Gaybeck Starkids SMS</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="../sms_icon.ico">
+    <style>
+        .comparison-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .comparison-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .comparison-header h1 {
+            font-size: 2.5em;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .comparison-header p {
+            color: var(--text-light);
+            font-size: 1.1em;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+
+        .comparison-table thead {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+        }
+
+        .comparison-table th {
+            padding: 20px;
+            text-align: left;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 18px 20px;
+            border-bottom: 1px solid #ecf0f1;
+            vertical-align: middle;
+        }
+
+        .comparison-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .feature-name {
+            font-weight: 600;
+            color: var(--primary-color);
+            min-width: 200px;
+        }
+
+        .check {
+            color: #27ae60;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .times {
+            color: #e74c3c;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .partial {
+            color: #f39c12;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .section-title {
+            background: #ecf0f1;
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.1em;
+        }
+
+        .pricing-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .pricing-card:hover {
+            border-color: var(--secondary-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .pricing-card.featured {
+            border-color: var(--secondary-color);
+            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.2);
+            transform: scale(1.05);
+        }
+
+        .pricing-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        .pricing-card .price {
+            font-size: 2.5em;
+            color: var(--secondary-color);
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .pricing-card ul {
+            list-style: none;
+            text-align: left;
+            margin: 25px 0;
+            line-height: 2;
+        }
+
+        .pricing-card li {
+            color: var(--text-light);
+            border-bottom: 1px solid #ecf0f1;
+            padding: 10px 0;
+        }
+
+        .pricing-card li:before {
+            content: "✓ ";
+            color: var(--secondary-color);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 25px;
+        }
+
+        .recommendation {
+            background: #e8f8f5;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+            color: #27ae60;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-table {
+                font-size: 0.9em;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 12px;
+            }
+
+            .pricing-card.featured {
+                transform: scale(1);
+            }
+
+            .pricing-card {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="../logo.png" alt="Gaybeck Starkids" class="logo-img">
+                <span class="logo-text">Gaybeck Starkids</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="index.html#demo">Try It Free</a></li>
+                <li><a href="#">Comparison</a></li>
+                <li><a href="index.html#pricing">Pricing</a></li>
+                <li><a href="index.html#contact" class="btn-cta">Get Started</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="comparison-container">
+        <div class="comparison-header">
+            <h1>Platform Comparison</h1>
+            <p>Choose the right deployment option for your school</p>
+        </div>
+
+        <!-- Feature Comparison Table -->
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th style="min-width: 250px;">Feature</th>
+                    <th style="text-align: center;">Desktop App</th>
+                    <th style="text-align: center;">Web App</th>
+                    <th style="text-align: center;">Website Demo</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Core Features -->
+                <tr>
+                    <td class="section-title" colspan="4">📚 Core Functionality</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Student Management</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Teacher Management</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="partial">◐</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Attendance Tracking</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="partial">◐</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Grade Management</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="partial">◐</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Financial Management</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="partial">◐</span></td>
+                </tr>
+                
+                <!-- Advanced Features -->
+                <tr>
+                    <td class="section-title" colspan="4">🤖 Advanced Features</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">AI Analytics</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="partial">◐</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Predictive Analysis</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="times">✗</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Custom Reports</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="partial">◐</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Real-time Sync</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="times">✗</span></td>
+                </tr>
+
+                <!-- Deployment -->
+                <tr>
+                    <td class="section-title" colspan="4">🚀 Deployment & Access</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Installation Required</td>
+                    <td style="text-align: center;"><span class="check">✓ Required</span></td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Offline Access</td>
+                    <td style="text-align: center;"><span class="check">✓ Full</span></td>
+                    <td style="text-align: center;"><span class="partial">◐ Limited</span></td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Multi-Device Sync</td>
+                    <td style="text-align: center;"><span class="partial">◐ Manual</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Automatic</span></td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Browser Access</td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Yes</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Yes</span></td>
+                </tr>
+
+                <!-- Data & Security -->
+                <tr>
+                    <td class="section-title" colspan="4">🔐 Data & Security</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Data Storage</td>
+                    <td style="text-align: center;">Local SQLite</td>
+                    <td style="text-align: center;">Cloud/Server</td>
+                    <td style="text-align: center;">Demo Only</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Backup & Restore</td>
+                    <td style="text-align: center;"><span class="check">✓ Advanced</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Auto</span></td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Role-Based Access</td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                    <td style="text-align: center;"><span class="check">✓</span></td>
+                </tr>
+
+                <!-- Support & Updates -->
+                <tr>
+                    <td class="section-title" colspan="4">📞 Support & Updates</td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Free Updates</td>
+                    <td style="text-align: center;"><span class="check">✓ Lifetime</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Lifetime</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Always</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Priority Support</td>
+                    <td style="text-align: center;"><span class="partial">◐ Standard</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Premium</span></td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                </tr>
+                <tr>
+                    <td class="feature-name">Training Included</td>
+                    <td style="text-align: center;"><span class="partial">◐ Video</span></td>
+                    <td style="text-align: center;"><span class="check">✓ Full</span></td>
+                    <td style="text-align: center;"><span class="times">✗ No</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Pricing & Recommendations -->
+        <h2 style="text-align: center; margin-top: 60px; margin-bottom: 30px; color: var(--primary-color);">Choose Your Plan</h2>
+        
+        <div class="pricing-comparison">
+            <!-- Desktop App -->
+            <div class="pricing-card">
+                <h3>💻 Desktop App</h3>
+                <p style="color: var(--text-light); margin-bottom: 15px;">Professional Edition</p>
+                <div class="price">GHS 500</div>
+                <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 20px;">One-time payment</p>
+                
+                <ul>
+                    <li>Full offline access</li>
+                    <li>No recurring fees</li>
+                    <li>Advanced backup tools</li>
+                    <li>Multi-currency support</li>
+                    <li>Lifetime updates</li>
+                    <li>All 6 core modules</li>
+                </ul>
+
+                <div class="recommendation">
+                    ✓ Best for: Schools wanting complete offline control
+                </div>
+
+                <div class="cta-buttons">
+                    <button class="btn btn-primary" onclick="downloadApp()">Download Now</button>
+                    <button class="btn btn-secondary" onclick="scrollTo('demo')">Try Demo</button>
+                </div>
+            </div>
+
+            <!-- Website Demo (Free) -->
+            <div class="pricing-card">
+                <h3>🌐 Website Demo</h3>
+                <p style="color: var(--text-light); margin-bottom: 15px;">Free Trial</p>
+                <div class="price">Free</div>
+                <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 20px;">No registration required</p>
+                
+                <ul>
+                    <li>Sample data included</li>
+                    <li>Core features preview</li>
+                    <li>No credit card needed</li>
+                    <li>Interactive demo</li>
+                    <li>Mobile friendly</li>
+                    <li>30-minute overview</li>
+                </ul>
+
+                <div class="recommendation">
+                    ✓ Best for: Quick evaluation & learning
+                </div>
+
+                <div class="cta-buttons">
+                    <button class="btn btn-primary" onclick="window.location.href='#demo'">Try Demo Now</button>
+                </div>
+            </div>
+
+            <!-- Web App -->
+            <div class="pricing-card featured">
+                <h3>☁️ Web App (Coming)</h3>
+                <p style="color: var(--text-light); margin-bottom: 15px;">Premium Cloud Edition</p>
+                <div class="price">Custom</div>
+                <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 20px;">Flexible licensing</p>
+                
+                <ul>
+                    <li>Cloud deployment</li>
+                    <li>Multi-user access</li>
+                    <li>Real-time sync</li>
+                    <li>Automatic backups</li>
+                    <li>Premium support</li>
+                    <li>Custom integration</li>
+                </ul>
+
+                <div class="recommendation">
+                    ✓ Best for: Multi-site schools & cloud users
+                </div>
+
+                <div class="cta-buttons">
+                    <button class="btn btn-primary" onclick="contactSales()">Contact Sales</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Decision Guide -->
+        <div style="margin-top: 60px; background: #f8f9fa; padding: 40px; border-radius: 10px;">
+            <h2 style="color: var(--primary-color); margin-bottom: 20px;">How to Choose?</h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                    <h4 style="color: var(--secondary-color); margin-bottom: 10px;">Choose Desktop App If:</h4>
+                    <ul style="list-style-position: inside; line-height: 1.8;">
+                        <li>You want complete offline functionality</li>
+                        <li>You prefer local data storage</li>
+                        <li>You need one-time payment</li>
+                        <li>You want full control</li>
+                        <li>Limited internet connectivity</li>
+                    </ul>
+                </div>
+
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                    <h4 style="color: var(--secondary-color); margin-bottom: 10px;">Choose Website Demo If:</h4>
+                    <ul style="list-style-position: inside; line-height: 1.8;">
+                        <li>You want to test features first</li>
+                        <li>You need no installation</li>
+                        <li>You want quick evaluation</li>
+                        <li>You have limited time</li>
+                        <li>You need cross-device access</li>
+                    </ul>
+                </div>
+
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                    <h4 style="color: var(--secondary-color); margin-bottom: 10px;">Choose Web App If:</h4>
+                    <ul style="list-style-position: inside; line-height: 1.8;">
+                        <li>You have multiple schools</li>
+                        <li>You need cloud backup</li>
+                        <li>You want automatic sync</li>
+                        <li>You prefer browser access</li>
+                        <li>You need premium support</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Gaybeck Starkids SMS</h4>
+                    <p>Comprehensive school management solution</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="index.html#features">Features</a></li>
+                        <li><a href="index.html#demo">Demo</a></li>
+                        <li><a href="#">Comparison</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Email: info@gaybeckstarkids.com</p>
+                    <p>Support: support@gaybeckstarkids.com</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Follow Us</h4>
+                    <div class="social-links">
+                        <a href="#">Facebook</a>
+                        <a href="#">Twitter</a>
+                        <a href="#">LinkedIn</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 Gaybeck Starkids. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function downloadApp() {
+            alert('Redirecting to download page...');
+            // window.location.href = 'download.html';
+        }
+
+        function contactSales() {
+            alert('Our sales team will contact you soon!');
+            // window.location.href = 'contact.html';
+        }
+
+        function scrollTo(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    </script>
+</body>
+</html>

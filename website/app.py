@@ -382,14 +382,164 @@ if __name__ == '__main__':
     
     conn.commit()
     conn.close()
-    
+
+# ===== DEMO DATA ENDPOINTS =====
+
+# Demo Students
+@app.route('/api/demo/students', methods=['GET'])
+def demo_students():
+    """Return sample student data for website demo"""
+    students = [
+        {'id': 'STU001', 'name': 'Ama Mensah', 'class': 'Form 2A', 'gender': 'Female', 'dob': '2008-03-15', 'status': 'Active'},
+        {'id': 'STU002', 'name': 'Kwame Osei', 'class': 'Form 2A', 'gender': 'Male', 'dob': '2008-05-22', 'status': 'Active'},
+        {'id': 'STU003', 'name': 'Abena Kusi', 'class': 'Form 1B', 'gender': 'Female', 'dob': '2009-07-10', 'status': 'Active'},
+        {'id': 'STU004', 'name': 'Kofi Agyeman', 'class': 'Form 1A', 'gender': 'Male', 'dob': '2009-02-14', 'status': 'Active'},
+        {'id': 'STU005', 'name': 'Efua Boateng', 'class': 'Form 2B', 'gender': 'Female', 'dob': '2008-11-20', 'status': 'Active'},
+        {'id': 'STU006', 'name': 'Benjamin Addo', 'class': 'Form 1B', 'gender': 'Male', 'dob': '2009-04-08', 'status': 'Active'},
+        {'id': 'STU007', 'name': 'Yaa Asante', 'class': 'Form 2B', 'gender': 'Female', 'dob': '2008-08-30', 'status': 'Active'},
+        {'id': 'STU008', 'name': 'Akosua Debrah', 'class': 'Form 1A', 'gender': 'Female', 'dob': '2009-01-25', 'status': 'Active'},
+    ]
+    return jsonify(students)
+
+# Demo Attendance
+@app.route('/api/demo/attendance/<class_name>', methods=['GET'])
+def demo_attendance(class_name):
+    """Return sample attendance data"""
+    attendance_data = {
+        'Form 1A': [
+            {'student': 'Kofi Agyeman', 'status': 'Present', 'time': '08:00 AM', 'notes': '-'},
+            {'student': 'Akosua Debrah', 'status': 'Present', 'time': '08:02 AM', 'notes': '-'},
+            {'student': 'John Mensah', 'status': 'Late', 'time': '08:35 AM', 'notes': 'Traffic'},
+            {'student': 'Mary Owusu', 'status': 'Absent', 'time': '-', 'notes': 'Sick leave'},
+            {'student': 'Samuel Boateng', 'status': 'Present', 'time': '08:01 AM', 'notes': '-'},
+        ],
+        'Form 1B': [
+            {'student': 'Abena Kusi', 'status': 'Present', 'time': '08:00 AM', 'notes': '-'},
+            {'student': 'Benjamin Addo', 'status': 'Present', 'time': '08:02 AM', 'notes': '-'},
+            {'student': 'Victoria Asante', 'status': 'Excused', 'time': '-', 'notes': 'Medical'},
+        ],
+        'Form 2A': [
+            {'student': 'Ama Mensah', 'status': 'Present', 'time': '08:00 AM', 'notes': '-'},
+            {'student': 'Kwame Osei', 'status': 'Present', 'time': '08:01 AM', 'notes': '-'},
+        ]
+    }
+    return jsonify(attendance_data.get(class_name, []))
+
+# Demo Grades
+@app.route('/api/demo/grades/<student_id>', methods=['GET'])
+def demo_grades(student_id):
+    """Return sample grade data"""
+    grades = [
+        {'subject': 'Mathematics', 'test1': 75, 'test2': 82, 'exam': 88, 'final': 82, 'grade': 'A'},
+        {'subject': 'English', 'test1': 88, 'test2': 90, 'exam': 85, 'final': 88, 'grade': 'A'},
+        {'subject': 'Science', 'test1': 70, 'test2': 76, 'exam': 80, 'final': 76, 'grade': 'B'},
+        {'subject': 'Social Studies', 'test1': 92, 'test2': 88, 'exam': 91, 'final': 90, 'grade': 'A'},
+    ]
+    return jsonify(grades)
+
+# Demo Analytics
+@app.route('/api/demo/analytics', methods=['GET'])
+def demo_analytics():
+    """Return sample analytics data"""
+    analytics = {
+        'at_risk_students': 8,
+        'top_performers': 23,
+        'attendance_rate': 92.5,
+        'revenue_forecast': 156000,
+        'fee_collection_rate': 78.3,
+        'grade_distribution': {
+            'A': 45,
+            'B': 68,
+            'C': 92,
+            'D': 35,
+            'F': 10
+        },
+        'class_performance': {
+            'Form 1A': 76.5,
+            'Form 1B': 81.2,
+            'Form 2A': 84.3,
+            'Form 2B': 79.8
+        }
+    }
+    return jsonify(analytics)
+
+# Demo Financial
+@app.route('/api/demo/financial', methods=['GET'])
+def demo_financial():
+    """Return sample financial data"""
+    financial = {
+        'total_fees_due': 125450,
+        'amount_collected': 98200,
+        'outstanding_balance': 27250,
+        'collection_rate': 78.3,
+        'recent_payments': [
+            {'date': '2025-01-03', 'student': 'Kwame Mensah', 'amount': 500, 'method': 'Bank Transfer', 'status': 'Cleared'},
+            {'date': '2025-01-02', 'student': 'Ama Asante', 'amount': 750, 'method': 'Mobile Money', 'status': 'Cleared'},
+            {'date': '2025-01-01', 'student': 'Abena Owusu', 'amount': 500, 'method': 'Cash', 'status': 'Cleared'},
+        ]
+    }
+    return jsonify(financial)
+
+# API Documentation
+@app.route('/api/docs', methods=['GET'])
+def api_docs():
+    """Return API documentation"""
+    docs = {
+        'title': 'Gaybeck Starkids SMS - Website API',
+        'version': '2.0.3',
+        'base_url': 'http://localhost:5000/api',
+        'endpoints': [
+            {
+                'path': '/health',
+                'method': 'GET',
+                'description': 'Check API server health',
+                'response': {'status': 'ok', 'message': 'Server is running'}
+            },
+            {
+                'path': '/stats',
+                'method': 'GET',
+                'description': 'Get system statistics',
+                'response': {'total_students': 250, 'total_teachers': 45, 'total_classes': 12}
+            },
+            {
+                'path': '/demo/students',
+                'method': 'GET',
+                'description': 'Get sample student data',
+                'response': 'Array of student objects'
+            },
+            {
+                'path': '/demo/attendance/<class_name>',
+                'method': 'GET',
+                'description': 'Get sample attendance data for a class',
+                'response': 'Array of attendance records'
+            },
+            {
+                'path': '/demo/grades/<student_id>',
+                'method': 'GET',
+                'description': 'Get sample grade data for a student',
+                'response': 'Array of grade records'
+            },
+            {
+                'path': '/demo/analytics',
+                'method': 'GET',
+                'description': 'Get sample analytics data',
+                'response': 'Analytics object with insights'
+            },
+            {
+                'path': '/demo/financial',
+                'method': 'GET',
+                'description': 'Get sample financial data',
+                'response': 'Financial summary object'
+            }
+        ]
+    }
+    return jsonify(docs)
+
+if __name__ == '__main__':
     print("""
     ╔════════════════════════════════════════════╗
     ║  Gaybeck Starkids SMS - Website API Server ║
     ║  Status: ✅ RUNNING                        ║
     ║  URL: http://localhost:5000                ║
     ║  API Docs: http://localhost:5000/api/docs  ║
-    ╚════════════════════════════════════════════╝
-    """)
-    
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    ║  Demo: http://localhost:5000                ║
