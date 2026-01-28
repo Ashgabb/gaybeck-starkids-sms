@@ -16,7 +16,7 @@ __build_date__ = "2025-11-11"
 __author__ = "Gaybeck Starkids SMS Development Team"
 
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog, scrolledtext
 import sqlite3
 from datetime import datetime, date, timedelta
 import calendar
@@ -82,6 +82,57 @@ try:
     AI_AVAILABLE = True
 except ImportError:
     AI_AVAILABLE = False
+
+# Phase 1 AI Features imports
+try:
+    from notification_service import get_notification_service
+    NOTIFICATION_SERVICE_AVAILABLE = True
+except ImportError:
+    NOTIFICATION_SERVICE_AVAILABLE = False
+
+try:
+    from ai_tutor_service import get_ai_tutor_service
+    AI_TUTOR_SERVICE_AVAILABLE = True
+except ImportError:
+    AI_TUTOR_SERVICE_AVAILABLE = False
+
+try:
+    from enhanced_ews import get_ews_service
+    EWS_SERVICE_AVAILABLE = True
+except ImportError:
+    EWS_SERVICE_AVAILABLE = False
+
+try:
+    from ui_components import NotificationCenterFrame, AITutorChatFrame, EWSDashboardFrame, NotificationSettingsFrame
+    UI_COMPONENTS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Could not import ui_components: {e}")
+    UI_COMPONENTS_AVAILABLE = False
+
+# Phase 2: AI Learning Support Features
+try:
+    from ai_learning_support import (
+        AITutorBot, LessonPlanGenerator, QuizGenerator, AssignmentGrader,
+        AILearningDatabase, get_ai_learning_service
+    )
+    AI_LEARNING_SUPPORT_AVAILABLE = True
+except ImportError:
+    AI_LEARNING_SUPPORT_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("AI Learning Support not available. Install ai_learning_support module.")
+
+try:
+    from ai_learning_ui import AITutorWindow, LessonPlannerWindow, QuizGeneratorWindow, AssignmentGraderWindow
+    AI_LEARNING_UI_AVAILABLE = True
+except ImportError:
+    AI_LEARNING_UI_AVAILABLE = False
+
+# Teacher Learning Support Sync
+try:
+    from teacher_learning_sync import get_teacher_learning_sync_db
+    TEACHER_LEARNING_SYNC_AVAILABLE = True
+except ImportError:
+    TEACHER_LEARNING_SYNC_AVAILABLE = False
 
 # ==================== AI PREDICTOR CLASS ====================
 
@@ -1845,7 +1896,9 @@ class LoginWindow:
             ("🔐 Admin", "admin", "#dc3545"),
             ("👨‍💼 Accountant", "accountant", "#fd7e14"), 
             ("👨‍🏫 Teacher", "teacher", "#28a745"),
-            ("👥 Staff", "staff", "#17a2b8")
+            ("👥 Staff", "staff", "#17a2b8"),
+            ("👨‍🎓 Student", "student", "#6f42c1"),
+            ("👁️ Viewer", "viewer", "#6c757d")
         ]
         
         # Create grid layout
@@ -2116,6 +2169,22 @@ class SchoolManagementSystem:
         else:
             self.sync_manager = None
         
+        # Initialize Phase 1 AI Services
+        if NOTIFICATION_SERVICE_AVAILABLE:
+            self.notification_service = get_notification_service()
+        else:
+            self.notification_service = None
+        
+        if AI_TUTOR_SERVICE_AVAILABLE:
+            self.ai_tutor_service = get_ai_tutor_service()
+        else:
+            self.ai_tutor_service = None
+        
+        if EWS_SERVICE_AVAILABLE:
+            self.ews_service = get_ews_service()
+        else:
+            self.ews_service = None
+        
         # Create main frame with modern layout
         self.main_frame = tk.Frame(self.root, bg='#f8f9fa', relief=tk.FLAT, bd=0)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -2138,9 +2207,9 @@ class SchoolManagementSystem:
         
         # Initialize dashboard variables
         self.students_present_var = tk.StringVar(value="0")
-        self.feeding_fee_var = tk.StringVar(value="GHS 0.00")
-        self.bus_fee_var = tk.StringVar(value="GHS 0.00")
-        self.total_revenue_var = tk.StringVar(value="GHS 0.00")
+        self.feeding_fee_var = tk.StringVar(value="0.00")
+        self.bus_fee_var = tk.StringVar(value="0.00")
+        self.total_revenue_var = tk.StringVar(value="0.00")
         
         # Load initial dashboard data
         self.update_dashboard()
@@ -2325,7 +2394,32 @@ class SchoolManagementSystem:
                 present BOOLEAN DEFAULT 0,
                 feeding_fee_paid BOOLEAN DEFAULT 0,
                 bus_fee_paid BOOLEAN DEFAULT 0,
+                absence_reason TEXT DEFAULT NULL,
                 FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+            )
+        ''')
+        
+        # -- Migration: ensure absence_reason column exists for older databases --
+        try:
+            self.cursor.execute("PRAGMA table_info(attendance)")
+            attendance_columns = [row[1] for row in self.cursor.fetchall()]
+            if 'absence_reason' not in attendance_columns:
+                self.cursor.execute("ALTER TABLE attendance ADD COLUMN absence_reason TEXT DEFAULT NULL")
+                self.conn.commit()
+                print("✓ Added absence_reason column to attendance table")
+        except Exception as e:
+            print(f"Info: absence_reason column check: {e}")
+        
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS student_remarks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER,
+                teacher_id INTEGER,
+                category TEXT,
+                remark TEXT,
+                date_created DATE DEFAULT CURRENT_DATE,
+                FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+                FOREIGN KEY (teacher_id) REFERENCES teachers (id)
             )
         ''')
         
@@ -2635,6 +2729,10 @@ class SchoolManagementSystem:
                 print("Warning: could not insert sample teacher:", e)
         
         self.conn.commit()
+        
+        # Sync class student counts from actual student records
+        # This ensures the dropdown shows correct student counts
+        self.sync_class_student_counts()
     
     def generate_student_id(self, year=None):
         """
@@ -2690,6 +2788,68 @@ class SchoolManagementSystem:
             raise Exception(f"Cannot find available student ID for year {year}")
         
         return new_id
+    
+    def sync_class_student_counts(self):
+        """
+        Recalculate and sync the current_students count in classes table 
+        from actual student records in the database.
+        This fixes any out-of-sync counts that may have occurred.
+        """
+        try:
+            # Get all classes
+            self.cursor.execute('SELECT id FROM classes')
+            classes = self.cursor.fetchall()
+            
+            for class_row in classes:
+                class_id = class_row[0]
+                
+                # Count actual students in this class
+                self.cursor.execute(
+                    'SELECT COUNT(*) FROM students WHERE class_id = ?',
+                    (class_id,)
+                )
+                actual_count = self.cursor.fetchone()[0]
+                
+                # Update the class with correct count
+                self.cursor.execute(
+                    'UPDATE classes SET current_students = ? WHERE id = ?',
+                    (actual_count, class_id)
+                )
+            
+            self.conn.commit()
+            print(f"[SYNC] Class student counts synchronized successfully")
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to sync class student counts: {e}")
+            return False
+    
+    def get_currency_symbol(self):
+        """Get current currency symbol from database"""
+        try:
+            self.cursor.execute("SELECT value FROM system_settings WHERE key = 'currency'")
+            result = self.cursor.fetchone()
+            currency_code = result[0] if result else 'GHS'
+        except:
+            currency_code = 'GHS'
+        
+        # Currency symbol mapping
+        currency_symbols = {
+            'GHS': '₵',
+            'USD': '$',
+            'EUR': '€',
+            'GBP': '£',
+            'NGN': '₦',
+            'ZAR': 'R',
+            'KES': 'KSh',
+            'UGX': 'USh'
+        }
+        
+        return currency_symbols.get(currency_code, '₦')
+    
+    def format_currency(self, amount):
+        """Format amount with selected currency symbol"""
+        symbol = self.get_currency_symbol()
+        return f"{symbol}{amount:,.2f}"
     
     # ==================== AUTOCOMPLETE SUGGESTION METHODS ====================
     
@@ -3174,19 +3334,19 @@ class SchoolManagementSystem:
         student_metric.pack(side=tk.LEFT, padx=10)
         
         # Feeding fee collected metric
-        self.feeding_fee_var = tk.StringVar(value="GHS 0.00")
+        self.feeding_fee_var = tk.StringVar(value="0.00")
         feeding_metric = self.create_metric_card(metrics_frame, "Feeding Fee Collected", 
                                                 self.feeding_fee_var, 1)
         feeding_metric.pack(side=tk.LEFT, padx=10)
         
         # Bus fee collected metric
-        self.bus_fee_var = tk.StringVar(value="GHS 0.00")
+        self.bus_fee_var = tk.StringVar(value="0.00")
         bus_metric = self.create_metric_card(metrics_frame, "Bus Fee Collected", 
                                             self.bus_fee_var, 2)
         bus_metric.pack(side=tk.LEFT, padx=10)
         
         # Total revenue metric
-        self.total_revenue_var = tk.StringVar(value="GHS 0.00")
+        self.total_revenue_var = tk.StringVar(value="0.00")
         total_metric = self.create_metric_card(metrics_frame, "Total Revenue", 
                                               self.total_revenue_var, 3)
         total_metric.pack(side=tk.LEFT, padx=10)
@@ -3265,7 +3425,10 @@ class SchoolManagementSystem:
         
         # Navigation buttons with permission checks
         buttons = [
-            ("📊   Dashboard", self.show_dashboard, "dashboard", True),  # Always available
+            # For teachers, show Class Dashboard instead of main Dashboard
+            ("📊   Dashboard" if self.current_user.get('role') != 'teacher' else "📚   Class Dashboard", 
+             self.show_dashboard if self.current_user.get('role') != 'teacher' else self.show_teacher_class_selection, 
+             "dashboard", True),  # Always available
             ("🏫   Class Management", self.show_class_management, "classes", "no_teacher"),  # Disabled for teachers
             ("🎓   Student Management", self.show_student_management, "students", None),
             ("👨‍🏫   Teacher Management", self.show_teacher_management, "teachers", None),
@@ -3274,6 +3437,10 @@ class SchoolManagementSystem:
             ("✅   Attendance", self.show_attendance, "attendance", None),
             ("🧠   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
             ("📈   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
+            ("🔔   Notifications", self.show_notification_center, "notifications", None),  # Phase 1: Smart Notifications
+            ("🤖   AI Tutor", self.show_ai_tutor, "ai_tutor", None),  # Phase 1: AI Chatbot
+            ("⚠️   Risk Assessment", self.show_ews_dashboard, "ews", None),  # Phase 1: Early Warning System
+            ("📚   Learning Support", self.show_ai_learning_support, "ai_learning", None),  # Phase 2: AI Learning Assistant
             ("⚙️   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
         ]
         
@@ -3289,6 +3456,16 @@ class SchoolManagementSystem:
                 show_button = False  # Non-admin cannot see admin-only buttons
             elif special == "no_teacher" and self.current_user and self.current_user.get('role') == 'teacher':
                 show_button = False  # Teachers cannot see class management
+            # STUDENTS: Only see Learning Support, restricted dashboard access
+            elif self.current_user and self.current_user.get('role') == 'student':
+                # Students only see Learning Support features
+                student_allowed_permissions = ['ai_learning']
+                show_button = permission in student_allowed_permissions
+            # Teachers only see: Dashboard (Class Dashboard), Students, Attendance, and limited other modules
+            elif self.current_user and self.current_user.get('role') == 'teacher':
+                # Teachers only see class-related modules
+                teacher_allowed_permissions = ['dashboard', 'students', 'attendance']
+                show_button = permission in teacher_allowed_permissions
             elif special is True and self.has_permission(permission):
                 # Dashboard and other "always available" still need permission
                 show_button = True
@@ -3338,7 +3515,15 @@ class SchoolManagementSystem:
             self.set_active_nav(command)
             return
         
-        # For non-admin users, check permissions
+        # STUDENTS: Allow access to AI Learning Support features only
+        if self.current_user and self.current_user.get('role') == 'student':
+            if permission == 'ai_learning':
+                self.set_active_nav(command)
+            else:
+                messagebox.showerror("Access Denied", "Students only have access to Learning Support features.")
+            return
+        
+        # For non-admin, non-student users, check permissions
         if permission == "dashboard" or self.has_permission(permission):
             self.set_active_nav(command)
         else:
@@ -3425,7 +3610,10 @@ class SchoolManagementSystem:
             self.show_financial_management: "Financial Management - Income & Expense Tracking",
             self.show_attendance: "Attendance - Daily Tracking",
             self.show_user_management: "User Management - Account Administration",
-            self.show_database_view: "Database View - Raw Data"
+            self.show_database_view: "Database View - Raw Data",
+            self.show_notification_center: "Notifications - Smart Alerts & Messages",
+            self.show_ai_tutor: "AI Tutor - Intelligent Assistant",
+            self.show_ews_dashboard: "Risk Assessment - Early Warning System"
         }
         
         if command in status_messages and hasattr(self, 'update_status'):
@@ -3591,11 +3779,13 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 assigned_classes = self.cursor.fetchall()
             
             if assigned_classes:
-                # Format class names with student count info
+                # Store class data with IDs for later retrieval
+                self.class_data = {}  # Dictionary to map display text -> class_id
                 class_list = []
                 for class_id, class_name, capacity, current_students in assigned_classes:
                     class_display = f"{class_name} ({current_students}/{capacity} students)"
                     class_list.append(class_display)
+                    self.class_data[class_display] = class_id  # Store ID for lookup
                 return class_list
             else:
                 # If no classes exist in database, return message
@@ -3634,15 +3824,16 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         content_container = tk.Frame(main_frame, bg='#f8f9fa')
         content_container.pack(fill='both', expand=True, padx=20, pady=(0, 20))
         
-        # Create notebook for different sections
+        # Create notebook for different sections with increased height
         self.teacher_notebook = ttk.Notebook(content_container)
-        self.teacher_notebook.pack(fill='both', expand=True)
+        self.teacher_notebook.pack(fill='both', expand=True, ipady=150)  # Increased height with ipady
         
         # Add tabs for different functionalities
         self.create_student_management_tab()
         self.create_assignments_tab()
         self.create_grades_tab()
         self.create_reports_tab()
+        self.create_learning_support_tab()  # New tab for learning support content
         
         # Load all module data for the selected class
         self.refresh_all_module_data()
@@ -3753,10 +3944,286 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         # Reports interface
         self.create_reports_interface(reports_content)
     
+    def create_learning_support_tab(self):
+        """Create learning support content tab (synced from AI Learning Support)"""
+        learning_frame = ttk.Frame(self.teacher_notebook)
+        self.teacher_notebook.add(learning_frame, text="📚 Learning Support Content")
+        
+        # Create scrollable content
+        scrollable_learning = ScrollableFrame(learning_frame, bg='#ffffff')
+        scrollable_learning.pack(fill='both', expand=True, padx=10, pady=10)
+        learning_content = scrollable_learning.scrollable_frame
+        
+        # Initialize teacher sync if available
+        if not TEACHER_LEARNING_SYNC_AVAILABLE:
+            no_sync_frame = tk.Frame(learning_content, bg='#ffffff')
+            no_sync_frame.pack(fill='both', expand=True, padx=20, pady=20)
+            
+            tk.Label(no_sync_frame, text="📚 Learning Support Sync Unavailable", 
+                    font=('Segoe UI', 14, 'bold'), fg='#6c757d', bg='#ffffff').pack()
+            tk.Label(no_sync_frame, 
+                    text="Teacher Learning Sync module is not available.\nCreate content in Learning Support to see it here.",
+                    font=('Segoe UI', 11), fg='#95a5a6', bg='#ffffff').pack(pady=(10, 0))
+            return
+        
+        try:
+            teacher_sync = get_teacher_learning_sync_db()
+            teacher_id = self._get_current_teacher_id()
+            
+            if not teacher_id:
+                no_teacher_frame = tk.Frame(learning_content, bg='#ffffff')
+                no_teacher_frame.pack(fill='both', expand=True, padx=20, pady=20)
+                tk.Label(no_teacher_frame, text="⚠️ Cannot load teacher information", 
+                        font=('Segoe UI', 12, 'bold'), bg='#ffffff').pack()
+                return
+            
+            # Get learning summary
+            summary = teacher_sync.get_teacher_learning_summary(teacher_id)
+            
+            # Summary cards
+            summary_frame = tk.Frame(learning_content, bg='#f8f9fa')
+            summary_frame.pack(fill='x', padx=10, pady=10)
+            
+            # Lesson notes card
+            notes_card = self._create_learning_card(summary_frame, "📖 Lesson Notes",
+                                                    summary['lesson_notes'], "#3498db")
+            notes_card.pack(side='left', fill='both', expand=True, padx=5)
+            
+            # Curriculum card
+            curriculum_card = self._create_learning_card(summary_frame, "📚 Curriculum",
+                                                         summary['curriculum_documents'], "#2ecc71")
+            curriculum_card.pack(side='left', fill='both', expand=True, padx=5)
+            
+            # Assignments card
+            assignments_card = self._create_learning_card(summary_frame, "✏️ Assignments",
+                                                          summary['assignments'], "#f39c12")
+            assignments_card.pack(side='left', fill='both', expand=True, padx=5)
+            
+            # Quizzes card
+            quizzes_card = self._create_learning_card(summary_frame, "❓ Quizzes",
+                                                      summary['quizzes'], "#e74c3c")
+            quizzes_card.pack(side='left', fill='both', expand=True, padx=5)
+            
+            # Content details section
+            details_label = tk.Label(learning_content, text="📋 Detailed Content", 
+                                    font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#ffffff')
+            details_label.pack(anchor='w', padx=10, pady=(20, 10))
+            
+            # Notebook for content types
+            content_notebook = ttk.Notebook(learning_content)
+            content_notebook.pack(fill='both', expand=True, padx=10, pady=10)
+            
+            # Lesson Notes Tab
+            lesson_notes = teacher_sync.get_teacher_lesson_notes(teacher_id)
+            self._create_learning_notes_tab(content_notebook, "Lesson Notes", lesson_notes)
+            
+            # Curriculum Tab
+            curriculum = teacher_sync.get_teacher_curriculum(teacher_id)
+            self._create_curriculum_tab(content_notebook, "Curriculum", curriculum)
+            
+            # Assignments Tab
+            assignments = teacher_sync.get_teacher_assignments(teacher_id)
+            self._create_assignments_sync_tab(content_notebook, "Assignments", assignments)
+            
+            # Quizzes Tab
+            quizzes = teacher_sync.get_teacher_quizzes(teacher_id)
+            self._create_quizzes_sync_tab(content_notebook, "Quizzes", quizzes)
+            
+            self.update_status("Learning Support Content - Showing synced content from AI Learning Support")
+        
+        except Exception as e:
+            logger.error(f"Error loading learning support content: {e}")
+            error_frame = tk.Frame(learning_content, bg='#ffffff')
+            error_frame.pack(fill='both', expand=True, padx=20, pady=20)
+            
+            tk.Label(error_frame, text=f"⚠️ Error Loading Content", 
+                    font=('Segoe UI', 14, 'bold'), fg='#e74c3c', bg='#ffffff').pack()
+            tk.Label(error_frame, 
+                    text=f"An error occurred while loading learning support content:\n{str(e)}",
+                    font=('Segoe UI', 10), fg='#95a5a6', bg='#ffffff').pack(pady=(10, 0))
+    
+    def _create_learning_card(self, parent, title, count, color):
+        """Create a learning content summary card"""
+        card = tk.Frame(parent, bg='white', relief='solid', bd=1)
+        
+        # Header with color
+        header = tk.Frame(card, bg=color, height=40)
+        header.pack(fill='x')
+        header.pack_propagate(False)
+        
+        title_label = tk.Label(header, text=title, font=('Segoe UI', 11, 'bold'),
+                              bg=color, fg='white')
+        title_label.pack(pady=8)
+        
+        # Content
+        content = tk.Frame(card, bg='white')
+        content.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        count_label = tk.Label(content, text=str(count), font=('Segoe UI', 24, 'bold'),
+                              bg='white', fg=color)
+        count_label.pack()
+        
+        unit_label = tk.Label(content, text="items" if count != 1 else "item",
+                             font=('Segoe UI', 9), fg='#95a5a6', bg='white')
+        unit_label.pack()
+        
+        return card
+    
+    def _create_learning_notes_tab(self, notebook, tab_name, notes):
+        """Create lesson notes tab"""
+        notes_frame = ttk.Frame(notebook)
+        notebook.add(notes_frame, text=tab_name)
+        
+        scrollable = ScrollableFrame(notes_frame, bg='#ffffff')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+        
+        if not notes:
+            empty_label = tk.Label(content, text="No lesson notes yet",
+                                  font=('Segoe UI', 11), fg='#95a5a6', bg='#ffffff')
+            empty_label.pack(pady=20)
+            return
+        
+        for note in notes:
+            note_card = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
+            note_card.pack(fill='x', padx=10, pady=5)
+            
+            # Header
+            header = tk.Frame(note_card, bg='#3498db')
+            header.pack(fill='x', padx=10, pady=10)
+            
+            title = tk.Label(header, text=f"{note.subject} - {note.topic}",
+                           font=('Segoe UI', 11, 'bold'), bg='#3498db', fg='white')
+            title.pack(anchor='w')
+            
+            # Content preview
+            preview = note.content[:200] + "..." if len(note.content) > 200 else note.content
+            content_label = tk.Label(note_card, text=preview, font=('Segoe UI', 9),
+                                    fg='#555', bg='#f8f9fa', justify='left', wraplength=400)
+            content_label.pack(anchor='w', padx=10, pady=5)
+    
+    def _create_curriculum_tab(self, notebook, tab_name, curriculum):
+        """Create curriculum tab"""
+        curr_frame = ttk.Frame(notebook)
+        notebook.add(curr_frame, text=tab_name)
+        
+        scrollable = ScrollableFrame(curr_frame, bg='#ffffff')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+        
+        if not curriculum:
+            empty_label = tk.Label(content, text="No curriculum documents yet",
+                                  font=('Segoe UI', 11), fg='#95a5a6', bg='#ffffff')
+            empty_label.pack(pady=20)
+            return
+        
+        for curr in curriculum:
+            curr_card = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
+            curr_card.pack(fill='x', padx=10, pady=5)
+            
+            # Header
+            header = tk.Frame(curr_card, bg='#2ecc71')
+            header.pack(fill='x', padx=10, pady=10)
+            
+            title = tk.Label(header, text=f"{curr.subject} - Grade {curr.grade_level}",
+                           font=('Segoe UI', 11, 'bold'), bg='#2ecc71', fg='white')
+            title.pack(anchor='w')
+            
+            # Content preview
+            preview = curr.curriculum_content[:200] + "..." if len(curr.curriculum_content) > 200 else curr.curriculum_content
+            content_label = tk.Label(curr_card, text=preview, font=('Segoe UI', 9),
+                                    fg='#555', bg='#f8f9fa', justify='left', wraplength=400)
+            content_label.pack(anchor='w', padx=10, pady=5)
+    
+    def _create_assignments_sync_tab(self, notebook, tab_name, assignments):
+        """Create assignments tab (synced content)"""
+        assign_frame = ttk.Frame(notebook)
+        notebook.add(assign_frame, text=tab_name)
+        
+        scrollable = ScrollableFrame(assign_frame, bg='#ffffff')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+        
+        if not assignments:
+            empty_label = tk.Label(content, text="No assignments yet",
+                                  font=('Segoe UI', 11), fg='#95a5a6', bg='#ffffff')
+            empty_label.pack(pady=20)
+            return
+        
+        for assignment in assignments:
+            assign_card = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
+            assign_card.pack(fill='x', padx=10, pady=5)
+            
+            # Header
+            header = tk.Frame(assign_card, bg='#f39c12')
+            header.pack(fill='x', padx=10, pady=10)
+            
+            title = tk.Label(header, text=assignment.assignment_name,
+                           font=('Segoe UI', 11, 'bold'), bg='#f39c12', fg='white')
+            title.pack(anchor='w')
+            
+            # Details
+            details_frame = tk.Frame(assign_card, bg='#f8f9fa')
+            details_frame.pack(fill='x', padx=10, pady=5)
+            
+            info_label = tk.Label(details_frame, 
+                                 text=f"{assignment.subject} | Total Marks: {assignment.total_marks} | Due: {assignment.due_date}",
+                                 font=('Segoe UI', 9), fg='#555', bg='#f8f9fa')
+            info_label.pack(anchor='w')
+    
+    def _create_quizzes_sync_tab(self, notebook, tab_name, quizzes):
+        """Create quizzes tab (synced content)"""
+        quiz_frame = ttk.Frame(notebook)
+        notebook.add(quiz_frame, text=tab_name)
+        
+        scrollable = ScrollableFrame(quiz_frame, bg='#ffffff')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+        
+        if not quizzes:
+            empty_label = tk.Label(content, text="No quizzes yet",
+                                  font=('Segoe UI', 11), fg='#95a5a6', bg='#ffffff')
+            empty_label.pack(pady=20)
+            return
+        
+        for quiz in quizzes:
+            quiz_card = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
+            quiz_card.pack(fill='x', padx=10, pady=5)
+            
+            # Header
+            header = tk.Frame(quiz_card, bg='#e74c3c')
+            header.pack(fill='x', padx=10, pady=10)
+            
+            title = tk.Label(header, text=quiz.quiz_name,
+                           font=('Segoe UI', 11, 'bold'), bg='#e74c3c', fg='white')
+            title.pack(anchor='w')
+            
+            # Details
+            details_frame = tk.Frame(quiz_card, bg='#f8f9fa')
+            details_frame.pack(fill='x', padx=10, pady=5)
+            
+            status = "✓ Published" if quiz.is_published else "○ Draft"
+            info_label = tk.Label(details_frame, 
+                                 text=f"{quiz.subject} - {quiz.topic} | {quiz.num_questions} Questions | {quiz.total_marks} Marks | {status}",
+                                 font=('Segoe UI', 9), fg='#555', bg='#f8f9fa')
+            info_label.pack(anchor='w')
+    
     def create_students_list(self, parent):
         """Create detailed students list with information"""
-        # Sample student data (in real implementation, fetch from database)
+        # Get student data from the database
         students_data = self.get_class_students_data()
+        
+        # If no students found, show message
+        if not students_data:
+            no_data_frame = tk.Frame(parent, bg='#ffffff')
+            no_data_frame.pack(fill='both', expand=True, padx=20, pady=20)
+            
+            tk.Label(no_data_frame, text="📚 No Students Assigned", 
+                    font=('Segoe UI', 14, 'bold'), fg='#6c757d', bg='#ffffff').pack()
+            tk.Label(no_data_frame, 
+                    text="No students are currently assigned to this class.\nUse the Student Management section to add students.",
+                    font=('Segoe UI', 11), fg='#95a5a6', bg='#ffffff').pack(pady=(10, 0))
+            return
         
         for i, student in enumerate(students_data):
             # Student card
@@ -3825,11 +4292,11 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             
             tk.Label(financial_frame, text="💳 Fees Status:", 
                     font=('Segoe UI', 10, 'bold'), fg='#495057', bg='#ffffff').pack(anchor='w')
-            tk.Label(financial_frame, text=f"Total Fees: GHS {student['total_fees']:.2f}", 
+            tk.Label(financial_frame, text=f"Total Fees: {self.format_currency(student['total_fees'])}", 
                     font=('Segoe UI', 9), fg='#6c757d', bg='#ffffff').pack(anchor='w')
-            tk.Label(financial_frame, text=f"Paid: GHS {student['paid_fees']:.2f}", 
+            tk.Label(financial_frame, text=f"Paid: {self.format_currency(student['paid_fees'])}", 
                     font=('Segoe UI', 9), fg='#28a745', bg='#ffffff').pack(anchor='w')
-            tk.Label(financial_frame, text=f"Outstanding: GHS {student['outstanding_fees']:.2f}", 
+            tk.Label(financial_frame, text=f"Outstanding: {self.format_currency(student['outstanding_fees'])}", 
                     font=('Segoe UI', 9), fg='#dc3545', bg='#ffffff').pack(anchor='w')
     
     def create_assignments_interface(self, parent):
@@ -4010,55 +4477,67 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     def get_class_students_data(self):
         """Get actual student data from the database for the selected class"""
         if not hasattr(self, 'selected_class') or not self.selected_class.get():
-            return []
+            print("[DEBUG] No selected_class variable set, returning sample data")
+            return self.get_sample_students_data()
         
         try:
-            # Extract class name from the dropdown selection (remove student count part)
             selected_class_text = self.selected_class.get()
+            print(f"[DEBUG] Selected class text: {selected_class_text}")
+            
             if selected_class_text == "No classes available - Contact admin to create classes":
-                return []
-                
-            # Extract just the class name (before the parentheses)
-            class_name = selected_class_text.split(' (')[0]
+                return self.get_sample_students_data()
             
-            # Get class ID first
-            self.cursor.execute('SELECT id FROM classes WHERE class_name = ?', (class_name,))
-            class_result = self.cursor.fetchone()
+            # Get class ID from the stored class_data dictionary
+            if not hasattr(self, 'class_data') or selected_class_text not in self.class_data:
+                print(f"[DEBUG] Class data not found, extracting from text")
+                # Fallback: extract class name and look it up
+                class_name = selected_class_text.split(' (')[0].strip()
+                print(f"[DEBUG] Extracted class name: {class_name}")
+                self.cursor.execute('SELECT id FROM classes WHERE class_name = ?', (class_name,))
+                class_result = self.cursor.fetchone()
+                if not class_result:
+                    print(f"[DEBUG] No class found with name: {class_name}, returning sample data")
+                    return self.get_sample_students_data()
+                class_id = class_result[0]
+            else:
+                # Use the stored class ID
+                class_id = self.class_data[selected_class_text]
+                print(f"[DEBUG] Got class ID from dictionary: {class_id}")
             
-            if not class_result:
-                return self.get_sample_students_data()  # Fallback to sample data
-            
-            class_id = class_result[0]
+            print(f"[DEBUG] Using class ID: {class_id}")
             
             # Get students in this class with their financial information
+            # Using a simpler query first to check if we get results
             self.cursor.execute('''
-                SELECT s.student_id, s.name, s.date_of_birth, s.gender,
-                       COALESCE(f.amount_due, 0) as total_fees,
-                       COALESCE(f.payment_date, '') as last_payment,
-                       s.id
+                SELECT s.id, s.student_id, s.name, s.date_of_birth, s.gender
                 FROM students s
-                LEFT JOIN fees f ON s.id = f.student_id
                 WHERE s.class_id = ?
                 ORDER BY s.name
             ''', (class_id,))
             
-            students_data = []
             students = self.cursor.fetchall()
+            print(f"[DEBUG] Found {len(students)} students in class {class_id}")
             
+            if not students:
+                print(f"[DEBUG] No students found in database for class {class_id}, returning sample data")
+                return self.get_sample_students_data()
+            
+            students_data = []
             for student in students:
-                student_id, name, dob, gender, total_fees, last_payment, db_student_id = student
+                db_student_id, student_id, name, dob, gender = student
+                
+                print(f"[DEBUG] Processing student: {name} (ID: {student_id})")
                 
                 # Calculate age from date_of_birth
                 age = self.calculate_age(dob) if dob else "N/A"
                 
-                # Calculate attendance percentage (placeholder for now)
+                # Calculate attendance percentage
                 attendance = self.get_student_attendance_percentage(db_student_id)
                 
-                # Get current grade (placeholder for now)
+                # Get current grade
                 grade = self.get_student_current_grade(db_student_id)
                 
                 # Calculate financial status using Ghana Cedi
-                # Get comprehensive fee information from fees table
                 total_fees_due, amount_paid, outstanding_fees = self.get_student_fees_summary(db_student_id)
                 
                 student_data = {
@@ -4075,14 +4554,13 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 }
                 students_data.append(student_data)
             
-            # If no students found in database, return sample data
-            if not students_data:
-                return self.get_sample_students_data()
-                
+            print(f"[DEBUG] Successfully loaded {len(students_data)} students")
             return students_data
             
         except Exception as e:
-            print(f"Error fetching student data: {e}")
+            print(f"[ERROR] Error fetching student data: {e}")
+            import traceback
+            traceback.print_exc()
             return self.get_sample_students_data()
     
     def get_student_fees_summary(self, student_db_id):
@@ -4373,6 +4851,15 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     
     def manage_student_attendance(self, student):
         """Manage attendance for a specific student"""
+        # Check if teacher is authorized to manage this student
+        student_db_id = student.get('db_id') or student.get('id')
+        if self.current_user.get('role') == 'teacher':
+            self.cursor.execute("SELECT class_id FROM students WHERE id = ?", (student_db_id,))
+            student_class_result = self.cursor.fetchone()
+            if student_class_result and not self.is_teacher_authorized_for_student(student_class_result[0]):
+                messagebox.showerror("Access Denied", "You can only manage attendance for students from your assigned class")
+                return
+        
         attendance_window = self.create_responsive_window(
             self.root, 
             f"Attendance - {student['name']}", 
@@ -4423,15 +4910,67 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                                 value="late", font=('Segoe UI', 11), bg='#ffffff')
         late_rb.pack(anchor='w', pady=2)
         
+        # Reason for absence field (initially hidden)
+        reason_frame = tk.Frame(content, bg='#ffffff')
+        reason_frame.pack(fill='x', pady=(0, 20))
+        
+        tk.Label(reason_frame, text="Reason for Absence:", 
+                font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#ffffff').pack(anchor='w')
+        
+        # Predefined absence reasons
+        absence_reasons = ["Illness", "Medical Appointment", "Family Emergency", "Permission", "Other"]
+        reason_var = tk.StringVar(value="")
+        
+        reason_combo = ttk.Combobox(reason_frame, textvariable=reason_var, 
+                                    values=absence_reasons, state='readonly', width=40,
+                                    font=('Segoe UI', 10))
+        reason_combo.pack(anchor='w', pady=2)
+        
+        # Custom reason text field
+        tk.Label(reason_frame, text="Additional Details (Optional):", 
+                font=('Segoe UI', 10), fg='#555', bg='#ffffff').pack(anchor='w', pady=(10, 0))
+        
+        reason_text = tk.Text(reason_frame, height=3, width=50, font=('Segoe UI', 10))
+        reason_text.pack(anchor='w', pady=2)
+        
+        # Initially hide the reason frame
+        reason_frame.pack_forget()
+        
+        def update_reason_visibility(*args):
+            """Show/hide reason frame based on attendance status"""
+            if attendance_var.get() == "absent":
+                reason_frame.pack(fill='x', pady=(0, 20))
+            else:
+                reason_frame.pack_forget()
+        
+        attendance_var.trace('w', update_reason_visibility)
+        
         # Save button
         save_btn = tk.Button(content, text="Save Attendance", 
-                           command=lambda: self.save_attendance(student, attendance_var.get(), attendance_window),
+                           command=lambda: self.save_attendance(
+                               student, 
+                               attendance_var.get(), 
+                               attendance_window,
+                               {
+                                   'reason': reason_var.get(),
+                                   'details': reason_text.get("1.0", "end-1c").strip()
+                               }
+                           ),
                            font=('Segoe UI', 12, 'bold'), bg='#007bff', fg='white',
                            relief='solid', bd=0, padx=30, pady=10)
         save_btn.pack(pady=20)
     
     def write_student_remarks(self, student):
         """Write remarks for a specific student with scrollable interface"""
+        # Check if teacher is authorized to manage this student
+        student_db_id = student.get('db_id') or student.get('id')
+        if self.current_user.get('role') == 'teacher':
+            self.cursor.execute("SELECT class_id FROM students WHERE id = ?", (student_db_id,))
+            student_class_result = self.cursor.fetchone()
+            if student_class_result and not self.is_teacher_authorized_for_student(student_class_result[0]):
+                messagebox.showerror("Access Denied", "You can only write remarks for students from your assigned class")
+                return
+        
         remarks_window = self.create_responsive_window(
             self.root,
             f"Student Remarks - {student['name']}",
@@ -4677,37 +5216,59 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             tk.Label(fee_row, text=amount, 
                     font=('Segoe UI', 11, 'bold'), fg=color, bg='#f8f9fa').pack(side='right')
     
-    def save_attendance(self, student, status, window):
+    def save_attendance(self, student, status, window, reason_info=None):
         """Save attendance record for teacher's individual student management"""
         try:
             from datetime import date
             today = date.today().strftime('%Y-%m-%d')
             
+            # Get the actual database ID (not the student registration ID)
+            student_db_id = student.get('db_id') or student.get('id')
+            
             # Convert status to present value
             present = 1 if status == "present" else 0
             
+            # Prepare absence reason
+            absence_reason = None
+            if status == "absent" and reason_info:
+                reason = reason_info.get('reason', '')
+                details = reason_info.get('details', '')
+                
+                # Combine reason and details
+                if reason and details:
+                    absence_reason = f"{reason}: {details}"
+                elif reason:
+                    absence_reason = reason
+                elif details:
+                    absence_reason = details
+            
             # Check if attendance record exists for today
             self.cursor.execute("SELECT id FROM attendance WHERE student_id = ? AND date = ?", 
-                              (student['id'], today))
+                              (student_db_id, today))
             existing_record = self.cursor.fetchone()
             
             if existing_record:
                 # Update existing record
                 self.cursor.execute("""
-                    UPDATE attendance SET present = ? WHERE student_id = ? AND date = ?
-                """, (present, student['id'], today))
+                    UPDATE attendance SET present = ?, absence_reason = ? 
+                    WHERE student_id = ? AND date = ?
+                """, (present, absence_reason, student_db_id, today))
             else:
                 # Create new record
                 self.cursor.execute("""
-                    INSERT INTO attendance (student_id, date, present, feeding_fee_paid, bus_fee_paid) 
-                    VALUES (?, ?, ?, 0, 0)
-                """, (student['id'], today, present))
+                    INSERT INTO attendance (student_id, date, present, feeding_fee_paid, bus_fee_paid, absence_reason) 
+                    VALUES (?, ?, ?, 0, 0, ?)
+                """, (student_db_id, today, present, absence_reason))
             
             self.conn.commit()
             
             status_text = "Present" if present else ("Late" if status == "late" else "Absent")
+            reason_msg = ""
+            if absence_reason:
+                reason_msg = f"\nReason: {absence_reason}"
+            
             messagebox.showinfo("Attendance Saved", 
-                               f"Attendance marked as '{status_text}' for {student['name']} on {today}")
+                               f"Attendance marked as '{status_text}' for {student['name']} on {today}{reason_msg}")
             window.destroy()
             
         except Exception as e:
@@ -6949,13 +7510,239 @@ Collection Rate: {rate:.1f}%
     
     def generate_student_progress_reports(self):
         """Generate individual student progress reports"""
-        if AI_AVAILABLE and self.ai_predictor:
-            # Use AI report system
-            self.generate_student_report_ui()
-        else:
-            messagebox.showinfo("Feature", 
-                              "Please use the AI Reports menu for detailed student reports.\n\n"
-                              "Navigate to: 📊 AI Reports → Individual Student Report")
+        # Create report selection window
+        window = tk.Toplevel(self.root)
+        window.title("Student Progress Reports")
+        window.geometry("900x700")
+        window.transient(self.root)
+        
+        # Scrollable frame
+        scroll_frame = ScrollableFrame(window, bg='white')
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+        content = scroll_frame.scrollable_frame
+        
+        # Header
+        self.create_report_header(content, "📊 Student Progress Reports", "Performance Summary")
+        
+        # Get selected class ID
+        selected_class_text = self.selected_class.get() if hasattr(self, 'selected_class') else ""
+        if not selected_class_text:
+            messagebox.showerror("Error", "Please select a class first")
+            window.destroy()
+            return
+        
+        # Get class ID
+        class_id = self.class_data.get(selected_class_text) if hasattr(self, 'class_data') else None
+        if not class_id:
+            messagebox.showerror("Error", "Could not identify class")
+            window.destroy()
+            return
+        
+        # Get all students in class
+        try:
+            self.cursor.execute('''
+                SELECT id, student_id, name 
+                FROM students 
+                WHERE class_id = ? AND status = 'Active'
+                ORDER BY name
+            ''', (class_id,))
+            students = self.cursor.fetchall()
+        except:
+            students = []
+        
+        if not students:
+            no_data = tk.Frame(content, bg='white')
+            no_data.pack(fill='both', padx=20, pady=20)
+            tk.Label(no_data, text="No students found in this class", 
+                    font=('Segoe UI', 12), fg='#6c757d', bg='white').pack()
+            return
+        
+        # Progress reports for each student
+        for student_db_id, student_id, name in students:
+            self.create_progress_report_card(content, student_db_id, student_id, name, class_id)
+    
+    def create_progress_report_card(self, parent, student_db_id, student_id, name, class_id):
+        """Create a progress report card for a single student"""
+        # Card container
+        card = tk.Frame(parent, bg='#f8f9fa', relief='solid', bd=1)
+        card.pack(fill='x', padx=20, pady=10)
+        
+        # Header with student info
+        header = tk.Frame(card, bg='#e9ecef')
+        header.pack(fill='x', padx=15, pady=10)
+        
+        name_label = tk.Label(header, text=f"👤 {name} ({student_id})", 
+                             font=('Segoe UI', 12, 'bold'), fg='#2c3e50', bg='#e9ecef')
+        name_label.pack(anchor='w')
+        
+        # Metrics section
+        metrics_frame = tk.Frame(card, bg='#ffffff')
+        metrics_frame.pack(fill='both', padx=15, pady=(0, 15))
+        
+        # Attendance percentage
+        attendance = self.get_student_attendance_percentage(student_db_id)
+        attendance_color = '#28a745' if attendance >= 75 else '#ffc107' if attendance >= 60 else '#dc3545'
+        tk.Label(metrics_frame, text=f"Attendance: {attendance}%", 
+                font=('Segoe UI', 10, 'bold'), fg=attendance_color, bg='#ffffff').pack(anchor='w', pady=2)
+        
+        # Current grade
+        grade = self.get_student_current_grade(student_db_id)
+        grade_color = '#28a745' if grade and grade >= 60 else '#dc3545'
+        tk.Label(metrics_frame, text=f"Current Grade: {grade}%", 
+                font=('Segoe UI', 10, 'bold'), fg=grade_color, bg='#ffffff').pack(anchor='w', pady=2)
+        
+        # Get assignment completion rate
+        try:
+            self.cursor.execute('''
+                SELECT COUNT(*) as total, 
+                       SUM(CASE WHEN submitted = 1 THEN 1 ELSE 0 END) as completed
+                FROM assignments 
+                WHERE student_id = ? AND class_id = ?
+            ''', (student_db_id, class_id))
+            result = self.cursor.fetchone()
+            total_assignments = result[0] if result[0] else 0
+            completed_assignments = result[1] if result[1] else 0
+            completion_rate = (completed_assignments / total_assignments * 100) if total_assignments > 0 else 0
+        except:
+            completion_rate = 0
+            total_assignments = 0
+            completed_assignments = 0
+        
+        completion_color = '#28a745' if completion_rate >= 80 else '#ffc107' if completion_rate >= 60 else '#dc3545'
+        tk.Label(metrics_frame, text=f"Assignment Completion: {completion_rate:.0f}% ({completed_assignments}/{total_assignments})", 
+                font=('Segoe UI', 10, 'bold'), fg=completion_color, bg='#ffffff').pack(anchor='w', pady=2)
+        
+        # Financial status
+        total_fees, paid_fees, outstanding = self.get_student_fees_summary(student_db_id)
+        fees_color = '#28a745' if outstanding == 0 else '#ffc107' if outstanding < total_fees/2 else '#dc3545'
+        tk.Label(metrics_frame, text=f"Fees Status: ₵{outstanding:.2f} outstanding of ₵{total_fees:.2f}", 
+                font=('Segoe UI', 10, 'bold'), fg=fees_color, bg='#ffffff').pack(anchor='w', pady=2)
+        
+        # Overall progress indicator
+        overall_score = (attendance * 0.3 + (grade if grade else 0) * 0.4 + completion_rate * 0.3) / 100
+        overall_color = '#28a745' if overall_score >= 0.75 else '#ffc107' if overall_score >= 0.60 else '#dc3545'
+        overall_label = tk.Label(metrics_frame, text=f"Overall Progress: {overall_score:.1%}", 
+                                font=('Segoe UI', 11, 'bold'), fg=overall_color, bg='#ffffff')
+        overall_label.pack(anchor='w', pady=(10, 0))
+        
+        # Progress bar
+        bar_frame = tk.Frame(card, bg='#e9ecef', height=20)
+        bar_frame.pack(fill='x', padx=15, pady=(0, 10))
+        
+        progress_width = int(overall_score * 300)
+        progress_bar = tk.Frame(bar_frame, bg=overall_color, height=20)
+        progress_bar.place(width=progress_width, height=20)
+        
+        # Action button
+        btn_frame = tk.Frame(card, bg='#ffffff')
+        btn_frame.pack(fill='x', padx=15, pady=(0, 10))
+        
+        detail_btn = tk.Button(btn_frame, text="View Detailed Report", 
+                              command=lambda: self.show_detailed_student_progress(student_db_id, name),
+                              font=('Segoe UI', 9), bg='#007bff', fg='white',
+                              relief='solid', bd=0, padx=15, pady=5)
+        detail_btn.pack(side='left')
+    
+    def show_detailed_student_progress(self, student_db_id, student_name):
+        """Show detailed progress information for a student"""
+        window = tk.Toplevel(self.root)
+        window.title(f"Detailed Progress Report - {student_name}")
+        window.geometry("800x600")
+        window.transient(self.root)
+        
+        # Scrollable frame
+        scroll_frame = ScrollableFrame(window, bg='white')
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+        content = scroll_frame.scrollable_frame
+        
+        # Header
+        header = tk.Frame(content, bg='#e9ecef', relief='solid', bd=1)
+        header.pack(fill='x')
+        
+        title = tk.Label(header, text=f"📋 Detailed Progress Report: {student_name}", 
+                        font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#e9ecef')
+        title.pack(pady=15)
+        
+        # Get detailed metrics
+        try:
+            # Attendance details
+            self.cursor.execute('''
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN present = 1 THEN 1 ELSE 0 END) as present
+                FROM attendance
+                WHERE student_id = ? AND date >= date('now', '-30 days')
+            ''', (student_db_id,))
+            att_result = self.cursor.fetchone()
+            
+            # Grade breakdown
+            self.cursor.execute('''
+                SELECT subject, AVG(CAST(grade AS FLOAT)) as avg_grade
+                FROM grades
+                WHERE student_id = ?
+                GROUP BY subject
+            ''', (student_db_id,))
+            grades_by_subject = self.cursor.fetchall()
+            
+            # Recent assignments
+            self.cursor.execute('''
+                SELECT title, submitted, score, due_date
+                FROM assignments
+                WHERE student_id = ?
+                ORDER BY due_date DESC
+                LIMIT 5
+            ''', (student_db_id,))
+            recent_assignments = self.cursor.fetchall()
+        except:
+            att_result = (0, 0)
+            grades_by_subject = []
+            recent_assignments = []
+        
+        # Attendance section
+        att_section = tk.Frame(content, bg='#ffffff', relief='solid', bd=1)
+        att_section.pack(fill='x', padx=20, pady=10)
+        
+        att_title = tk.Label(att_section, text="✅ Attendance (Last 30 Days)", 
+                            font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#e9ecef')
+        att_title.pack(fill='x', pady=5, padx=10)
+        
+        if att_result[0] > 0:
+            att_pct = (att_result[1] / att_result[0] * 100) if att_result[0] else 0
+            att_text = tk.Label(att_section, 
+                               text=f"Present: {att_result[1]} days out of {att_result[0]} ({att_pct:.0f}%)",
+                               font=('Segoe UI', 10), fg='#495057', bg='#ffffff')
+            att_text.pack(anchor='w', padx=15, pady=10)
+        
+        # Grades section
+        if grades_by_subject:
+            grade_section = tk.Frame(content, bg='#ffffff', relief='solid', bd=1)
+            grade_section.pack(fill='x', padx=20, pady=10)
+            
+            grade_title = tk.Label(grade_section, text="📊 Grades by Subject", 
+                                  font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#e9ecef')
+            grade_title.pack(fill='x', pady=5, padx=10)
+            
+            for subject, avg_grade in grades_by_subject:
+                grade_label = tk.Label(grade_section, 
+                                      text=f"  {subject}: {avg_grade:.0f}%",
+                                      font=('Segoe UI', 10), fg='#495057', bg='#ffffff')
+                grade_label.pack(anchor='w', padx=15, pady=3)
+        
+        # Recent assignments section
+        if recent_assignments:
+            assign_section = tk.Frame(content, bg='#ffffff', relief='solid', bd=1)
+            assign_section.pack(fill='x', padx=20, pady=10)
+            
+            assign_title = tk.Label(assign_section, text="📝 Recent Assignments", 
+                                   font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#e9ecef')
+            assign_title.pack(fill='x', pady=5, padx=10)
+            
+            for title, submitted, score, due_date in recent_assignments:
+                status = "✅ Submitted" if submitted else "⏳ Pending"
+                assign_label = tk.Label(assign_section, 
+                                       text=f"  {title}: {status} | Score: {score if score else 'N/A'}",
+                                       font=('Segoe UI', 9), fg='#495057', bg='#ffffff')
+                assign_label.pack(anchor='w', padx=15, pady=3)
+
     
     def generate_attendance_report(self):
         """Generate attendance summary report"""
@@ -7200,6 +7987,13 @@ Highest Grade: {max_grade:.1f}%
     # Content area is now created dynamically after login in on_login_success method
     
     def show_dashboard(self):
+        # Deny student access to main dashboard
+        if self.current_user and self.current_user.get('role') == 'student':
+            messagebox.showerror("Access Denied", 
+                                "Students do not have access to the main dashboard.\n\n"
+                                "Please use 📚 Learning Support to access your learning features.")
+            return
+        
         # Check dashboard permission
         if not self.check_permission_or_show_error('dashboard', 'Dashboard'):
             return
@@ -8618,6 +9412,36 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         subtitle = tk.Label(header_section, text=subtitle_text,
                            font=('Segoe UI', 14), fg='#7f8c8d')
         subtitle.pack(anchor=tk.W, pady=(5, 0))
+        
+        # Teacher Class Selector - shows at top for teachers only
+        if self.current_user.get('role') == 'teacher':
+            teacher_class_selector = tk.Frame(header_section, bg='#ffffff')
+            teacher_class_selector.pack(fill=tk.X, pady=(15, 0))
+            
+            select_class_label = tk.Label(teacher_class_selector, text="📚 Select Class to Manage:", 
+                                         font=('Segoe UI', 11, 'bold'), fg='#2c3e50', bg='#ffffff')
+            select_class_label.pack(side=tk.LEFT, padx=(0, 10))
+            
+            # Get teacher's assigned classes
+            teacher_classes = self.get_teacher_assigned_classes()
+            # Extract just the class names (remove student count info)
+            class_names = [c.split(' (')[0] for c in teacher_classes]
+            
+            self.teacher_class_selector_var = tk.StringVar(value=class_names[0] if class_names else "")
+            teacher_class_combo = ttk.Combobox(teacher_class_selector, 
+                                              textvariable=self.teacher_class_selector_var,
+                                              values=class_names, 
+                                              state="readonly", 
+                                              width=25,
+                                              font=('Segoe UI', 11))
+            teacher_class_combo.pack(side=tk.LEFT, padx=(0, 15))
+            teacher_class_combo.bind('<<ComboboxSelected>>', self.on_teacher_class_change)
+            
+            view_btn = tk.Button(teacher_class_selector, text="📋 View Class Details",
+                               font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
+                               relief=tk.FLAT, bd=0, padx=15, pady=5, cursor='hand2',
+                               command=self.show_teacher_class_details)
+            view_btn.pack(side=tk.LEFT)
 
         # Statistics Panel
         stats_section = tk.Frame(student_main_frame, bg='#f8f9fa', relief=tk.FLAT, bd=0)
@@ -9114,6 +9938,430 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate PDF: {str(e)}")
+
+    def generate_student_financial_academic_report(self):
+        """Generate comprehensive student financial and academic records for a period"""
+        try:
+            # Create report window
+            report_window = tk.Toplevel(self.root)
+            report_window.title("Student Financial & Academic Report Generator")
+            report_window.geometry("600x500")
+            report_window.grab_set()
+            
+            # Main frame
+            main_frame = tk.Frame(report_window, bg='#f0f8ff')
+            main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            # Title
+            tk.Label(main_frame, text="📊 Student Financial & Academic Report", 
+                    font=('Segoe UI', 14, 'bold'), bg='#f0f8ff', fg='#2c3e50').pack(pady=(0, 20))
+            
+            # Student selection
+            tk.Label(main_frame, text="Select Student:", font=('Segoe UI', 10, 'bold'), 
+                    bg='#f0f8ff').pack(anchor='w', pady=(10, 5))
+            
+            student_var = tk.StringVar()
+            self.cursor.execute("SELECT id, student_id, name FROM students ORDER BY name")
+            students = self.cursor.fetchall()
+            student_list = [f"{s[1]} - {s[2]}" for s in students]
+            student_ids = [s[0] for s in students]
+            
+            student_combo = ttk.Combobox(main_frame, textvariable=student_var, 
+                                        values=student_list, state='readonly', width=50)
+            student_combo.pack(fill='x', pady=(0, 15))
+            
+            # Period selection
+            period_frame = tk.Frame(main_frame, bg='#f0f8ff')
+            period_frame.pack(fill='x', pady=(10, 0))
+            
+            tk.Label(period_frame, text="From Date:", font=('Segoe UI', 10, 'bold'), 
+                    bg='#f0f8ff').pack(side='left', padx=(0, 5))
+            
+            from_date_var = tk.StringVar(value=date.today().strftime('%Y-%m-%d'))
+            from_date_entry = tk.Entry(period_frame, textvariable=from_date_var, 
+                                      font=('Segoe UI', 10), width=15)
+            from_date_entry.pack(side='left', padx=(0, 20))
+            
+            tk.Label(period_frame, text="To Date:", font=('Segoe UI', 10, 'bold'), 
+                    bg='#f0f8ff').pack(side='left', padx=(0, 5))
+            
+            to_date_var = tk.StringVar(value=date.today().strftime('%Y-%m-%d'))
+            to_date_entry = tk.Entry(period_frame, textvariable=to_date_var, 
+                                    font=('Segoe UI', 10), width=15)
+            to_date_entry.pack(side='left')
+            
+            # Options frame
+            options_frame = tk.LabelFrame(main_frame, text="Report Options", 
+                                         font=('Segoe UI', 10, 'bold'), bg='#f0f8ff', 
+                                         fg='#2c3e50', relief='solid', bd=1)
+            options_frame.pack(fill='x', pady=20)
+            
+            include_financial = tk.BooleanVar(value=True)
+            include_academic = tk.BooleanVar(value=True)
+            include_attendance = tk.BooleanVar(value=True)
+            
+            tk.Checkbutton(options_frame, text="Include Financial Records (Fees & Payments)", 
+                          variable=include_financial, bg='#f0f8ff', 
+                          font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=5)
+            tk.Checkbutton(options_frame, text="Include Academic Records (Grades)", 
+                          variable=include_academic, bg='#f0f8ff', 
+                          font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=5)
+            tk.Checkbutton(options_frame, text="Include Attendance Records", 
+                          variable=include_attendance, bg='#f0f8ff', 
+                          font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=5)
+            
+            # Buttons frame
+            button_frame = tk.Frame(main_frame, bg='#f0f8ff')
+            button_frame.pack(fill='x', pady=(20, 0))
+            
+            def generate_and_export():
+                try:
+                    if not student_var.get():
+                        messagebox.showerror("Error", "Please select a student")
+                        return
+                    
+                    student_idx = student_list.index(student_var.get())
+                    student_id = student_ids[student_idx]
+                    
+                    from_date = from_date_var.get()
+                    to_date = to_date_var.get()
+                    
+                    # Generate report
+                    report_data = self._generate_student_detailed_report(
+                        student_id, from_date, to_date,
+                        include_financial.get(), include_academic.get(), include_attendance.get()
+                    )
+                    
+                    if report_data:
+                        self._export_student_report_pdf(report_data)
+                        messagebox.showinfo("Success", "Report generated and exported to PDF!")
+                    else:
+                        messagebox.showerror("Error", "Failed to generate report")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error: {str(e)}")
+            
+            generate_btn = tk.Button(button_frame, text="📄 Generate & Export PDF", 
+                                    command=generate_and_export,
+                                    bg='#27ae60', fg='white', font=('Segoe UI', 11, 'bold'),
+                                    relief='flat', padx=20, pady=10, cursor='hand2')
+            generate_btn.pack(side='left', padx=5)
+            
+            close_btn = tk.Button(button_frame, text="Close", 
+                                 command=report_window.destroy,
+                                 bg='#95a5a6', fg='white', font=('Segoe UI', 11),
+                                 relief='flat', padx=20, pady=10, cursor='hand2')
+            close_btn.pack(side='right', padx=5)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open report generator: {str(e)}")
+    
+    def _generate_student_detailed_report(self, student_id, from_date, to_date, 
+                                         include_financial=True, include_academic=True, 
+                                         include_attendance=True):
+        """Generate detailed student report data"""
+        try:
+            report = {
+                'student_info': {},
+                'financial_records': [],
+                'academic_records': [],
+                'attendance_records': [],
+                'period': {'from': from_date, 'to': to_date},
+                'summary': {}
+            }
+            
+            # Get student info
+            self.cursor.execute("""
+                SELECT s.name, s.student_id, s.date_of_birth, s.gender,
+                       c.class_name, s.phone, s.address, s.father_name, s.mother_name
+                FROM students s
+                LEFT JOIN classes c ON s.class_id = c.id
+                WHERE s.id = ?
+            """, (student_id,))
+            
+            student_info = self.cursor.fetchone()
+            if student_info:
+                report['student_info'] = {
+                    'name': student_info[0],
+                    'student_id': student_info[1],
+                    'dob': student_info[2],
+                    'gender': student_info[3],
+                    'class': student_info[4] or 'Not assigned',
+                    'phone': student_info[5],
+                    'address': student_info[6],
+                    'father': student_info[7],
+                    'mother': student_info[8]
+                }
+            
+            # Get financial records
+            if include_financial:
+                self.cursor.execute("""
+                    SELECT payment_date, fee_type, amount_due, amount_paid, arrears
+                    FROM fees
+                    WHERE student_id = ? AND payment_date BETWEEN ? AND ?
+                    ORDER BY payment_date DESC
+                """, (student_id, from_date, to_date))
+                
+                fees = self.cursor.fetchall()
+                total_due = 0
+                total_paid = 0
+                
+                for fee in fees:
+                    report['financial_records'].append({
+                        'date': fee[0],
+                        'type': fee[1],
+                        'due': fee[2],
+                        'paid': fee[3],
+                        'arrears': fee[4]
+                    })
+                    total_due += fee[2] or 0
+                    total_paid += fee[3] or 0
+                
+                report['summary']['total_fees_due'] = round(total_due, 2)
+                report['summary']['total_fees_paid'] = round(total_paid, 2)
+                report['summary']['outstanding'] = round(total_due - total_paid, 2)
+            
+            # Get academic records (grades)
+            if include_academic:
+                self.cursor.execute("""
+                    SELECT subject, grade, assignment_type, date_recorded
+                    FROM grades
+                    WHERE student_id = ? AND date_recorded BETWEEN ? AND ?
+                    ORDER BY date_recorded DESC
+                """, (student_id, from_date, to_date))
+                
+                grades = self.cursor.fetchall()
+                for grade in grades:
+                    report['academic_records'].append({
+                        'subject': grade[0],
+                        'grade': grade[1],
+                        'type': grade[2],
+                        'date': grade[3]
+                    })
+                
+                if grades:
+                    avg_grade = sum([g[1] for g in grades if isinstance(g[1], (int, float))]) / len(grades)
+                    report['summary']['average_grade'] = round(avg_grade, 1)
+            
+            # Get attendance records
+            if include_attendance:
+                self.cursor.execute("""
+                    SELECT date_recorded, present
+                    FROM attendance
+                    WHERE student_id = ? AND date_recorded BETWEEN ? AND ?
+                    ORDER BY date_recorded DESC
+                """, (student_id, from_date, to_date))
+                
+                attendance = self.cursor.fetchall()
+                present_count = sum(1 for a in attendance if a[1] == 1)
+                total_days = len(attendance)
+                
+                for att in attendance:
+                    report['attendance_records'].append({
+                        'date': att[0],
+                        'present': 'Present' if att[1] == 1 else 'Absent'
+                    })
+                
+                if total_days > 0:
+                    report['summary']['attendance_rate'] = round((present_count / total_days) * 100, 1)
+                    report['summary']['days_present'] = present_count
+                    report['summary']['days_total'] = total_days
+            
+            return report
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate report data: {str(e)}")
+            return None
+    
+    def _export_student_report_pdf(self, report_data):
+        """Export student report to PDF"""
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            from datetime import datetime
+            
+            # File dialog
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("PDF files", "*.pdf")],
+                title="Save Student Report As",
+                initialfile=f"Student_Report_{report_data['student_info']['name'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            )
+            
+            if not filename:
+                return
+            
+            # Create PDF
+            doc = SimpleDocTemplate(filename, pagesize=A4, 
+                                   topMargin=0.5*inch, bottomMargin=0.5*inch,
+                                   leftMargin=0.75*inch, rightMargin=0.75*inch)
+            story = []
+            styles = getSampleStyleSheet()
+            
+            # Custom styles
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=16,
+                textColor=colors.HexColor('#2c3e50'),
+                spaceAfter=6,
+                alignment=1
+            )
+            
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontSize=12,
+                textColor=colors.HexColor('#34495e'),
+                spaceAfter=6,
+                spaceBefore=12,
+                borderPadding=5
+            )
+            
+            # Title
+            story.append(Paragraph("STUDENT FINANCIAL & ACADEMIC REPORT", title_style))
+            story.append(Paragraph(f"Report Period: {report_data['period']['from']} to {report_data['period']['to']}", 
+                                  styles['Normal']))
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Student Information
+            story.append(Paragraph("STUDENT INFORMATION", heading_style))
+            student_info = report_data['student_info']
+            student_data = [
+                ['Field', 'Information'],
+                ['Name', student_info.get('name', 'N/A')],
+                ['Student ID', student_info.get('student_id', 'N/A')],
+                ['Class', student_info.get('class', 'N/A')],
+                ['Date of Birth', student_info.get('dob', 'N/A')],
+                ['Gender', student_info.get('gender', 'N/A')],
+                ['Phone', student_info.get('phone', 'N/A')],
+                ['Address', student_info.get('address', 'N/A')],
+            ]
+            
+            student_table = Table(student_data, colWidths=[2*inch, 3.5*inch])
+            student_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ecf0f1')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+            ]))
+            story.append(student_table)
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Financial Records
+            if report_data['financial_records']:
+                story.append(Paragraph("FINANCIAL RECORDS", heading_style))
+                
+                fin_data = [['Date', 'Fee Type', 'Amount Due', 'Amount Paid', 'Arrears']]
+                for record in report_data['financial_records']:
+                    fin_data.append([
+                        record.get('date', 'N/A'),
+                        record.get('type', 'N/A'),
+                        f"GHS {record.get('due', 0):.2f}",
+                        f"GHS {record.get('paid', 0):.2f}",
+                        f"GHS {record.get('arrears', 0):.2f}"
+                    ])
+                
+                fin_table = Table(fin_data, colWidths=[1.2*inch, 1.2*inch, 1.1*inch, 1.1*inch, 1.1*inch])
+                fin_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#27ae60')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 9),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f8f0')])
+                ]))
+                story.append(fin_table)
+                
+                # Financial Summary
+                summary = report_data['summary']
+                summary_text = f"<b>Total Due:</b> GHS {summary.get('total_fees_due', 0):.2f} | "
+                summary_text += f"<b>Total Paid:</b> GHS {summary.get('total_fees_paid', 0):.2f} | "
+                summary_text += f"<b>Outstanding:</b> GHS {summary.get('outstanding', 0):.2f}"
+                story.append(Spacer(1, 0.1*inch))
+                story.append(Paragraph(summary_text, styles['Normal']))
+                story.append(Spacer(1, 0.2*inch))
+            
+            # Academic Records
+            if report_data['academic_records']:
+                story.append(Paragraph("ACADEMIC RECORDS (GRADES)", heading_style))
+                
+                acad_data = [['Date', 'Subject', 'Grade', 'Type']]
+                for record in report_data['academic_records']:
+                    acad_data.append([
+                        record.get('date', 'N/A'),
+                        record.get('subject', 'N/A'),
+                        str(record.get('grade', 'N/A')),
+                        record.get('type', 'N/A')
+                    ])
+                
+                acad_table = Table(acad_data, colWidths=[1.5*inch, 1.5*inch, 1*inch, 1.5*inch])
+                acad_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9b59b6')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f0f8')])
+                ]))
+                story.append(acad_table)
+                
+                if 'average_grade' in report_data['summary']:
+                    avg_text = f"<b>Average Grade:</b> {report_data['summary']['average_grade']}"
+                    story.append(Spacer(1, 0.1*inch))
+                    story.append(Paragraph(avg_text, styles['Normal']))
+                story.append(Spacer(1, 0.2*inch))
+            
+            # Attendance Records
+            if report_data['attendance_records']:
+                story.append(Paragraph("ATTENDANCE RECORDS", heading_style))
+                
+                att_data = [['Date', 'Status']]
+                for record in report_data['attendance_records'][:20]:  # Show last 20
+                    att_data.append([
+                        record.get('date', 'N/A'),
+                        record.get('present', 'N/A')
+                    ])
+                
+                if len(report_data['attendance_records']) > 20:
+                    att_data.append(['...', f"... and {len(report_data['attendance_records']) - 20} more records"])
+                
+                att_table = Table(att_data, colWidths=[2*inch, 2*inch])
+                att_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e74c3c')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fadbd8')])
+                ]))
+                story.append(att_table)
+                
+                if 'attendance_rate' in report_data['summary']:
+                    att_text = f"<b>Attendance Rate:</b> {report_data['summary']['attendance_rate']}% | "
+                    att_text += f"<b>Days Present:</b> {report_data['summary'].get('days_present', 0)} / "
+                    att_text += f"{report_data['summary'].get('days_total', 0)}"
+                    story.append(Spacer(1, 0.1*inch))
+                    story.append(Paragraph(att_text, styles['Normal']))
+            
+            # Footer
+            story.append(Spacer(1, 0.3*inch))
+            footer_text = f"Report generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            story.append(Paragraph(footer_text, styles['Normal']))
+            
+            # Build PDF
+            doc.build(story)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export PDF: {str(e)}")
 
     def browse_student_document(self):
         """Browse and select document file for student"""
@@ -9853,6 +11101,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             self.conn.commit()
             messagebox.showinfo("Success", "Student updated successfully")
             self.load_students()
+            self.update_dashboard()
+            self.clear_student_form()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update student: {str(e)}")
 
@@ -9928,6 +11178,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
             # Reload student list and clear form
             self.load_students()
+            self.update_dashboard()
             self.clear_student_form()
             
         except Exception as e:
@@ -10245,10 +11496,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 ("🏠 Address & Transportation", [
                     ("Address", 'address', 'text'),
                     ("Transportation", 'transportation', 'combo', ['Walk-in', 'Bus']),
-                    ("Bus Fee (₦)", 'bus_fee', 'entry'),
+                    ("Bus Fee", 'bus_fee', 'entry'),
                 ]),
                 ("💳 Fees", [
-                    ("Monthly Fee (₦)", 'monthly_fee', 'entry'),
+                    ("Monthly Fee", 'monthly_fee', 'entry'),
                     ("Feeding Fee Paid", 'feeding_fee_paid', 'check'),
                 ]),
                 ("🆘 Emergency Contact", [
@@ -10469,6 +11720,163 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         except Exception as e:
             print(f"Error updating student statistics: {e}")
     
+    def on_teacher_class_change(self, event=None):
+        """Callback when teacher changes selected class from dropdown"""
+        selected_class_name = self.teacher_class_selector_var.get()
+        
+        if not selected_class_name:
+            messagebox.showerror("Error", "Please select a class")
+            return
+        
+        try:
+            # Get class ID from class name
+            self.cursor.execute("SELECT id FROM classes WHERE class_name = ?", (selected_class_name,))
+            result = self.cursor.fetchone()
+            
+            if result:
+                class_id = result[0]
+                # Update the internal teacher assigned class (for the current session)
+                self.selected_teacher_class_id = class_id
+                
+                # Reload students list to show only students from selected class
+                self.load_students()
+                
+                # Show feedback
+                self.cursor.execute("SELECT current_students, capacity FROM classes WHERE id = ?", (class_id,))
+                class_info = self.cursor.fetchone()
+                if class_info:
+                    students_count = class_info[0]
+                    capacity = class_info[1]
+                    messagebox.showinfo("Class Selected", 
+                                      f"Now viewing class: {selected_class_name}\n"
+                                      f"Students: {students_count}/{capacity}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to change class: {str(e)}")
+            print(f"Error in on_teacher_class_change: {e}")
+    
+    def show_teacher_class_details(self):
+        """Show detailed information about the currently selected class"""
+        selected_class_name = self.teacher_class_selector_var.get()
+        
+        if not selected_class_name:
+            messagebox.showerror("Error", "Please select a class first")
+            return
+        
+        try:
+            self.cursor.execute('''
+                SELECT c.id, c.class_name, c.capacity, c.current_students, t.name, c.created_date
+                FROM classes c
+                LEFT JOIN teachers t ON c.class_teacher_id = t.id
+                WHERE c.class_name = ?
+            ''', (selected_class_name,))
+            
+            class_data = self.cursor.fetchone()
+            
+            if not class_data:
+                messagebox.showerror("Error", "Class not found")
+                return
+            
+            class_id, class_name, capacity, current_students, teacher_name, created_date = class_data
+            
+            # Create details window
+            details_window = tk.Toplevel(self.root)
+            details_window.title(f"Class Details: {class_name}")
+            details_window.geometry("500x400")
+            details_window.configure(bg='#f8f9fa')
+            
+            # Make window modal
+            details_window.transient(self.root)
+            details_window.grab_set()
+            
+            # Header
+            header = tk.Frame(details_window, bg='#3498db', height=60)
+            header.pack(fill=tk.X)
+            header.pack_propagate(False)
+            
+            header_content = tk.Frame(header, bg='#3498db')
+            header_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+            
+            tk.Label(header_content, text=f"📚 {class_name} - Class Details", 
+                    font=('Segoe UI', 16, 'bold'), fg='white', bg='#3498db').pack(anchor='w')
+            
+            # Content
+            content = tk.Frame(details_window, bg='#f8f9fa')
+            content.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+            
+            # Class Information Frame
+            info_frame = tk.Frame(content, bg='#ffffff', relief=tk.FLAT, bd=1)
+            info_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            info_content = tk.Frame(info_frame, bg='#ffffff')
+            info_content.pack(fill=tk.X, padx=20, pady=15)
+            
+            # Class name
+            tk.Label(info_content, text="Class Name:", 
+                    font=('Segoe UI', 11, 'bold'), bg='#ffffff', fg='#2c3e50').pack(anchor='w')
+            tk.Label(info_content, text=class_name, 
+                    font=('Segoe UI', 11), bg='#ffffff', fg='#34495e').pack(anchor='w', pady=(0, 10))
+            
+            # Class Teacher
+            tk.Label(info_content, text="Class Teacher:", 
+                    font=('Segoe UI', 11, 'bold'), bg='#ffffff', fg='#2c3e50').pack(anchor='w')
+            tk.Label(info_content, text=teacher_name or "Not Assigned", 
+                    font=('Segoe UI', 11), bg='#ffffff', fg='#34495e').pack(anchor='w', pady=(0, 10))
+            
+            # Student Information Frame
+            students_frame = tk.Frame(content, bg='#e8f4f8', relief=tk.FLAT, bd=1)
+            students_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            students_content = tk.Frame(students_frame, bg='#e8f4f8')
+            students_content.pack(fill=tk.X, padx=20, pady=15)
+            
+            tk.Label(students_content, text="📊 Student Count:", 
+                    font=('Segoe UI', 11, 'bold'), bg='#e8f4f8', fg='#2c3e50').pack(anchor='w')
+            
+            count_text = f"{current_students} / {capacity} students enrolled"
+            percentage = int((current_students / capacity * 100)) if capacity > 0 else 0
+            
+            tk.Label(students_content, text=count_text, 
+                    font=('Segoe UI', 12, 'bold'), bg='#e8f4f8', fg='#27ae60').pack(anchor='w', pady=(5, 0))
+            
+            # Progress bar
+            progress_frame = tk.Frame(students_content, bg='#ffffff', relief=tk.FLAT, bd=1)
+            progress_frame.pack(fill=tk.X, pady=(10, 0))
+            
+            fill_width = int((percentage / 100) * 300) if percentage > 0 else 0
+            filled = tk.Frame(progress_frame, bg='#27ae60', width=fill_width, height=20)
+            filled.pack(side=tk.LEFT, fill=tk.Y)
+            
+            progress_text = tk.Label(progress_frame, text=f"{percentage}% Capacity", 
+                                    font=('Segoe UI', 9, 'bold'), bg='#ffffff', fg='#2c3e50')
+            progress_text.place(relx=0.5, rely=0.5, anchor='center')
+            
+            progress_frame.pack_propagate(False)
+            progress_frame.config(height=25)
+            
+            # Additional Info Frame
+            info2_frame = tk.Frame(content, bg='#f0f0f0', relief=tk.FLAT, bd=1)
+            info2_frame.pack(fill=tk.BOTH, expand=True)
+            
+            info2_content = tk.Frame(info2_frame, bg='#f0f0f0')
+            info2_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
+            
+            tk.Label(info2_content, text="📝 Additional Information:", 
+                    font=('Segoe UI', 11, 'bold'), bg='#f0f0f0', fg='#2c3e50').pack(anchor='w')
+            
+            tk.Label(info2_content, text=f"Created Date: {created_date or 'N/A'}", 
+                    font=('Segoe UI', 10), bg='#f0f0f0', fg='#34495e').pack(anchor='w', pady=(10, 5))
+            
+            # Close button
+            close_btn = tk.Button(content, text="Close", 
+                                 font=('Segoe UI', 11, 'bold'), bg='#95a5a6', fg='white',
+                                 relief=tk.FLAT, bd=0, padx=30, pady=8, cursor='hand2',
+                                 command=details_window.destroy)
+            close_btn.pack(anchor='e', pady=(15, 0))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load class details: {str(e)}")
+            print(f"Error in show_teacher_class_details: {e}")
+    
     def load_students(self):
         try:
             # Clear existing data
@@ -10502,8 +11910,11 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     '''
                     params = ()
             elif self.current_user.get('role') == 'teacher':
-                # Teacher sees only students from their assigned class
-                teacher_class_id = self.get_teacher_assigned_class()
+                # Teacher sees only students from their assigned class or selected class
+                # Check if teacher has selected a specific class
+                selected_teacher_class_id = getattr(self, 'selected_teacher_class_id', None)
+                teacher_class_id = selected_teacher_class_id or self.get_teacher_assigned_class()
+                
                 if teacher_class_id:
                     query = '''
                         SELECT s.id, s.student_id, s.name, c.class_name, s.gender, 
@@ -10979,6 +12390,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 cid = self.cursor.lastrowid
                 self.cursor.execute("UPDATE classes SET class_teacher_id = ? WHERE id = ?", (teacher_id, cid))
             self.conn.commit()
+            self.update_dashboard()
+            self.clear_class_form()
             self.load_classes()
             messagebox.showinfo("Success","Class added")
         except Exception as e:
@@ -11000,6 +12413,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         try:
             self.cursor.execute("UPDATE classes SET class_name = ?, capacity = ?, class_teacher_id = ? WHERE id = ?",
                                 (name, int(cap), teacher_id, cid))
+            self.update_dashboard()
+            self.clear_class_form()
             self.conn.commit()
             self.load_classes()
             messagebox.showinfo("Success","Class updated")
@@ -11017,6 +12432,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 self.cursor.execute("DELETE FROM classes WHERE id = ?", (cid,))
                 self.conn.commit()
                 self.load_classes()
+                self.update_dashboard()
+                self.clear_class_form()
                 messagebox.showinfo("Success","Class deleted")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
@@ -11349,22 +12766,27 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                               font=('Segoe UI', 9), bg='#ffffff', fg='#7f8c8d')
         upload_desc.pack(anchor=tk.W, pady=(0, 15))
         
-        # Photo section
+        # Photo section with 70% buttons, 30% photo layout
         photo_section = tk.Frame(upload_section, bg='#ffffff')
         photo_section.pack(fill=tk.X, pady=(0, 15))
         
-        # Photo display area
-        photo_display_frame = tk.Frame(photo_section, bg='#f8f9fa', relief=tk.SOLID, bd=1)
-        photo_display_frame.pack(side=tk.LEFT, padx=(0, 15))
+        # Configure grid columns: 70% buttons, 30% photo
+        photo_section.grid_columnconfigure(0, weight=7)  # Buttons column (70%)
+        photo_section.grid_columnconfigure(1, weight=3)  # Photo column (30%)
+        
+        # Photo buttons frame (70% width) - using grid
+        photo_buttons_frame = tk.Frame(photo_section, bg='#ffffff')
+        photo_buttons_frame.grid(row=0, column=0, sticky='nsew', padx=(0, 10))
+        
+        # Photo display area (30% width) - using grid
+        photo_display_frame = tk.Frame(photo_section, bg='#f8f9fa', relief=tk.SOLID, bd=1, height=280)
+        photo_display_frame.grid(row=0, column=1, sticky='nsew', padx=(10, 0))
+        photo_display_frame.grid_propagate(False)  # Maintain height
         
         self.teacher_photo_label = tk.Label(photo_display_frame, text="📸\nNo Photo", 
                                            font=('Segoe UI', 10), bg='#f8f9fa', fg='#7f8c8d',
-                                           width=12, height=8, relief=tk.FLAT)
-        self.teacher_photo_label.pack(padx=5, pady=5)
-        
-        # Photo buttons
-        photo_buttons_frame = tk.Frame(photo_section, bg='#ffffff')
-        photo_buttons_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+                                           relief=tk.FLAT)
+        self.teacher_photo_label.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         photo_upload_btn = self.create_enhanced_form_button(photo_buttons_frame, "📂 Browse Photo", 
                                                            self.browse_teacher_photo, '#3498db', '#2980b9')
@@ -11378,7 +12800,6 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         photo_clear_btn = self.create_enhanced_form_button(photo_buttons_frame, "🧹 Clear Photo", 
                                                           self.clear_teacher_photo, '#e74c3c', '#c0392b')
         photo_clear_btn.pack(fill=tk.X)
-        
         # Documents section
         docs_section = tk.Frame(upload_section, bg='#ffffff')
         docs_section.pack(fill=tk.X, pady=(15, 0))
@@ -11629,7 +13050,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             messagebox.showerror("Error", f"Failed to load photo: {str(e)}")
     
     def load_teacher_photo(self, file_path):
-        """Load and display a photo in the teacher form"""
+        """Load and display a photo in the teacher form (resized to passport size)"""
         if not CAMERA_AVAILABLE:
             messagebox.showwarning("Feature Unavailable", 
                                  "Photo functionality requires PIL (Pillow) library.\n"
@@ -11637,19 +13058,40 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             return
             
         try:
-            # Open and resize the image
+            # Open the image
             image = Image.open(file_path)
-            # Resize to fit the display area (120x160 pixels)
-            image = image.resize((120, 160), Image.Resampling.LANCZOS)
             
-            # Convert to PhotoImage
-            photo = ImageTk.PhotoImage(image)
+            # Resize to standard passport picture size (35mm × 45mm)
+            # Using 300 DPI standard: 413 × 531 pixels
+            # But for display, we'll use a smaller preview (120 × 155 pixels maintaining aspect ratio)
+            passport_width, passport_height = 413, 531  # Standard passport size in pixels at 300 DPI
+            
+            # Maintain aspect ratio by fitting image into passport dimensions
+            image.thumbnail((passport_width, passport_height), Image.Resampling.LANCZOS)
+            
+            # Create a new image with passport dimensions and white background
+            passport_image = Image.new('RGB', (passport_width, passport_height), 'white')
+            # Center the photo on the white background
+            offset = ((passport_width - image.width) // 2, (passport_height - image.height) // 2)
+            passport_image.paste(image, offset)
+            
+            # Create display preview (scaled to fit frame: ~180x260 pixels)
+            display_image = passport_image.copy()
+            display_image.thumbnail((180, 260), Image.Resampling.LANCZOS)
+            
+            # Convert display image to PhotoImage
+            photo = ImageTk.PhotoImage(display_image)
             
             # Update the photo label
             self.teacher_photo_label.configure(image=photo, text="")
             self.teacher_photo_label.image = photo  # Keep a reference
             
-            # Store the file path for saving
+            # Store the passport-sized image as BLOB
+            with io.BytesIO() as img_io:
+                passport_image.save(img_io, format='JPEG', quality=95)
+                self.teacher_photo_data = img_io.getvalue()
+            
+            # Store the file path for reference
             self.teacher_photo_path = file_path
             
         except Exception as e:
@@ -12179,8 +13621,9 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                                         (teacher_id, doc_path, doc_name, file_size))
             
             self.conn.commit()
-            self.clear_teacher_form()
             self.load_teachers()
+            self.update_dashboard()
+            self.clear_teacher_form()
             messagebox.showinfo("Success", "Teacher added successfully!")
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -12266,6 +13709,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
             self.conn.commit()
             self.load_teachers()
+            self.update_dashboard()
+            self.clear_teacher_form()
             messagebox.showinfo("Success", "Teacher updated successfully!")
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -12312,6 +13757,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
         tid = self.teachers_tree.item(sel[0])['values'][0]
         if messagebox.askyesno("Confirm","Delete selected teacher?"):
             try:
+                self.load_teachers()
+                self.update_dashboard()
+                self.clear_teacher_form()
+               
                 self.cursor.execute("DELETE FROM teachers WHERE id = ?", (tid,))
                 self.conn.commit(); self.load_teachers(); messagebox.showinfo("Success","Teacher deleted")
             except Exception as e:
@@ -13028,10 +14477,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 self.cursor.execute("SELECT id FROM attendance WHERE student_id = ? AND date = ?", (student_db_id, d))
                 r = self.cursor.fetchone()
                 if r:
-                    self.cursor.execute("UPDATE attendance SET present=?, feeding_fee_paid=?, bus_fee_paid=? WHERE id=?",
+                    self.cursor.execute("UPDATE attendance SET present=?, feeding_fee_paid=?, bus_fee_paid=?, absence_reason=NULL WHERE id=?",
                                         (present, feeding, bus, r[0]))
                 else:
-                    self.cursor.execute("INSERT INTO attendance (student_id, date, present, feeding_fee_paid, bus_fee_paid) VALUES (?, ?, ?, ?, ?)",
+                    self.cursor.execute("INSERT INTO attendance (student_id, date, present, feeding_fee_paid, bus_fee_paid, absence_reason) VALUES (?, ?, ?, ?, ?, NULL)",
                                         (student_db_id, d, present, feeding, bus))
             self.conn.commit()
             
@@ -13514,7 +14963,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                 bg='#ffffff', fg='#2c3e50').grid(row=0, column=2, sticky='w', padx=(40, 0), pady=(0, 5))
         self.user_role_var = tk.StringVar()
         role_cb = ttk.Combobox(fields_frame, textvariable=self.user_role_var,
-                              values=['admin', 'teacher', 'staff', 'viewer'],
+                              values=['admin', 'teacher', 'staff', 'student', 'viewer'],
                               state='readonly', width=22)
         role_cb.grid(row=0, column=3, sticky='w', padx=(10, 0), pady=(0, 10))
         
@@ -13575,6 +15024,10 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                  bg='#17a2b8', fg='white', font=('Segoe UI', 8), relief='flat',
                  padx=8, pady=1).pack(fill='x', pady=1)
         
+        tk.Button(template_frame, text="Student Role", command=self.apply_student_template,
+                 bg='#ffc107', fg='#000', font=('Segoe UI', 8), relief='flat',
+                 padx=8, pady=1).pack(fill='x', pady=1)
+        
         tk.Button(template_frame, text="Staff Role", command=self.apply_staff_template,
                  bg='#6c757d', fg='white', font=('Segoe UI', 8), relief='flat',
                  padx=8, pady=1).pack(fill='x', pady=1)
@@ -13628,6 +15081,15 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             if perm in self.permission_vars:
                 self.permission_vars[perm].set(True)
         self.user_role_var.set('teacher')
+    
+    def apply_student_template(self):
+        """Apply student role permissions - minimal access for learning"""
+        self.clear_all_permissions()
+        student_perms = ['dashboard']  # Students only see their own dashboard
+        for perm in student_perms:
+            if perm in self.permission_vars:
+                self.permission_vars[perm].set(True)
+        self.user_role_var.set('student')
     
     def apply_staff_template(self):
         """Apply staff role permissions"""
@@ -14261,6 +15723,7 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
             
             # Refresh users list and clear form
             self.load_users_data()
+            self.update_dashboard()
             self.clear_user_form()
             
         except Exception as e:
@@ -14522,6 +15985,8 @@ Collection Rate: {(total_collected/(total_collected+total_pending)*100) if (tota
                     self.cursor.execute("DELETE FROM users WHERE id=?", (user_id,))
                     self.conn.commit()
                     self.load_users_data()
+                    self.update_dashboard()
+                    self.clear_user_form()
                     
                     messagebox.showinfo("User Deleted", 
                                        f"🧹 User '{username}' has been permanently deleted.\n\n"
@@ -15111,6 +16576,28 @@ Financial Summary:
         except Exception as e:
             print(f"Error calculating amount due: {e}")
 
+    def clear_fee_form(self):
+        """Clear all form fields for a new fee entry"""
+        self.fee_student_var.set("")
+        self.fee_month_var.set(calendar.month_name[date.today().month])
+        self.fee_year_var.set(str(date.today().year))
+        self.fee_amount_due.delete(0, tk.END)
+        self.fee_amount_due.insert(0, "0.00")
+        self.fee_amount_paid.delete(0, tk.END)
+        self.fee_amount_paid.insert(0, "0.00")
+        self.fee_type_var.set("Tuition")
+        self.payment_mode_var.set("Cash")
+        self.fee_feeding_var.set(False)
+        self.fee_bus_var.set(False)
+        if CALENDAR_AVAILABLE:
+            self.fee_payment_date.set_date(date.today())
+        else:
+            self.fee_payment_date.delete(0, tk.END)
+            self.fee_payment_date.insert(0, date.today().strftime("%Y-%m-%d"))
+        for item in self.fees_tree.selection():
+            self.fees_tree.selection_remove(item)
+        self.update_status("Form cleared - Ready for new entry")
+
     def add_fee(self):
         student_display = self.fee_student_var.get()
         student_id = self._fee_student_map.get(student_display)
@@ -15151,6 +16638,8 @@ Financial Summary:
             messagebox.showinfo("Success", "Payment recorded and financial transaction created")
             self.load_fees()
             self.update_dashboard()
+            self.update_fee_statistics()
+            self.clear_fee_form()
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -15204,6 +16693,8 @@ Financial Summary:
             messagebox.showinfo("Success", "Payment and financial records updated")
             self.load_fees()
             self.update_dashboard()
+            self.update_fee_statistics()
+            self.clear_fee_form()
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -15237,6 +16728,8 @@ Financial Summary:
             messagebox.showinfo("Success", "Payment and financial records deleted")
             self.load_fees()
             self.update_dashboard()
+            self.update_fee_statistics()
+            self.clear_fee_form()
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -16237,10 +17730,7 @@ Financial Summary:
             self.clear_transaction_form()
             self.load_transactions()
             self.refresh_financial_stats()
-            
-            # Update main dashboard
-            if hasattr(self, 'update_dashboard'):
-                self.update_dashboard()
+            self.update_dashboard()
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save transaction: {str(e)}")
@@ -16311,10 +17801,7 @@ Financial Summary:
             self.load_transactions()
             self.refresh_financial_stats()
             self.selected_transaction_id = None
-            
-            # Update main dashboard
-            if hasattr(self, 'update_dashboard'):
-                self.update_dashboard()
+            self.update_dashboard()
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update transaction: {str(e)}")
@@ -16361,10 +17848,7 @@ Financial Summary:
             self.load_transactions()
             self.refresh_financial_stats()
             self.selected_transaction_id = None
-            
-            # Update main dashboard
-            if hasattr(self, 'update_dashboard'):
-                self.update_dashboard()
+            self.update_dashboard()
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to delete transaction: {str(e)}")
@@ -16611,13 +18095,13 @@ Financial Summary:
         metric_cols.pack(fill=tk.X)
         
         # Total Income
-        self.create_metric_card(metric_cols, "💰 Total Income", "₦0.00", 
+        self.create_metric_card(metric_cols, "💰 Total Income", self.format_currency(0), 
                                side=tk.LEFT, padx=(0, 10))
         # Total Expenses
-        self.create_metric_card(metric_cols, "📉 Total Expenses", "₦0.00", 
+        self.create_metric_card(metric_cols, "📉 Total Expenses", self.format_currency(0), 
                                side=tk.LEFT, padx=(0, 10))
         # Net Balance
-        self.create_metric_card(metric_cols, "⚖️ Net Balance", "₦0.00", 
+        self.create_metric_card(metric_cols, "⚖️ Net Balance", self.format_currency(0), 
                                side=tk.LEFT, padx=(0, 10))
         # Budget Status
         self.create_metric_card(metric_cols, "📊 Budget Status", "On Track", 
@@ -16692,11 +18176,11 @@ Financial Summary:
         """Refresh financial analytics data"""
         try:
             # Calculate total income, expenses, and net balance
-            self.cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='Income'")
+            self.cursor.execute("SELECT SUM(amount) FROM financial_transactions WHERE type='Income'")
             income_result = self.cursor.fetchone()
             total_income = income_result[0] if income_result[0] else 0
             
-            self.cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='Expense'")
+            self.cursor.execute("SELECT SUM(amount) FROM financial_transactions WHERE type='Expense'")
             expense_result = self.cursor.fetchone()
             total_expenses = expense_result[0] if expense_result[0] else 0
             
@@ -16705,7 +18189,7 @@ Financial Summary:
             # Get category breakdown
             self.cursor.execute('''
                 SELECT c.category_name, COUNT(t.id) as count, SUM(t.amount) as total
-                FROM transactions t
+                FROM financial_transactions t
                 JOIN transaction_categories c ON t.category_id = c.id
                 GROUP BY c.category_name
                 ORDER BY total DESC
@@ -16719,8 +18203,9 @@ Financial Summary:
             for cat_name, count, total in categories:
                 percentage = (total / total_income * 100) if total_income > 0 else 0
                 trend = "↑" if count > 0 else "→"
+                currency_symbol = self.get_currency_symbol()
                 self.analytics_tree.insert('', tk.END, 
-                                          values=(cat_name, count, f"₦{total:.2f}", 
+                                          values=(cat_name, count, f"{currency_symbol}{total:.2f}", 
                                                  f"{percentage:.1f}%", trend))
             
             # Generate insights and recommendations
@@ -16737,29 +18222,30 @@ Financial Summary:
     
     def _generate_financial_insights(self, income, expenses, balance, categories):
         """Generate financial insights and recommendations"""
+        currency_symbol = self.get_currency_symbol()
         insights = f"""
 📊 FINANCIAL SUMMARY
 {'='*50}
 
-💰 Total Income:        ₦{income:,.2f}
-📉 Total Expenses:      ₦{expenses:,.2f}
-⚖️  Net Balance:        ₦{balance:,.2f}
+💰 Total Income:        {currency_symbol}{income:,.2f}
+📉 Total Expenses:      {currency_symbol}{expenses:,.2f}
+⚖️  Net Balance:        {currency_symbol}{balance:,.2f}
 
 📈 TRENDS & ANALYSIS
 {'='*50}
 
 """
         if balance > 0:
-            insights += f"✓ Positive Balance: Your school has a surplus of ₦{balance:,.2f}\n"
+            insights += f"✓ Positive Balance: Your school has a surplus of {currency_symbol}{balance:,.2f}\n"
             insights += "  Action: Consider allocating surplus to reserves or improvements.\n\n"
         else:
-            insights += f"⚠ Deficit Alert: Your school has a deficit of ₦{abs(balance):,.2f}\n"
+            insights += f"⚠ Deficit Alert: Your school has a deficit of {currency_symbol}{abs(balance):,.2f}\n"
             insights += "  Action: Review expenses and consider increasing revenue sources.\n\n"
         
         if len(categories) > 0:
             highest_expense = categories[0]
             insights += f"📌 Highest Expense Category: {highest_expense[0]}\n"
-            insights += f"   Amount: ₦{highest_expense[2]:,.2f} ({highest_expense[1]} transactions)\n"
+            insights += f"   Amount: {currency_symbol}{highest_expense[2]:,.2f} ({highest_expense[1]} transactions)\n"
             insights += "   Consider reviewing this category for cost optimization.\n\n"
         
         expense_ratio = (expenses / income * 100) if income > 0 else 0
@@ -19859,7 +21345,7 @@ Financial Summary:
         main_frame = scrollable_frame.scrollable_frame
         
         # Header
-        header_frame = tk.Frame(main_frame, bg='#34495e', height=120)
+        header_frame = tk.Frame(main_frame, bg='#34495e', height=180)
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
         
@@ -19872,8 +21358,9 @@ Financial Summary:
                 font=('Segoe UI', 12), fg='#ecf0f1', bg='#34495e').pack(anchor='w', pady=(5, 0))
         
         # Content area with tabs
-        content_area = tk.Frame(main_frame, bg='#f8f9fa')
+        content_area = tk.Frame(main_frame, bg='#f8f9fa', height=600)
         content_area.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        content_area.pack_propagate(False)
         
         # Create notebook for tabs
         notebook = ttk.Notebook(content_area)
@@ -20386,8 +21873,13 @@ Financial Summary:
                 self.cursor.execute("DELETE FROM fees")
                 self.cursor.execute("DELETE FROM grades")
                 self.cursor.execute("DELETE FROM students")
+                # Reset auto-increment ID to 0
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='students'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='attendance'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='fees'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='grades'")
                 self.conn.commit()
-                messagebox.showinfo("Success", "All student records cleared successfully!")
+                messagebox.showinfo("Success", "All student records cleared successfully!\nIDs reset to 0")
                 self.show_data_management()  # Refresh view
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to clear students: {str(e)}")
@@ -20397,8 +21889,10 @@ Financial Summary:
         if messagebox.askyesno("Confirm", "Delete all attendance records?\n\nThis cannot be undone!"):
             try:
                 self.cursor.execute("DELETE FROM attendance")
+                # Reset auto-increment ID to 0
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='attendance'")
                 self.conn.commit()
-                messagebox.showinfo("Success", "All attendance records cleared successfully!")
+                messagebox.showinfo("Success", "All attendance records cleared successfully!\nIDs reset to 0")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to clear attendance: {str(e)}")
     
@@ -20407,18 +21901,23 @@ Financial Summary:
         if messagebox.askyesno("Confirm", "Delete all fee payment records?\n\nThis cannot be undone!"):
             try:
                 self.cursor.execute("DELETE FROM fees")
+                # Reset auto-increment ID to 0
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='fees'")
                 self.conn.commit()
-                messagebox.showinfo("Success", "All fee records cleared successfully!")
+                messagebox.showinfo("Success", "All fee records cleared successfully!\nIDs reset to 0")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to clear fees: {str(e)}")
+    
     
     def clear_all_grades(self):
         """Clear all grade records"""
         if messagebox.askyesno("Confirm", "Delete all grade records?\n\nThis cannot be undone!"):
             try:
                 self.cursor.execute("DELETE FROM grades")
+                # Reset auto-increment ID to 0
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='grades'")
                 self.conn.commit()
-                messagebox.showinfo("Success", "All grade records cleared successfully!")
+                messagebox.showinfo("Success", "All grade records cleared successfully!\nIDs reset to 0")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to clear grades: {str(e)}")
     
@@ -20438,11 +21937,20 @@ Financial Summary:
                 self.cursor.execute("DELETE FROM teachers")
                 self.cursor.execute("DELETE FROM classes")
                 
+                # Reset all auto-increment IDs to 0
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='students'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='teachers'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='classes'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='attendance'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='fees'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='grades'")
+                self.cursor.execute("DELETE FROM sqlite_sequence WHERE name='financial_transactions'")
+                
                 # Re-enable foreign key constraints
                 self.cursor.execute("PRAGMA foreign_keys = ON")
                 
                 self.conn.commit()
-                messagebox.showinfo("Success", "All test data cleared successfully!\n\nAll students, teachers, classes, and records have been deleted.\nOnly user accounts remain.\n\nThe system is now ready for real data.")
+                messagebox.showinfo("Success", "All test data cleared successfully!\n\nAll students, teachers, classes, and records have been deleted.\nAll IDs reset to 0.\nOnly user accounts remain.\n\nThe system is now ready for real data.")
                 self.show_data_management()  # Refresh view
             except Exception as e:
                 self.conn.rollback()
@@ -20897,14 +22405,7 @@ For support, contact: support@gaybeckstarkids.edu.gh
                 except Exception as e:
                     print(f"Error exporting table {table}: {e}")
             
-            # Log the export
-            self.cursor.execute('''
-                INSERT INTO logs (action, user, timestamp, details)
-                VALUES (?, ?, ?, ?)
-            ''', ('DATABASE_EXPORT', self.current_user.get('username', 'System'), 
-                  datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                  f'Database exported to CSV: {exported_count} tables'))
-            self.conn.commit()
+            # Log the export (logs table not available, skip for now)
             
             messagebox.showinfo("Export Successful", 
                               f"Database exported successfully!\n\n"
@@ -21031,14 +22532,7 @@ For support, contact: support@gaybeckstarkids.edu.gh
             self.conn = sqlite3.connect(db_path)
             self.cursor = self.conn.cursor()
             
-            # Log
-            self.cursor.execute('''
-                INSERT INTO logs (action, user, timestamp, details)
-                VALUES (?, ?, ?, ?)
-            ''', ('DATABASE_RESTORE', self.current_user.get('username', 'System'), 
-                  datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                  f'Database restored from: {os.path.basename(backup_path)}'))
-            self.conn.commit()
+            # Log (logs table not available, skip for now)
             
             messagebox.showinfo("Restore Successful", 
                               f"Database restored successfully!\n\n"
@@ -21549,10 +23043,11 @@ For support, contact: support@gaybeckstarkids.edu.gh
         outstanding_fees = total_fees - collected_fees
         collection_rate = (collected_fees / total_fees * 100) if total_fees > 0 else 0
         
+        currency_symbol = self.get_currency_symbol()
         fin_stats = [
-            ('💳 Total Fees Due', f"₦{total_fees:,.2f}", '#8e44ad'),
-            ('✓ Collected', f"₦{collected_fees:,.2f}", '#27ae60'),
-            ('⏳ Outstanding', f"₦{outstanding_fees:,.2f}", '#e74c3c'),
+            ('💳 Total Fees Due', f"{currency_symbol}{total_fees:,.2f}", '#8e44ad'),
+            ('✓ Collected', f"{currency_symbol}{collected_fees:,.2f}", '#27ae60'),
+            ('⏳ Outstanding', f"{currency_symbol}{outstanding_fees:,.2f}", '#e74c3c'),
             ('📊 Collection Rate', f"{collection_rate:.1f}%", '#3498db')
         ]
         
@@ -22444,6 +23939,576 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         messagebox.showinfo("Export", 
                           f"PDF export feature coming soon!\n\n"
                           f"Report data has been generated and can be exported.")
+    
+    # ==================== PHASE 1 AI FEATURES DISPLAY METHODS ====================
+    
+    def show_notification_center(self):
+        """Display smart notification center"""
+        self.clear_content_frame()
+        
+        # Check if notification service is available
+        if not NOTIFICATION_SERVICE_AVAILABLE or not self.notification_service:
+            messagebox.showwarning("Service Unavailable", 
+                                  "Notification Service is not available.\n\n"
+                                  "Please check that notification_service.py is installed.")
+            return
+        
+        try:
+            # Create the notification center UI
+            notif_frame = NotificationCenterFrame(
+                self.content_frame, 
+                self.current_user.get('id', 1),
+                self.current_user.get('role', 'guest')
+            )
+            ui = notif_frame.get_frame()
+            ui.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            self.update_status("Notifications - Smart Alerts & Messages")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load notification center:\n{str(e)}")
+    
+    def show_ai_tutor(self):
+        """Display AI Tutor chatbot"""
+        self.clear_content_frame()
+        
+        # Check if AI tutor service is available
+        if not AI_TUTOR_SERVICE_AVAILABLE or not self.ai_tutor_service:
+            messagebox.showwarning("Service Unavailable", 
+                                  "AI Tutor Service is not available.\n\n"
+                                  "Please check that ai_tutor_service.py is installed.")
+            return
+        
+        # Check if UI components are available
+        if not UI_COMPONENTS_AVAILABLE:
+            messagebox.showwarning("Component Unavailable", 
+                                  "AI Tutor UI Components are not available.\n\n"
+                                  "Please check that ui_components.py is installed.")
+            return
+        
+        try:
+            # Create the AI tutor chat UI
+            tutor_frame = AITutorChatFrame(
+                self.content_frame,
+                self.current_user.get('id', 1),
+                self.current_user.get('role', 'guest')
+            )
+            ui = tutor_frame.get_frame()
+            ui.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            self.update_status("AI Tutor - Intelligent Assistant")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load AI Tutor:\n{str(e)}")
+    
+    def show_ews_dashboard(self):
+        """Display Early Warning System dashboard"""
+        self.clear_content_frame()
+        
+        # Check if EWS service is available
+        if not EWS_SERVICE_AVAILABLE or not self.ews_service:
+            messagebox.showwarning("Service Unavailable", 
+                                  "Early Warning System is not available.\n\n"
+                                  "Please check that enhanced_ews.py is installed.")
+            return
+        
+        try:
+            # Create the EWS dashboard UI
+            ews_frame = EWSDashboardFrame(self.content_frame)
+            ui = ews_frame.get_frame()
+            ui.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            self.update_status("Risk Assessment - Early Warning System")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load EWS Dashboard:\n{str(e)}")
+
+    def show_ai_learning_support(self):
+        """Display AI Learning Support features (Tutor, Lesson Planning, Quiz, Assignments)"""
+        self.clear_content_frame()
+        
+        if not AI_LEARNING_SUPPORT_AVAILABLE:
+            messagebox.showwarning("Feature Unavailable",
+                                  "AI Learning Support is not available.\n\n"
+                                  "Install required packages: scikit-learn, pandas, numpy")
+            return
+        
+        try:
+            # Create main container
+            main_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            content = main_frame.get_frame()
+            
+            # Title
+            title_label = tk.Label(content, text="🎓 AI Learning Support System",
+                                  font=('Arial', 18, 'bold'), bg='#f8f9fa', fg='#1e3a5f')
+            title_label.pack(pady=20)
+            
+            subtitle_label = tk.Label(content, 
+                                     text="AI-Powered Educational Tools: Tutoring, Lesson Planning, Quiz Generation, & Assignment Grading",
+                                     font=('Arial', 11), bg='#f8f9fa', fg='#555')
+            subtitle_label.pack(pady=(0, 30))
+            
+            # Initialize AI Learning Services
+            try:
+                ai_learning_service = get_ai_learning_service()
+                self.ai_tutor_bot = ai_learning_service['tutor']
+                self.lesson_planner = ai_learning_service['lesson_planner']
+                self.quiz_generator = ai_learning_service['quiz_generator']
+                self.assignment_grader = ai_learning_service['assignment_grader']
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to initialize AI Learning Services: {str(e)}")
+                return
+            
+            # Features container with cards
+            features_frame = tk.Frame(content, bg='#f8f9fa')
+            features_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+            
+            # Get user role for feature availability
+            user_role = self.current_user.get('role', 'guest')
+            
+            # Feature cards based on user role
+            if user_role in ['student', 'guest']:
+                self._create_student_features(features_frame)
+            elif user_role == 'teacher':
+                self._create_teacher_features(features_frame)
+            elif user_role == 'admin':
+                # Admin sees both student and teacher features
+                admin_label = tk.Label(features_frame, text="STUDENT FEATURES", 
+                                      font=('Arial', 12, 'bold'), bg='#f8f9fa')
+                admin_label.pack(pady=(10, 5))
+                self._create_student_features(features_frame)
+                
+                separator = ttk.Separator(features_frame, orient='horizontal')
+                separator.pack(fill=tk.X, pady=20)
+                
+                admin_label2 = tk.Label(features_frame, text="TEACHER FEATURES",
+                                       font=('Arial', 12, 'bold'), bg='#f8f9fa')
+                admin_label2.pack(pady=(10, 5))
+                self._create_teacher_features(features_frame)
+            
+            self.update_status("AI Learning Support System - Features and Tools Available")
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load Learning Support:\n{str(e)}")
+    
+    def _create_student_features(self, parent):
+        """Create student-facing learning features"""
+        # AI Tutor feature
+        tutor_frame = self._create_feature_card(parent, "🤖 AI Tutor Bot",
+                                               "Ask questions about your lessons.\n"
+                                               "Get instant explanations and learn at your pace.",
+                                               "#3498db")
+        tutor_btn = tk.Button(tutor_frame, text="Open AI Tutor",
+                             command=self._open_ai_tutor_for_student,
+                             font=('Arial', 10, 'bold'), bg='#3498db', fg='white',
+                             relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+        tutor_btn.pack(pady=(10, 0))
+        
+        # Lesson revision feature
+        lesson_frame = self._create_feature_card(parent, "📖 Lesson Materials",
+                                                "Access and revise lesson notes.\n"
+                                                "Review key concepts and curriculum materials.",
+                                                "#9b59b6")
+        lesson_btn = tk.Button(lesson_frame, text="View Lessons",
+                              command=self._view_lesson_materials,
+                              font=('Arial', 10, 'bold'), bg='#9b59b6', fg='white',
+                              relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+        lesson_btn.pack(pady=(10, 0))
+        
+        # Quiz practice feature
+        quiz_frame = self._create_feature_card(parent, "❓ Practice Quizzes",
+                                              "Take interactive quizzes.\n"
+                                              "Test your knowledge and get instant feedback.",
+                                              "#e74c3c")
+        quiz_btn = tk.Button(quiz_frame, text="Take Quiz",
+                            command=self._show_available_quizzes,
+                            font=('Arial', 10, 'bold'), bg='#e74c3c', fg='white',
+                            relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+        quiz_btn.pack(pady=(10, 0))
+    
+    def _create_teacher_features(self, parent):
+        """Create teacher-facing educational tools"""
+        # Lesson planner feature
+        planner_frame = self._create_feature_card(parent, "✏️ Lesson Plan Generator",
+                                                 "Generate AI-powered lesson plans.\n"
+                                                 "Includes objectives, activities, and assessments.",
+                                                 "#27ae60")
+        planner_btn = tk.Button(planner_frame, text="Generate Lesson Plan",
+                               command=self._open_lesson_planner,
+                               font=('Arial', 10, 'bold'), bg='#27ae60', fg='white',
+                               relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+        planner_btn.pack(pady=(10, 0))
+        
+        # Quiz generator feature
+        quiz_gen_frame = self._create_feature_card(parent, "📋 Quiz Generator",
+                                                  "Create quizzes automatically.\n"
+                                                  "Multiple choice, true/false, short answer & more.",
+                                                  "#f39c12")
+        quiz_gen_btn = tk.Button(quiz_gen_frame, text="Create Quiz",
+                                command=self._open_quiz_generator,
+                                font=('Arial', 10, 'bold'), bg='#f39c12', fg='white',
+                                relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+        quiz_gen_btn.pack(pady=(10, 0))
+        
+        # Assignment manager feature
+        assign_frame = self._create_feature_card(parent, "✓ Assignment Manager",
+                                                "Create assignments and auto-grade submissions.\n"
+                                                "Automatic grading with personalized feedback.",
+                                                "#16a085")
+        assign_btn = tk.Button(assign_frame, text="Manage Assignments",
+                              command=self._open_assignment_manager,
+                              font=('Arial', 10, 'bold'), bg='#16a085', fg='white',
+                              relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+        assign_btn.pack(pady=(10, 0))
+        
+        # Curriculum management feature
+        curriculum_frame = self._create_feature_card(parent, "📚 Curriculum Management",
+                                                    "Manage lesson notes, curriculum materials, and policies.\n"
+                                                    "Train the AI tutor with your content.",
+                                                    "#2c3e50")
+        curriculum_btn = tk.Button(curriculum_frame, text="Manage Curriculum",
+                                  command=self._open_curriculum_manager,
+                                  font=('Arial', 10, 'bold'), bg='#2c3e50', fg='white',
+                                  relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+        curriculum_btn.pack(pady=(10, 0))
+    
+    def _create_feature_card(self, parent, title, description, color):
+        """Create a feature card with title and description"""
+        card_frame = tk.Frame(parent, bg='white', relief=tk.SOLID, bd=1)
+        card_frame.pack(fill=tk.X, pady=10, padx=10)
+        
+        # Header with color bar
+        header_frame = tk.Frame(card_frame, bg=color, height=5)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+        
+        # Content
+        content_frame = tk.Frame(card_frame, bg='white')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        title_label = tk.Label(content_frame, text=title,
+                              font=('Arial', 12, 'bold'), bg='white', fg='#1e3a5f')
+        title_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        desc_label = tk.Label(content_frame, text=description,
+                             font=('Arial', 10), bg='white', fg='#555', justify=tk.LEFT)
+        desc_label.pack(anchor=tk.W, fill=tk.X)
+        
+        return content_frame
+    
+    def _open_ai_tutor_for_student(self):
+        """Open AI Tutor for student"""
+        if not AI_LEARNING_UI_AVAILABLE:
+            messagebox.showerror("Error", "AI Tutor UI not available")
+            return
+        
+        try:
+            student_id = self._get_current_student_id()
+            if not student_id:
+                messagebox.showwarning("No Student", "Please log in as a student to access AI Tutor")
+                return
+            
+            # Get student name from current user
+            student_name = self.current_user.get('full_name', 'Student')
+            
+            # Open AI Tutor window
+            AITutorWindow(self.root, student_id, student_name, self.ai_tutor_bot)
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open AI Tutor: {str(e)}")
+    
+    def _open_lesson_planner(self):
+        """Open Lesson Plan Generator for teacher"""
+        if not AI_LEARNING_UI_AVAILABLE:
+            messagebox.showerror("Error", "Lesson Planner UI not available")
+            return
+        
+        try:
+            teacher_id = self._get_current_teacher_id()
+            if not teacher_id:
+                messagebox.showwarning("No Teacher", "Please log in as a teacher")
+                return
+            
+            # Get teacher name
+            self.cursor.execute('SELECT name FROM teachers WHERE id = ?', (teacher_id,))
+            result = self.cursor.fetchone()
+            teacher_name = result[0] if result else "Teacher"
+            
+            # Open Lesson Planner window
+            LessonPlannerWindow(self.root, teacher_id, teacher_name, self.lesson_planner)
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Lesson Planner: {str(e)}")
+    
+    def _open_quiz_generator(self):
+        """Open Quiz Generator for teacher"""
+        if not AI_LEARNING_UI_AVAILABLE:
+            messagebox.showerror("Error", "Quiz Generator UI not available")
+            return
+        
+        try:
+            teacher_id = self._get_current_teacher_id()
+            if not teacher_id:
+                messagebox.showwarning("No Teacher", "Please log in as a teacher")
+                return
+            
+            # Get teacher name
+            self.cursor.execute('SELECT name FROM teachers WHERE id = ?', (teacher_id,))
+            result = self.cursor.fetchone()
+            teacher_name = result[0] if result else "Teacher"
+            
+            # Open Quiz Generator window
+            QuizGeneratorWindow(self.root, teacher_id, teacher_name, self.quiz_generator)
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Quiz Generator: {str(e)}")
+    
+    def _open_assignment_manager(self):
+        """Open Assignment Manager for teacher"""
+        if not AI_LEARNING_UI_AVAILABLE:
+            messagebox.showerror("Error", "Assignment Manager UI not available")
+            return
+        
+        try:
+            teacher_id = self._get_current_teacher_id()
+            if not teacher_id:
+                messagebox.showwarning("No Teacher", "Please log in as a teacher")
+                return
+            
+            # Get teacher name
+            self.cursor.execute('SELECT name FROM teachers WHERE id = ?', (teacher_id,))
+            result = self.cursor.fetchone()
+            teacher_name = result[0] if result else "Teacher"
+            
+            # Open Assignment Manager window
+            AssignmentGraderWindow(self.root, teacher_id, teacher_name, self.assignment_grader)
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Assignment Manager: {str(e)}")
+    
+    def _open_curriculum_manager(self):
+        """Open Curriculum Manager for teachers"""
+        self.clear_content_frame()
+        
+        try:
+            # Create curriculum management interface
+            main_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            content = main_frame.get_frame()
+            
+            title_label = tk.Label(content, text="📚 Curriculum Management",
+                                  font=('Arial', 16, 'bold'), bg='#f8f9fa', fg='#1e3a5f')
+            title_label.pack(pady=20)
+            
+            form_frame = tk.Frame(content, bg='white', relief=tk.SOLID, bd=1)
+            form_frame.pack(fill=tk.BOTH, padx=20, pady=20)
+            
+            content_padding = 15
+            form_content = tk.Frame(form_frame, bg='white')
+            form_content.pack(fill=tk.BOTH, expand=True, padx=content_padding, pady=content_padding)
+            
+            # Content Type
+            tk.Label(form_content, text="Content Type:", font=('Arial', 10, 'bold'), bg='white').pack(anchor=tk.W, pady=(0, 5))
+            content_type_var = tk.StringVar(value='curriculum')
+            for ct in ['curriculum', 'lesson_note', 'policy', 'sample_question']:
+                tk.Radiobutton(form_content, text=ct.title().replace('_', ' '),
+                             variable=content_type_var, value=ct, bg='white', font=('Arial', 9)).pack(anchor=tk.W)
+            
+            # Subject
+            tk.Label(form_content, text="Subject:", font=('Arial', 10, 'bold'), bg='white').pack(anchor=tk.W, pady=(10, 5))
+            subject_var = tk.StringVar()
+            subject_combo = ttk.Combobox(form_content, textvariable=subject_var,
+                                        values=['Mathematics', 'English', 'Science', 'History', 'Geography'],
+                                        state='readonly', width=40)
+            subject_combo.pack(anchor=tk.W)
+            
+            # Topic
+            tk.Label(form_content, text="Topic:", font=('Arial', 10, 'bold'), bg='white').pack(anchor=tk.W, pady=(10, 5))
+            topic_var = tk.StringVar()
+            ttk.Entry(form_content, textvariable=topic_var, width=40).pack(anchor=tk.W)
+            
+            # Grade Level
+            tk.Label(form_content, text="Grade Level:", font=('Arial', 10, 'bold'), bg='white').pack(anchor=tk.W, pady=(10, 5))
+            grade_var = tk.StringVar(value='Grade 1-6')
+            grade_combo = ttk.Combobox(form_content, textvariable=grade_var,
+                                      values=['Grade 1-3', 'Grade 4-6', 'Grade 7-9', 'Grade 10-12'],
+                                      state='readonly', width=40)
+            grade_combo.pack(anchor=tk.W)
+            
+            # Content text
+            tk.Label(form_content, text="Content:", font=('Arial', 10, 'bold'), bg='white').pack(anchor=tk.W, pady=(10, 5))
+            content_text = tk.scrolledtext.ScrolledText(form_content, height=8, width=50, wrap=tk.WORD)
+            content_text.pack(fill=tk.BOTH, expand=True)
+            
+            # Save button
+            def save_curriculum():
+                if not all([subject_var.get(), topic_var.get(), content_text.get(1.0, tk.END).strip()]):
+                    messagebox.showwarning("Input Required", "Please fill all fields")
+                    return
+                
+                try:
+                    content_id = self.assignment_grader.db.add_training_content(
+                        content_type_var.get(),
+                        subject_var.get(),
+                        topic_var.get(),
+                        content_text.get(1.0, tk.END),
+                        'Teacher Upload',
+                        grade_var.get()
+                    )
+                    
+                    if content_id > 0:
+                        messagebox.showinfo("Success", "Curriculum content saved successfully!\nThe AI tutor can now use this in responses.")
+                        # Clear form
+                        subject_var.set('')
+                        topic_var.set('')
+                        content_text.delete(1.0, tk.END)
+                    else:
+                        messagebox.showerror("Error", "Failed to save content")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save curriculum: {str(e)}")
+            
+            tk.Button(form_content, text="💾 Save Curriculum Content", command=save_curriculum,
+                     font=('Arial', 10, 'bold'), bg='#27ae60', fg='white', relief=tk.FLAT, padx=15, pady=10).pack(pady=(15, 0))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Curriculum Manager: {str(e)}")
+    
+    def _view_lesson_materials(self):
+        """View available lesson materials"""
+        try:
+            content_list = self.ai_tutor_bot.db.get_training_content()
+            
+            self.clear_content_frame()
+            
+            main_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            content = main_frame.get_frame()
+            
+            title = tk.Label(content, text="📖 Available Lesson Materials",
+                           font=('Arial', 16, 'bold'), bg='#f8f9fa', fg='#1e3a5f')
+            title.pack(pady=20)
+            
+            if not content_list:
+                no_lessons = tk.Label(content, text="No lesson materials available yet.",
+                                     font=('Arial', 12), bg='#f8f9fa', fg='#999')
+                no_lessons.pack(pady=50)
+                return
+            
+            # Group by subject
+            lessons_by_subject = {}
+            for item in content_list:
+                if item.subject not in lessons_by_subject:
+                    lessons_by_subject[item.subject] = []
+                lessons_by_subject[item.subject].append(item)
+            
+            # Display by subject
+            for subject, lessons in lessons_by_subject.items():
+                subject_frame = tk.Frame(content, bg='white', relief=tk.SOLID, bd=1)
+                subject_frame.pack(fill=tk.X, padx=20, pady=10)
+                
+                subject_title = tk.Label(subject_frame, text=f"📚 {subject}",
+                                        font=('Arial', 12, 'bold'), bg='#3498db', fg='white')
+                subject_title.pack(fill=tk.X, padx=10, pady=10)
+                
+                for lesson in lessons:
+                    lesson_frame = tk.Frame(subject_frame, bg='#f8f9fa', relief=tk.SOLID, bd=1)
+                    lesson_frame.pack(fill=tk.X, padx=10, pady=5)
+                    
+                    lesson_content = tk.Frame(lesson_frame, bg='#f8f9fa')
+                    lesson_content.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+                    
+                    tk.Label(lesson_content, text=f"Topic: {lesson.topic}",
+                            font=('Arial', 10, 'bold'), bg='#f8f9fa').pack(anchor=tk.W)
+                    
+                    tk.Label(lesson_content, text=f"Grade: {lesson.grade_level}",
+                            font=('Arial', 9), bg='#f8f9fa', fg='#666').pack(anchor=tk.W)
+                    
+                    tk.Label(lesson_content, text=lesson.content[:200] + "..." if len(lesson.content) > 200 else lesson.content,
+                            font=('Arial', 9), bg='#f8f9fa', fg='#333', justify=tk.LEFT, wraplength=600).pack(anchor=tk.W, pady=(5, 0), fill=tk.X)
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load lesson materials: {str(e)}")
+    
+    def _show_available_quizzes(self):
+        """Show available quizzes for student to take"""
+        try:
+            self.clear_content_frame()
+            
+            main_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            content = main_frame.get_frame()
+            
+            title = tk.Label(content, text="❓ Available Quizzes",
+                           font=('Arial', 16, 'bold'), bg='#f8f9fa', fg='#1e3a5f')
+            title.pack(pady=20)
+            
+            # Get published quizzes from database
+            conn = sqlite3.connect('database/school_management.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, quiz_name, subject, topic, num_questions, total_marks FROM quizzes WHERE is_published = 1')
+            quizzes = cursor.fetchall()
+            conn.close()
+            
+            if not quizzes:
+                no_quizzes = tk.Label(content, text="No quizzes available.",
+                                     font=('Arial', 12), bg='#f8f9fa', fg='#999')
+                no_quizzes.pack(pady=50)
+                return
+            
+            for quiz_id, name, subject, topic, num_q, marks in quizzes:
+                quiz_frame = tk.Frame(content, bg='white', relief=tk.SOLID, bd=1)
+                quiz_frame.pack(fill=tk.X, padx=20, pady=10)
+                
+                quiz_content = tk.Frame(quiz_frame, bg='white')
+                quiz_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+                
+                tk.Label(quiz_content, text=f"📋 {name}",
+                        font=('Arial', 11, 'bold'), bg='white').pack(anchor=tk.W)
+                
+                tk.Label(quiz_content, text=f"{subject} - {topic}",
+                        font=('Arial', 9), bg='white', fg='#666').pack(anchor=tk.W, pady=(2, 5))
+                
+                tk.Label(quiz_content, text=f"{num_q} Questions | {marks} Marks",
+                        font=('Arial', 9), bg='white', fg='#333').pack(anchor=tk.W)
+                
+                def take_quiz(qid=quiz_id, qname=name):
+                    messagebox.showinfo("Quiz", f"Taking quiz: {qname}\n\nQuiz feature coming soon!")
+                
+                tk.Button(quiz_content, text="📝 Take Quiz", command=take_quiz,
+                         bg='#e74c3c', fg='white', relief=tk.FLAT, padx=10, pady=8,
+                         font=('Arial', 9, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load quizzes: {str(e)}")
+    
+    def _get_current_student_id(self):
+        """Get current logged-in student ID"""
+        # Check if user is logged in as student
+        if not self.current_user or self.current_user.get('role') != 'student':
+            return None
+        
+        try:
+            # For student role users, use their username as student identifier
+            # Or use their user ID from the users table
+            username = self.current_user.get('username')
+            user_id = self.current_user.get('id')
+            
+            # Return user_id if available, otherwise username
+            return user_id if user_id else username
+        except:
+            return None
+    
+    def _get_current_teacher_id(self):
+        """Get current logged-in teacher ID"""
+        if self.current_user.get('role') != 'teacher':
+            return None
+        
+        try:
+            # Get teacher ID by name
+            full_name = self.current_user.get('full_name')
+            self.cursor.execute('SELECT id FROM teachers WHERE name = ?', (full_name,))
+            result = self.cursor.fetchone()
+            return result[0] if result else None
+        except:
+            return None
 
 def start_application():
     """Start the application with login window"""
