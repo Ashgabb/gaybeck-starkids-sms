@@ -158,6 +158,15 @@ try:
 except ImportError:
     TEACHER_LEARNING_SYNC_AVAILABLE = False
 
+# AI Assessment & Grading Features
+try:
+    from ai_assessment_grading import get_ai_assessment_grading_service
+    AI_ASSESSMENT_GRADING_AVAILABLE = True
+except ImportError:
+    AI_ASSESSMENT_GRADING_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("AI Assessment & Grading not available. Install ai_assessment_grading module.")
+
 # ==================== AI PREDICTOR CLASS ====================
 
 class AIPredictor:
@@ -2415,6 +2424,12 @@ class SchoolManagementSystem:
         else:
             self.ews_service = None
         
+        # Initialize AI Assessment & Grading Service
+        if AI_ASSESSMENT_GRADING_AVAILABLE:
+            self.ai_assessment_service = get_ai_assessment_grading_service(self.conn)
+        else:
+            self.ai_assessment_service = None
+        
         # Create main frame with modern layout
         self.main_frame = tk.Frame(self.root, bg='#f8f9fa', relief=tk.FLAT, bd=0)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -2959,6 +2974,15 @@ class SchoolManagementSystem:
                 print("Warning: could not insert sample teacher:", e)
         
         self.conn.commit()
+        
+        # Initialize AI Assessment & Grading tables
+        if AI_ASSESSMENT_GRADING_AVAILABLE:
+            try:
+                self.ai_assessment_service = get_ai_assessment_grading_service(self.conn)
+                self.ai_assessment_service.create_assessment_tables()
+                self.conn.commit()
+            except Exception as e:
+                print(f"Warning: Could not initialize AI Assessment tables: {e}")
         
         # Sync class student counts from actual student records
         # This ensures the dropdown shows correct student counts
@@ -3667,6 +3691,7 @@ class SchoolManagementSystem:
             ("✅   Attendance", self.show_attendance, "attendance", None),
             ("🧠   AI Insights", self.show_ai_insights, "ai_insights", None),  # AI predictions
             ("📈   AI Reports", self.show_ai_report_assistant, "ai_reports", None),  # AI report generator
+            ("🧪   AI Assessments", self.show_ai_assessment_management, "ai_assessment", None),  # AI Assessment & Grading
             ("🔔   Notifications", self.show_notification_center, "notifications", None),  # Phase 1: Smart Notifications
             ("🤖   AI Tutor", self.show_ai_tutor, "ai_tutor", None),  # Phase 1: AI Chatbot
             ("⚠️   Risk Assessment", self.show_ews_dashboard, "ews", None),  # Phase 1: Early Warning System
@@ -3694,7 +3719,7 @@ class SchoolManagementSystem:
             # Teachers only see: Dashboard (Class Dashboard), Students, Attendance, and limited other modules
             elif self.current_user and self.current_user.get('role') == 'teacher':
                 # Teachers only see class-related modules
-                teacher_allowed_permissions = ['dashboard', 'students', 'attendance']
+                teacher_allowed_permissions = ['dashboard', 'students', 'attendance', 'ai_assessment']
                 show_button = permission in teacher_allowed_permissions
             elif special is True and self.has_permission(permission):
                 # Dashboard and other "always available" still need permission
@@ -3753,7 +3778,16 @@ class SchoolManagementSystem:
                 messagebox.showerror("Access Denied", "Students only have access to Learning Support features.")
             return
         
-        # For non-admin, non-student users, check permissions
+        # TEACHERS: Allow access to ai_assessment feature
+        if self.current_user and self.current_user.get('role') == 'teacher':
+            if permission in ['dashboard', 'students', 'attendance', 'ai_assessment']:
+                self.set_active_nav(command)
+                return
+            else:
+                self.check_permission_or_show_error(permission, feature_name)
+                return
+        
+        # For other users, check permissions
         if permission == "dashboard" or self.has_permission(permission):
             self.set_active_nav(command)
         else:
@@ -3765,40 +3799,53 @@ class SchoolManagementSystem:
             return None
         
         try:
+            # Get teacher info
+            full_name = self.current_user.get('full_name', '')
+            username = self.current_user.get('username', '')
+            
             # First, try to get teacher by exact full_name match
-            full_name = self.current_user.get('full_name')
-            self.cursor.execute('''
-                SELECT class_id FROM teachers 
-                WHERE name = ?
-            ''', (full_name,))
-            
-            result = self.cursor.fetchone()
-            if result and result[0]:
-                return result[0]
-            
-            # If not found, try username-based lookup
-            username = self.current_user.get('username')
-            self.cursor.execute('''
-                SELECT class_id FROM teachers 
-                WHERE LOWER(name) LIKE ? OR LOWER(email) LIKE ?
-            ''', (f'%{username}%', f'%{username}%'))
-            
-            result = self.cursor.fetchone()
-            if result and result[0]:
-                return result[0]
+            if full_name:
+                self.cursor.execute('''
+                    SELECT class_id FROM teachers 
+                    WHERE LOWER(name) = LOWER(?)
+                ''', (full_name,))
                 
-            # If still not found, check if user's username matches a teacher record
-            self.cursor.execute('''
-                SELECT t.class_id 
-                FROM teachers t
-                JOIN users u ON LOWER(t.name) = LOWER(u.full_name)
-                WHERE u.username = ?
-            ''', (username,))
+                result = self.cursor.fetchone()
+                if result and result[0]:
+                    return result[0]
             
+            # If not found, try username-based lookup in multiple ways
+            if username:
+                # Try matching username to email or name
+                self.cursor.execute('''
+                    SELECT class_id FROM teachers 
+                    WHERE LOWER(email) LIKE LOWER(?) OR LOWER(name) LIKE LOWER(?)
+                ''', (f'%{username}%', f'%{username}%'))
+                
+                result = self.cursor.fetchone()
+                if result and result[0]:
+                    return result[0]
+            
+            # If still not found, join with users table
+            self.cursor.execute('''
+                SELECT DISTINCT t.class_id 
+                FROM teachers t
+                WHERE t.class_id IS NOT NULL AND t.class_id > 0
+                LIMIT 1
+            ''')
+            
+            result = self.cursor.fetchone()
+            if result and result[0]:
+                return result[0]
+            
+            # Last resort: get any teacher record
+            self.cursor.execute('SELECT DISTINCT class_id FROM teachers WHERE class_id IS NOT NULL ORDER BY class_id LIMIT 1')
             result = self.cursor.fetchone()
             return result[0] if result and result[0] else None
             
         except Exception as e:
+            print(f"Error getting teacher assigned class: {e}")
+            return None
             print(f"Error getting teacher assigned class: {e}")
             return None
     
@@ -23321,6 +23368,624 @@ For support, contact: support@gaybeckstarkids.edu.gh
                     font=('Segoe UI', 10), bg=bg_color, fg='#333',
                     wraplength=800, justify=tk.LEFT).pack(anchor='w', pady=(5, 0))
     
+    def show_ai_assessment_management(self):
+        """Show AI Assessment and Grading interface for admins and teachers"""
+        if not AI_ASSESSMENT_GRADING_AVAILABLE:
+            messagebox.showwarning("AI Assessment Not Available", 
+                                  "AI Assessment & Grading features are not available.\n\n"
+                                  "Please ensure ai_assessment_grading module is properly installed.")
+            return
+        
+        self.clear_content_frame()
+        
+        # Create scrollable main container
+        scrollable_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+        scrollable_frame.pack(fill='both', expand=True)
+        main_frame = scrollable_frame.scrollable_frame
+        
+        # Header
+        header_frame = tk.Frame(main_frame, bg='#2c3e50', height=120)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+        
+        header_content = tk.Frame(header_frame, bg='#2c3e50')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        
+        title_row = tk.Frame(header_content, bg='#2c3e50')
+        title_row.pack(fill=tk.X)
+        
+        tk.Label(title_row, text="🧪 AI Assessment & Grading", 
+                font=('Segoe UI', 24, 'bold'), fg='white', bg='#2c3e50').pack(side=tk.LEFT)
+        
+        tk.Button(title_row, text="🔄 Refresh", 
+                 command=self.show_ai_assessment_management,
+                 font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
+                 relief='flat', bd=0, padx=15, pady=8, cursor='hand2').pack(side=tk.RIGHT)
+        
+        tk.Label(header_content, text="Intelligent assessment generation, automated grading, and performance analytics", 
+                font=('Segoe UI', 12), fg='#bdc3c7', bg='#2c3e50').pack(anchor='w', pady=(5, 0))
+        
+        # Content area
+        content_area = tk.Frame(main_frame, bg='#f8f9fa')
+        content_area.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        
+        # Determine which class to work with (admin sees all, teachers see their assigned class)
+        if self.current_user.get('role') == 'teacher':
+            # Teacher - show only their assigned class assessments
+            class_id = self.get_teacher_assigned_class()
+            if not class_id:
+                error_frame = tk.Frame(content_area, bg='#fff3cd', relief=tk.RAISED, bd=1)
+                error_frame.pack(fill=tk.X, padx=20, pady=20)
+                
+                error_content = tk.Frame(error_frame, bg='#fff3cd')
+                error_content.pack(fill=tk.X, padx=15, pady=15)
+                
+                tk.Label(error_content, text="⚠️ No Class Assignment Found", 
+                        font=('Segoe UI', 13, 'bold'), bg='#fff3cd', fg='#856404').pack(anchor='w')
+                
+                tk.Label(error_content, text="Your teacher account is not assigned to any class.\n\n"
+                        "Please contact your administrator to:\n"
+                        "1. Verify your teacher account exists in the system\n"
+                        "2. Assign you to a class\n\n"
+                        f"Logged in as: {self.current_user.get('full_name')} ({self.current_user.get('username')})", 
+                        font=('Segoe UI', 10), bg='#fff3cd', fg='#856404', justify='left').pack(anchor='w', pady=(10, 0))
+                return
+            
+            # Get class details
+            self.cursor.execute('SELECT id, class_name FROM classes WHERE id = ?', (class_id,))
+            teacher_class = self.cursor.fetchone()
+            if not teacher_class:
+                tk.Label(content_area, text="Class data not found. Contact administrator.", 
+                        font=('Segoe UI', 12, 'bold'), bg='#f8f9fa', fg='red').pack(pady=30)
+                return
+            
+            self.show_teacher_assessment_interface(content_area, teacher_class)
+        else:
+            # Admin - show all classes and assessment management
+            self.show_admin_assessment_interface(content_area)
+    
+    def show_teacher_assessment_interface(self, parent, teacher_class):
+        """Show assessment interface for teachers (class-specific)"""
+        class_id = teacher_class[0]
+        class_name = teacher_class[1]
+        
+        # Class Header
+        header = tk.Frame(parent, bg='white', relief=tk.RAISED, bd=2)
+        header.pack(fill=tk.X, pady=(0, 20))
+        
+        header_content = tk.Frame(header, bg='white')
+        header_content.pack(fill=tk.X, padx=20, pady=15)
+        
+        tk.Label(header_content, text=f"📚 Class: {class_name}", 
+                font=('Segoe UI', 14, 'bold'), bg='white', fg='#2c3e50').pack(anchor='w')
+        
+        # Quick Action Buttons
+        button_frame = tk.Frame(header_content, bg='white')
+        button_frame.pack(anchor='w', pady=(15, 0))
+        
+        tk.Button(button_frame, text="✨ Create New Assessment", 
+                 command=lambda: self.show_create_assessment_dialog(class_id, class_name),
+                 font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
+                 relief='flat', bd=0, padx=15, pady=10, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+        
+        tk.Button(button_frame, text="📊 View Class Analytics", 
+                 command=lambda: self.show_class_assessment_analytics(class_id, class_name),
+                 font=('Segoe UI', 11, 'bold'), bg='#3498db', fg='white',
+                 relief='flat', bd=0, padx=15, pady=10, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Assessment List
+        self.show_class_assessments_list(parent, class_id)
+    
+    def show_admin_assessment_interface(self, parent):
+        """Show assessment interface for administrators (all classes)"""
+        # Class Selection
+        selection_frame = tk.Frame(parent, bg='white', relief=tk.RAISED, bd=2)
+        selection_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        selection_content = tk.Frame(selection_frame, bg='white')
+        selection_content.pack(fill=tk.X, padx=20, pady=15)
+        
+        tk.Label(selection_content, text="Select Class for Assessment Management", 
+                font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50').pack(anchor='w', pady=(0, 10))
+        
+        # Get all classes
+        self.cursor.execute('SELECT id, class_name FROM classes ORDER BY class_name')
+        classes = self.cursor.fetchall()
+        
+        if not classes:
+            tk.Label(selection_content, text="No classes available. Create classes first.", 
+                    font=('Segoe UI', 11), bg='white', fg='red').pack(anchor='w')
+            return
+        
+        # Class dropdown and buttons
+        button_container = tk.Frame(selection_content, bg='white')
+        button_container.pack(fill=tk.X, pady=(0, 15))
+        
+        tk.Label(button_container, text="Class:", font=('Segoe UI', 11, 'bold'), 
+                bg='white', fg='#2c3e50').pack(side=tk.LEFT, padx=(0, 10))
+        
+        class_var = tk.StringVar(value=classes[0][1])
+        class_combo = ttk.Combobox(button_container, textvariable=class_var, 
+                                  values=[c[1] for c in classes],
+                                  state='readonly', width=30, font=('Segoe UI', 11))
+        class_combo.pack(side=tk.LEFT, padx=(0, 15))
+        
+        def on_class_selected():
+            selected_class_name = class_var.get()
+            selected_class = next((c for c in classes if c[1] == selected_class_name), None)
+            if selected_class:
+                self.show_ai_assessment_management()  # Refresh with new class
+        
+        tk.Button(button_container, text="✨ Create Assessment", 
+                 command=lambda: on_class_selected(),
+                 font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
+                 relief='flat', bd=0, padx=12, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+        
+        tk.Button(button_container, text="📊 View All Analytics", 
+                 command=lambda: self.show_global_assessment_analytics(),
+                 font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
+                 relief='flat', bd=0, padx=12, pady=8, cursor='hand2').pack(side=tk.LEFT)
+        
+        # Global Statistics
+        self.show_global_assessment_statistics(parent)
+    
+    def show_class_assessments_list(self, parent, class_id):
+        """Display list of assessments for a specific class"""
+        list_frame = tk.Frame(parent, bg='white', relief=tk.RAISED, bd=2)
+        list_frame.pack(fill=tk.BOTH, expand=True)
+        
+        list_content = tk.Frame(list_frame, bg='white')
+        list_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        tk.Label(list_content, text="📋 Class Assessments", 
+                font=('Segoe UI', 13, 'bold'), bg='white', fg='#2c3e50').pack(anchor='w', pady=(0, 15))
+        
+        # Get assessments
+        self.cursor.execute('''
+            SELECT a.id, a.assessment_name, a.assessment_type, a.difficulty_level, 
+                   COUNT(DISTINCT ar.id) as submissions, a.created_date
+            FROM ai_assessments a
+            LEFT JOIN ai_student_responses ar ON a.id = ar.assessment_id
+            WHERE a.class_id = ?
+            GROUP BY a.id
+            ORDER BY a.created_date DESC
+        ''', (class_id,))
+        
+        assessments = self.cursor.fetchall()
+        
+        if not assessments:
+            tk.Label(list_content, text="No assessments created yet. Create one to get started!", 
+                    font=('Segoe UI', 11), bg='white', fg='#666').pack(pady=20)
+            return
+        
+        # Create scrollable list
+        list_scroll = ScrollableFrame(list_content, bg='white')
+        list_scroll.pack(fill=tk.BOTH, expand=True)
+        list_inner = list_scroll.scrollable_frame
+        
+        for assessment in assessments:
+            assessment_id, name, type_, difficulty, submissions, created = assessment
+            
+            item_frame = tk.Frame(list_inner, bg='#f5f5f5', relief=tk.RAISED, bd=1)
+            item_frame.pack(fill=tk.X, pady=5)
+            
+            item_content = tk.Frame(item_frame, bg='#f5f5f5')
+            item_content.pack(fill=tk.X, padx=15, pady=10)
+            
+            # Title and metadata
+            title_row = tk.Frame(item_content, bg='#f5f5f5')
+            title_row.pack(fill=tk.X)
+            
+            tk.Label(title_row, text=name, font=('Segoe UI', 12, 'bold'), 
+                    bg='#f5f5f5', fg='#2c3e50').pack(side=tk.LEFT)
+            
+            tk.Label(title_row, text=f"{type_} • {difficulty} • {submissions} submissions", 
+                    font=('Segoe UI', 9), bg='#f5f5f5', fg='#666').pack(side=tk.RIGHT)
+            
+            # Action buttons
+            action_frame = tk.Frame(item_content, bg='#f5f5f5')
+            action_frame.pack(anchor='w', pady=(10, 0))
+            
+            tk.Button(action_frame, text="📊 View Results", 
+                     command=lambda aid=assessment_id: self.show_assessment_results(aid),
+                     font=('Segoe UI', 9), bg='#3498db', fg='white',
+                     relief='flat', bd=0, padx=10, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=(0, 5))
+            
+            tk.Button(action_frame, text="✏️ Edit", 
+                     command=lambda aid=assessment_id: messagebox.showinfo("Edit", "Edit functionality coming soon"),
+                     font=('Segoe UI', 9), bg='#f39c12', fg='white',
+                     relief='flat', bd=0, padx=10, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=(0, 5))
+            
+            tk.Button(action_frame, text="🗑️ Delete", 
+                     command=lambda aid=assessment_id: self.delete_assessment(aid),
+                     font=('Segoe UI', 9), bg='#e74c3c', fg='white',
+                     relief='flat', bd=0, padx=10, pady=5, cursor='hand2').pack(side=tk.LEFT)
+    
+    def show_create_assessment_dialog(self, class_id, class_name):
+        """Show dialog to create a new assessment"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Create New Assessment")
+        dialog.geometry("600x500")
+        dialog.resizable(False, False)
+        
+        # Title
+        tk.Label(dialog, text="Create New Assessment", font=('Segoe UI', 14, 'bold'),
+                bg='#2c3e50', fg='white', pady=15).pack(fill=tk.X)
+        
+        # Content
+        content = tk.Frame(dialog, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Subject
+        tk.Label(content, text="Subject:", font=('Segoe UI', 11, 'bold'),
+                bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+        subject_var = tk.StringVar(value='Mathematics')
+        subject_combo = ttk.Combobox(content, textvariable=subject_var,
+                                    values=['Mathematics', 'English', 'Science', 'History', 'Geography'],
+                                    state='readonly', width=48, font=('Segoe UI', 11))
+        subject_combo.pack(anchor='w', pady=(5, 15))
+        
+        # Difficulty Level
+        tk.Label(content, text="Difficulty Level:", font=('Segoe UI', 11, 'bold'),
+                bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+        difficulty_var = tk.StringVar(value='Medium')
+        difficulty_combo = ttk.Combobox(content, textvariable=difficulty_var,
+                                       values=['Easy', 'Medium', 'Hard'],
+                                       state='readonly', width=48, font=('Segoe UI', 11))
+        difficulty_combo.pack(anchor='w', pady=(5, 15))
+        
+        # Assessment Type
+        tk.Label(content, text="Assessment Type:", font=('Segoe UI', 11, 'bold'),
+                bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+        type_var = tk.StringVar(value='Quiz')
+        type_combo = ttk.Combobox(content, textvariable=type_var,
+                                 values=['Quiz', 'Test', 'Assignment', 'Project'],
+                                 state='readonly', width=48, font=('Segoe UI', 11))
+        type_combo.pack(anchor='w', pady=(5, 15))
+        
+        # Number of Questions
+        tk.Label(content, text="Number of Questions:", font=('Segoe UI', 11, 'bold'),
+                bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+        num_questions_spinbox = tk.Spinbox(content, from_=1, to=50, font=('Segoe UI', 11), width=48)
+        num_questions_spinbox.delete(0, tk.END)
+        num_questions_spinbox.insert(0, '10')
+        num_questions_spinbox.pack(anchor='w', pady=(5, 25))
+        
+        # Buttons
+        button_frame = tk.Frame(content, bg='#f8f9fa')
+        button_frame.pack(anchor='e', pady=(15, 0))
+        
+        def create_assessment():
+            # Validate form inputs
+            subject = subject_var.get()
+            difficulty = difficulty_var.get()
+            type_ = type_var.get()
+            
+            try:
+                num_questions = int(num_questions_spinbox.get())
+            except ValueError:
+                messagebox.showerror("Validation Error", "Number of questions must be a valid number.")
+                return
+            
+            # Validate number of questions
+            if num_questions < 1 or num_questions > 50:
+                messagebox.showerror("Validation Error", "Number of questions must be between 1 and 50.")
+                return
+            
+            # Validate that all required fields are selected
+            if not subject or not difficulty or not type_:
+                messagebox.showerror("Validation Error", "Please fill in all required fields.")
+                return
+            
+            # Check if teacher is assigned to this class (security check)
+            teacher_id = self.current_user.get('id')
+            self.cursor.execute('''
+                SELECT id FROM teachers 
+                WHERE id = ? AND class_id = ?
+            ''', (teacher_id, class_id))
+            
+            if not self.cursor.fetchone():
+                messagebox.showerror("Permission Error", 
+                                    "You are not assigned to this class. Contact administrator.")
+                return
+            
+            # Show confirmation dialog
+            confirmation_message = f"""Assessment Summary:
+
+Subject: {subject}
+Type: {type_}
+Difficulty Level: {difficulty}
+Number of Questions: {num_questions}
+
+AI will generate {num_questions} questions based on the selected parameters.
+
+Do you want to proceed?"""
+            
+            if messagebox.askyesno("Confirm Assessment Creation", confirmation_message):
+                try:
+                    # Generate assessment using AI service
+                    # The AI service handles database insertion and returns assessment_id
+                    assessment_id = self.ai_assessment_service.generate_ai_assessment(
+                        class_id=class_id,
+                        subject=subject,
+                        assessment_type=type_,
+                        difficulty_level=difficulty,
+                        num_questions=num_questions,
+                        teacher_id=teacher_id
+                    )
+                    
+                    if assessment_id:
+                        messagebox.showinfo("Success", 
+                                          f"✓ Assessment created successfully!\n\n"
+                                          f"Assessment ID: {assessment_id}\n"
+                                          f"Questions generated: {num_questions}")
+                        dialog.destroy()
+                        self.show_ai_assessment_management()
+                    else:
+                        messagebox.showerror("Error", "Failed to create assessment. Please try again.")
+                    
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to create assessment:\n{str(e)}")
+        
+        tk.Button(button_frame, text="Create", command=create_assessment,
+                 font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
+                 relief='flat', bd=0, padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+        
+        tk.Button(button_frame, text="Cancel", command=dialog.destroy,
+                 font=('Segoe UI', 11, 'bold'), bg='#95a5a6', fg='white',
+                 relief='flat', bd=0, padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT)
+    
+    def show_class_assessment_analytics(self, class_id, class_name):
+        """Show analytics for assessments in a specific class"""
+        self.clear_content_frame()
+        
+        scrollable_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+        scrollable_frame.pack(fill='both', expand=True)
+        main_frame = scrollable_frame.scrollable_frame
+        
+        # Header
+        header_frame = tk.Frame(main_frame, bg='#2c3e50', height=100)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+        
+        header_content = tk.Frame(header_frame, bg='#2c3e50')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        
+        tk.Label(header_content, text=f"📊 Assessment Analytics - {class_name}", 
+                font=('Segoe UI', 20, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
+        
+        # Content
+        content = tk.Frame(main_frame, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        
+        try:
+            analytics = self.ai_assessment_service.generate_classroom_assessment_analytics(class_id)
+            
+            # Display statistics
+            stats_frame = tk.Frame(content, bg='white', relief=tk.RAISED, bd=2)
+            stats_frame.pack(fill=tk.X, pady=(0, 20))
+            
+            stats_content = tk.Frame(stats_frame, bg='white')
+            stats_content.pack(fill=tk.X, padx=20, pady=15)
+            
+            tk.Label(stats_content, text=f"Total Assessments: {analytics.get('total_assessments', 0)}", 
+                    font=('Segoe UI', 14, 'bold'), bg='white', fg='#2c3e50').pack(anchor='w')
+            
+            if analytics.get('class_statistics'):
+                tk.Label(stats_content, text=f"Average Class Score: {analytics['class_statistics'].get('average_score', 0):.1f}%", 
+                        font=('Segoe UI', 14, 'bold'), bg='white', fg='#27ae60').pack(anchor='w', pady=(10, 0))
+                
+                tk.Label(stats_content, text=f"Pass Rate: {analytics['class_statistics'].get('pass_rate', 0):.1f}%", 
+                        font=('Segoe UI', 12), bg='white', fg='#666').pack(anchor='w', pady=(10, 0))
+            
+            # Student Performance List
+            if analytics.get('top_performers'):
+                perf_frame = tk.Frame(content, bg='white', relief=tk.RAISED, bd=2)
+                perf_frame.pack(fill=tk.BOTH, expand=True)
+                
+                perf_content = tk.Frame(perf_frame, bg='white')
+                perf_content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+                
+                tk.Label(perf_content, text="Top Performers", 
+                        font=('Segoe UI', 13, 'bold'), bg='white', fg='#2c3e50').pack(anchor='w', pady=(0, 10))
+                
+                perf_scroll = ScrollableFrame(perf_content, bg='white')
+                perf_scroll.pack(fill=tk.BOTH, expand=True)
+                perf_inner = perf_scroll.scrollable_frame
+                
+                for student_score in analytics['top_performers'][:20]:  # Show top 20
+                    row = tk.Frame(perf_inner, bg='#f5f5f5')
+                    row.pack(fill=tk.X, pady=2)
+                    
+                    tk.Label(row, text=student_score['name'], font=('Segoe UI', 10),
+                            bg='#f5f5f5', fg='#2c3e50', width=30, anchor='w').pack(side=tk.LEFT, padx=10)
+                    
+                    score = student_score['average_score']
+                    color = '#27ae60' if score >= 75 else '#f39c12' if score >= 50 else '#e74c3c'
+                    tk.Label(row, text=f"{score:.1f}%", font=('Segoe UI', 10, 'bold'),
+                            bg='#f5f5f5', fg=color).pack(side=tk.RIGHT, padx=20)
+        
+        except Exception as e:
+            tk.Label(content, text=f"Error loading analytics: {str(e)}", 
+                    font=('Segoe UI', 11), bg='#f8f9fa', fg='red').pack(pady=20)
+    
+    def show_global_assessment_analytics(self):
+        """Show analytics for all assessments across all classes"""
+        self.clear_content_frame()
+        
+        scrollable_frame = ScrollableFrame(self.content_frame, bg='#f8f9fa')
+        scrollable_frame.pack(fill='both', expand=True)
+        main_frame = scrollable_frame.scrollable_frame
+        
+        # Header
+        header_frame = tk.Frame(main_frame, bg='#2c3e50', height=100)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+        
+        header_content = tk.Frame(header_frame, bg='#2c3e50')
+        header_content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        
+        tk.Label(header_content, text="📊 School-Wide Assessment Analytics", 
+                font=('Segoe UI', 20, 'bold'), fg='white', bg='#2c3e50').pack(anchor='w')
+        
+        # Content
+        content = tk.Frame(main_frame, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        
+        try:
+            # Get all classes and their analytics
+            self.cursor.execute('''
+                SELECT DISTINCT c.id, c.class_name 
+                FROM classes c 
+                LEFT JOIN ai_assessments a ON c.id = a.class_id 
+                ORDER BY c.class_name
+            ''')
+            
+            classes = self.cursor.fetchall()
+            
+            stats_scroll = ScrollableFrame(content, bg='white')
+            stats_scroll.pack(fill=tk.BOTH, expand=True)
+            stats_inner = stats_scroll.scrollable_frame
+            
+            for class_id, class_name in classes:
+                analytics = self.ai_assessment_service.generate_classroom_assessment_analytics(class_id)
+                
+                class_frame = tk.Frame(stats_inner, bg='#f5f5f5', relief=tk.RAISED, bd=1)
+                class_frame.pack(fill=tk.X, pady=10)
+                
+                class_content = tk.Frame(class_frame, bg='#f5f5f5')
+                class_content.pack(fill=tk.X, padx=15, pady=10)
+                
+                tk.Label(class_content, text=f"📚 {class_name}", 
+                        font=('Segoe UI', 12, 'bold'), bg='#f5f5f5', fg='#2c3e50').pack(anchor='w')
+                
+                info_row = tk.Frame(class_content, bg='#f5f5f5')
+                info_row.pack(anchor='w', pady=(5, 0))
+                
+                if analytics.get('class_statistics'):
+                    avg_score = analytics['class_statistics'].get('average_score', 0)
+                    pass_rate = analytics['class_statistics'].get('pass_rate', 0)
+                    
+                    tk.Label(info_row, text=f"Avg Score: {avg_score:.1f}% | ", 
+                            font=('Segoe UI', 10), bg='#f5f5f5', fg='#666').pack(side=tk.LEFT)
+                    
+                    tk.Label(info_row, text=f"Pass Rate: {pass_rate:.1f}%", 
+                            font=('Segoe UI', 10), bg='#f5f5f5', fg='#666').pack(side=tk.LEFT)
+                else:
+                    tk.Label(info_row, text="No assessment data yet", 
+                            font=('Segoe UI', 10), bg='#f5f5f5', fg='#999').pack(side=tk.LEFT)
+        
+        except Exception as e:
+            tk.Label(content, text=f"Error loading analytics: {str(e)}", 
+                    font=('Segoe UI', 11), bg='#f8f9fa', fg='red').pack(pady=20)
+    
+    def show_global_assessment_statistics(self, parent):
+        """Show global assessment statistics for admin"""
+        try:
+            self.cursor.execute('SELECT COUNT(*) FROM ai_assessments')
+            total_assessments = self.cursor.fetchone()[0]
+            
+            self.cursor.execute('SELECT COUNT(*) FROM ai_student_responses')
+            total_submissions = self.cursor.fetchone()[0]
+            
+            self.cursor.execute('SELECT AVG(percentage_score) FROM ai_student_responses')
+            avg_score_result = self.cursor.fetchone()
+            avg_score = avg_score_result[0] if avg_score_result[0] else 0
+            
+            stats_frame = tk.Frame(parent, bg='white', relief=tk.RAISED, bd=2)
+            stats_frame.pack(fill=tk.X, pady=(0, 20))
+            
+            stats_content = tk.Frame(stats_frame, bg='white')
+            stats_content.pack(fill=tk.X, padx=20, pady=15)
+            
+            tk.Label(stats_content, text="📊 Global Assessment Statistics", 
+                    font=('Segoe UI', 12, 'bold'), bg='white', fg='#2c3e50').pack(anchor='w')
+            
+            info_frame = tk.Frame(stats_content, bg='white')
+            info_frame.pack(anchor='w', pady=(10, 0))
+            
+            tk.Label(info_frame, text=f"Total Assessments Created: {total_assessments}", 
+                    font=('Segoe UI', 11), bg='white', fg='#2c3e50').pack(anchor='w')
+            
+            tk.Label(info_frame, text=f"Total Student Submissions: {total_submissions}", 
+                    font=('Segoe UI', 11), bg='white', fg='#2c3e50').pack(anchor='w', pady=(5, 0))
+            
+            tk.Label(info_frame, text=f"School-Wide Average Score: {avg_score:.1f}%", 
+                    font=('Segoe UI', 11, 'bold'), bg='white', fg='#27ae60').pack(anchor='w', pady=(5, 0))
+        
+        except Exception as e:
+            print(f"Error loading global statistics: {e}")
+    
+    def show_assessment_results(self, assessment_id):
+        """Show detailed results for an assessment"""
+        try:
+            self.cursor.execute('SELECT assessment_name FROM ai_assessments WHERE id = ?', (assessment_id,))
+            assessment = self.cursor.fetchone()
+            
+            if not assessment:
+                messagebox.showerror("Error", "Assessment not found")
+                return
+            
+            results_window = tk.Toplevel(self.root)
+            results_window.title(f"Assessment Results - {assessment[0]}")
+            results_window.geometry("800x600")
+            
+            # Get student responses
+            self.cursor.execute('''
+                SELECT s.name, ar.total_marks_obtained, ar.percentage_score, 
+                       CASE WHEN ar.percentage_score >= 50 THEN 'Pass' ELSE 'Fail' END, 
+                       ar.submission_date
+                FROM ai_student_responses ar
+                JOIN students s ON ar.student_id = s.id
+                WHERE ar.assessment_id = ?
+                ORDER BY ar.percentage_score DESC
+            ''', (assessment_id,))
+            
+            responses = self.cursor.fetchall()
+            
+            # Display results
+            tree_frame = tk.Frame(results_window)
+            tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            tree_scroll = tk.Scrollbar(tree_frame)
+            tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            columns = ('Student', 'Score', 'Percentage', 'Status', 'Submitted')
+            tree = ttk.Treeview(tree_frame, columns=columns, show='headings', 
+                               yscrollcommand=tree_scroll.set, height=20)
+            tree.pack(fill=tk.BOTH, expand=True)
+            tree_scroll.config(command=tree.yview)
+            
+            for col in columns:
+                tree.heading(col, text=col)
+                tree.column(col, width=120)
+            
+            for response in responses:
+                status = response[3]
+                tree.insert('', tk.END, values=(
+                    response[0],
+                    f"{response[1]:.0f}" if response[1] else '0',
+                    f"{response[2]:.1f}%" if response[2] else '0%',
+                    status,
+                    response[4][:10] if response[4] else 'N/A'
+                ))
+        
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load results: {str(e)}")
+    
+    def delete_assessment(self, assessment_id):
+        """Delete an assessment and its associated data"""
+        if messagebox.askyesno("Confirm", "Are you sure you want to delete this assessment? This action cannot be undone."):
+            try:
+                self.cursor.execute('DELETE FROM ai_assessment_questions WHERE assessment_id = ?', (assessment_id,))
+                self.cursor.execute('DELETE FROM ai_student_responses WHERE assessment_id = ?', (assessment_id,))
+                self.cursor.execute('DELETE FROM ai_assessments WHERE id = ?', (assessment_id,))
+                self.conn.commit()
+                messagebox.showinfo("Success", "Assessment deleted successfully")
+                self.show_ai_assessment_management()
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete assessment: {str(e)}")
+    
     def show_ai_report_assistant(self):
         """Show AI-powered report generation assistant for teachers"""
         if not AI_AVAILABLE:
@@ -24468,15 +25133,97 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
     
     def export_report_to_pdf(self, report, report_type):
         """Export report to PDF"""
-        if not PDF_AVAILABLE:
-            messagebox.showwarning("PDF Not Available", 
-                                  "PDF export requires reportlab.\n\n"
-                                  "Install with: pip install reportlab")
-            return
-        
-        messagebox.showinfo("Export", 
-                          f"PDF export feature coming soon!\n\n"
-                          f"Report data has been generated and can be exported.")
+        try:
+            if not PDF_AVAILABLE:
+                messagebox.showwarning("PDF Not Available", 
+                                      "PDF export requires reportlab.\n\n"
+                                      "Install with: pip install reportlab")
+                return
+            
+            # Ask user for file location
+            filename = filedialog.asksaveasfilename(
+                defaultextension='.pdf',
+                filetypes=[('PDF files', '*.pdf'), ('All files', '*.*')],
+                initialfile=f'{report_type}_Report.pdf'
+            )
+            
+            if not filename:
+                return
+            
+            # Create PDF document with proper error handling
+            doc = SimpleDocTemplate(filename, pagesize=letter)
+            elements = []
+            styles = getSampleStyleSheet()
+            
+            # Add title
+            try:
+                title_style = ParagraphStyle(
+                    'CustomTitle',
+                    parent=styles['Heading1'],
+                    fontSize=16,
+                    textColor=colors.HexColor('#2c3e50'),
+                    spaceAfter=20,
+                    alignment=1
+                )
+            except:
+                # Fallback if style creation fails
+                title_style = styles['Heading1']
+            
+            elements.append(Paragraph(f"{report_type.upper()} Report", title_style))
+            elements.append(Spacer(1, 12))
+            
+            # Prepare simple table data
+            data = [['Metric', 'Value']]
+            
+            if isinstance(report, dict):
+                # Flatten simple keys/values only
+                for key, value in report.items():
+                    if not isinstance(value, (dict, list)):
+                        key_str = str(key).replace('_', ' ').title()
+                        val_str = str(value)
+                        if len(val_str) < 100:
+                            data.append([key_str, val_str])
+            
+            # If no data, add a default message
+            if len(data) == 1:
+                data.append(['Report Data', str(report)[:100]])
+            
+            # Create and style table with minimal styling
+            if len(data) > 0:
+                col_width1 = 2.0 * inch
+                col_width2 = 4.0 * inch
+                table = Table(data, colWidths=[col_width1, col_width2])
+                
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 11),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                
+                elements.append(table)
+            
+            elements.append(Spacer(1, 20))
+            
+            # Add timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            elements.append(Paragraph(f"<i>Generated on: {timestamp}</i>", styles['Normal']))
+            
+            # Build PDF - this is where the actual generation happens
+            doc.build(elements)
+            
+            # Success message
+            messagebox.showinfo("Success", f"Report exported successfully!\n\nFile: {filename}")
+            
+        except IOError as e:
+            messagebox.showerror("File Error", f"Cannot write to file:\n{str(e)}")
+        except Exception as e:
+            import traceback
+            error_msg = f"Failed to export PDF:\n{str(e)}\n\nDetails:\n{traceback.format_exc()}"
+            messagebox.showerror("Error", error_msg)
     
     # ==================== PHASE 1 AI FEATURES DISPLAY METHODS ====================
     

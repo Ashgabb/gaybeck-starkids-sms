@@ -1,0 +1,211 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║          GAYBECK STARKIDS SMS - INSTALLATION QUICK START GUIDE            ║
+║                                                                           ║
+║                Simple 3-Step Installation Process                        ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+════════════════════════════════════════════════════════════════════════════
+                           STEP 1: RUN SETUP
+════════════════════════════════════════════════════════════════════════════
+
+
+    📁 LOOK FOR THIS FILE
+    ┌─────────────────────┐
+    │   setup.bat         │
+    │   (in this folder)  │
+    └─────────────────────┘
+              ↓
+    
+    🖱️ DOUBLE-CLICK IT
+    
+              ↓
+    
+    ⏳ A window will open and say:
+    "Installing Gaybeck Starkids SMS..."
+    
+              ↓
+    
+    ⏳ WAIT (This takes 2-5 minutes)
+    
+              ↓
+    
+    ✅ It will say "INSTALLATION COMPLETE!"
+    
+              ↓
+    
+    👆 Press any key or click the window
+    
+    
+    ✓ STEP 1 COMPLETE!
+
+
+════════════════════════════════════════════════════════════════════════════
+                         STEP 2: LAUNCH APPLICATION
+════════════════════════════════════════════════════════════════════════════
+
+
+    📁 LOOK FOR THIS FILE
+    ┌──────────────────────┐
+    │  launch_sms.bat      │
+    │  (in this folder)    │
+    └──────────────────────┘
+              ↓
+    
+    🖱️ DOUBLE-CLICK IT
+    
+              ↓
+    
+    ⏳ Wait 5-10 seconds
+    
+              ↓
+    
+    ✅ The application will open!
+    
+    
+    ✓ STEP 2 COMPLETE!
+
+
+════════════════════════════════════════════════════════════════════════════
+                              STEP 3: LOGIN
+════════════════════════════════════════════════════════════════════════════
+
+
+    You will see a LOGIN SCREEN
+    
+    ┌─────────────────────────┐
+    │  Gaybeck Starkids SMS   │
+    │                         │
+    │  Username: [_________]  │
+    │  Password: [_________]  │
+    │                         │
+    │    [   LOGIN   ]        │
+    └─────────────────────────┘
+    
+    
+    TYPE YOUR CREDENTIALS:
+    
+    Username:  admin
+    Password:  admin123
+    
+    OR
+    
+    Username:  teacher1
+    Password:  teacher123
+    
+    
+    Then click "LOGIN"
+    
+              ↓
+    
+    ✅ You're in! Welcome to Gaybeck Starkids SMS!
+    
+    
+    ✓ STEP 3 COMPLETE!
+
+
+════════════════════════════════════════════════════════════════════════════
+                         ⚠️  IMPORTANT REMINDERS
+════════════════════════════════════════════════════════════════════════════
+
+
+    🔐 CHANGE YOUR PASSWORD IMMEDIATELY!
+
+    1. Click "Settings" at the bottom of the menu
+    2. Click "Change Password"
+    3. Enter the old password (admin123 or teacher123)
+    4. Enter your new password (make it strong!)
+    5. Confirm the new password
+    6. Click "Save"
+    
+    Don't use the default password! Security is important.
+
+
+════════════════════════════════════════════════════════════════════════════
+                      WHAT IF SOMETHING GOES WRONG?
+════════════════════════════════════════════════════════════════════════════
+
+
+    ERROR: "Python is not recognized"
+    ───────────────────────────────────
+    
+    ❌ PROBLEM: Python is not installed
+    
+    ✅ SOLUTION:
+       1. Go to: https://www.python.org/downloads/
+       2. Download Python 3.13
+       3. Run the installer
+       4. CHECK THE BOX: "Add Python to PATH"
+       5. Click "Install Now"
+       6. Run setup.bat again
+
+
+    ERROR: "Cannot find module" or "Module not found"
+    ──────────────────────────────────────────────────
+    
+    ❌ PROBLEM: Required packages didn't install
+    
+    ✅ SOLUTION:
+       1. Double-click setup.bat again
+       2. Let it run completely
+       3. Try launching again
+
+
+    ERROR: "Application won't start"
+    ────────────────────────────────
+    
+    ❌ PROBLEM: Various possible causes
+    
+    ✅ SOLUTION:
+       1. Try restarting your computer
+       2. Run setup.bat again
+       3. Double-click launch_sms.bat again
+
+
+    STILL HAVING PROBLEMS?
+    ──────────────────────
+    
+    📧 Email: support@gaybeckstarkids.com
+    📱 Phone: +233 XXX XXX XXX
+    
+    Include a screenshot of the error!
+
+
+════════════════════════════════════════════════════════════════════════════
+                        CONGRATULATIONS!
+════════════════════════════════════════════════════════════════════════════
+
+
+    You have successfully installed Gaybeck Starkids SMS!
+    
+    Next steps:
+    
+    1. ✅ Installation complete
+    2. ✅ Application running
+    3. ✅ Logged in
+    4. 👉 Add your school data (teachers, classes, students)
+    5. 👉 Start using the system
+    6. 👉 Try the AI Assessment feature (your best tool!)
+    
+    
+    For detailed instructions, see:
+    ➡️  START_HERE.md (overview)
+    ➡️  QUICK_REFERENCE.md (how to use)
+    ➡️  SETUP_INSTRUCTIONS.md (detailed help)
+
+
+════════════════════════════════════════════════════════════════════════════
+
+
+    WELCOME TO GAYBECK STARKIDS SMS!
+    
+    We're excited to help you transform your school.
+    
+    Questions? Read the guides above or contact support.
+    
+    Happy school managing! 🎓
+
+
+════════════════════════════════════════════════════════════════════════════
