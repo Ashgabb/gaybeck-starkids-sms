@@ -94,7 +94,7 @@ if errorlevel 1 (
     echo.
     echo   Python is required to run Gaybeck Starkids SMS.
     echo.
-    echo   Please install Python 3.13 from: https://www.python.org/downloads/
+    echo   Please install Python 3.13+ from: https://www.python.org/downloads/
     echo.
     echo   IMPORTANT: When installing Python, check the box:
     echo   "Add Python to PATH"
@@ -107,6 +107,16 @@ if errorlevel 1 (
 
 for /f "tokens=*" %%i in ('python --version') do set PYTHON_VERSION=%%i
 echo   ✓ Python Found: %PYTHON_VERSION%
+
+REM Verify Python 3.13 or higher
+python -c "import sys; exit(0 if sys.version_info >= (3, 13) else 1)" >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo   ⚠ Warning: Python 3.13 or higher is recommended
+    echo   Current version: %PYTHON_VERSION%
+    echo   Some features may not work correctly
+    echo.
+)
 echo.
 timeout /t 1 /nobreak
 
@@ -143,11 +153,15 @@ timeout /t 1 /nobreak
 REM Step 3: Verify Installation
 echo [STEP 3/5] Verifying Installation...
 echo.
-python -c "import sms; import ai_assessment_grading; print('   ✓ Core modules verified!')" 
+python -c "import sms; import ai_assessment_grading; from ui_components import NotificationCenterFrame, AITutorChatFrame, EWSDashboardFrame; print('   ✓ Core modules verified!   ✓ UI Components loaded!') " 
 if errorlevel 1 (
     echo.
     echo   ⚠ Warning: Some optional modules may not be available
     echo   The system will work with limited features
+    echo   Continuing installation...
+    echo.
+) else (
+    echo   ✓ All critical modules verified successfully!
     echo.
 )
 timeout /t 1 /nobreak
@@ -212,41 +226,6 @@ if errorlevel 1 (
 REM Clean up temporary script
 if exist create_shortcut.vbs del create_shortcut.vbs >nul 2>&1
 
-echo.
-
-REM Create Desktop Shortcut using VBS
-echo [STEP 5/5] Creating Desktop Shortcuts...
-echo.
-
-REM Get the current directory (full path)
-for /f "tokens=*" %%I in ('cd') do set APPFOLDER=%%I
-
-REM Create VBS script to make shortcut
-(
-    echo Set oWS = WScript.CreateObject("WScript.Shell"^)
-    echo sLinkFile = oWS.SpecialFolders("Desktop"^) ^& "\Gaybeck Starkids SMS.lnk"
-    echo Set oLink = oWS.CreateShortcut(sLinkFile^)
-    echo oLink.TargetPath = "%APPFOLDER%\launch_sms.bat"
-    echo oLink.WorkingDirectory = "%APPFOLDER%"
-    echo oLink.Description = "Gaybeck Starkids School Management System"
-    echo oLink.IconLocation = "%APPFOLDER%\sms_icon.ico"
-    echo oLink.Save
-    echo WScript.Echo "Desktop shortcut created successfully!"
-) > create_shortcut.vbs
-
-REM Run the shortcut creation script
-cscript.exe create_shortcut.vbs >nul 2>&1
-if errorlevel 1 (
-    echo   ⚠ Warning: Could not create desktop shortcut
-    echo   You can still run launch_sms.bat from this folder
-) else (
-    echo   ✓ Desktop shortcut created: "Gaybeck Starkids SMS"
-)
-echo.
-
-REM Clean up temporary script
-del create_shortcut.vbs >nul 2>&1
-
 REM Final Success Message
 echo.
 echo ============================================================================
@@ -257,36 +236,43 @@ echo ===========================================================================
 echo.
 echo   Gaybeck Starkids SMS has been successfully installed!
 echo.
+echo   FEATURES NOW AVAILABLE:
+echo.
+echo   ✓ Student & Teacher Management
+echo   ✓ Grade & Attendance Tracking  
+echo   ✓ AI-Powered Assessments & Grading
+echo   ✓ AI Tutoring Engine
+echo   ✓ Early Warning System (EWS)
+echo   ✓ Real-time Notifications
+echo   ✓ Financial Management
+echo   ✓ Advanced Analytics & Reports
+echo.
 echo   QUICK START:
 echo.
-echo   1. Look on your Desktop for "Gaybeck Starkids SMS" icon
-echo      - If found: Double-click it to start the application
-echo      - If NOT found: Double-click "launch_sms.bat" in this folder
+echo   1. Double-click "Gaybeck Starkids SMS" on your Desktop
+echo      (or run "launch_sms.bat" in this folder if icon not found)
 echo.
-echo   2. Login with these default credentials:
-echo       Username: admin
-echo       Password: admin123
-echo.
+echo   2. Login with default credentials:
+echo       • Username: admin
+echo       • Password: admin123
 echo       OR
+echo       • Username: teacher1
+echo       • Password: teacher123
 echo.
-echo       Username: teacher1
-echo       Password: teacher123
+echo   3. IMPORTANT: Change default passwords for security!
 echo.
-echo   3. IMPORTANT: Change the default passwords immediately (for security)
-echo.
-echo   4. Start adding your school data:
-echo       - Teachers
-echo       - Classes
-echo       - Students
-echo.
-echo   5. Try the AI Assessment feature to create exams faster!
+echo   4. Start using the system:
+echo       • Add teachers and students
+echo       • Create classes and grades
+echo       • Use AI features for assessments
+echo       • Monitor student performance with EWS
 echo.
 echo ============================================================================
 echo.
-echo   NEED HELP?
-echo   - See: SETUP_INSTRUCTIONS.md
-echo   - Or: QUICK_REFERENCE.md
-echo   - Contact: support@gaybeckstarkids.com
+echo   DOCUMENTATION:
+echo   • QUICK_REFERENCE.md - Fast feature guide
+echo   • SETUP_INSTRUCTIONS.md - Detailed setup guide
+echo   • DEPLOYMENT_READY.md - Feature overview
 echo.
 echo ============================================================================
 echo.
