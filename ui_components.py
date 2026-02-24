@@ -70,8 +70,10 @@ class NotificationCenterFrame(ttk.Frame):
 class AITutorChatFrame(ttk.Frame):
     """Frame for AI tutor chat interface"""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, user_id=None, role=None, **kwargs):
         super().__init__(parent, **kwargs)
+        self.user_id = user_id
+        self.role = role
         self.chat_history = []
         self.create_widgets()
     
@@ -119,8 +121,10 @@ class AITutorChatFrame(ttk.Frame):
 class EWSDashboardFrame(ttk.Frame):
     """Frame for Early Warning System dashboard"""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, user_id=None, role=None, **kwargs):
         super().__init__(parent, **kwargs)
+        self.user_id = user_id
+        self.role = role
         self.create_widgets()
     
     def create_widgets(self):
@@ -150,8 +154,10 @@ class EWSDashboardFrame(ttk.Frame):
 class NotificationSettingsFrame(ttk.Frame):
     """Frame for notification settings"""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, user_id=None, role=None, **kwargs):
         super().__init__(parent, **kwargs)
+        self.user_id = user_id
+        self.role = role
         self.create_widgets()
     
     def create_widgets(self):

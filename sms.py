@@ -25276,8 +25276,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                 self.current_user.get('id', 1),
                 self.current_user.get('role', 'guest')
             )
-            ui = tutor_frame.get_frame()
-            ui.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            tutor_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
             
             self.update_status("AI Tutor - Intelligent Assistant")
         except Exception as e:
@@ -25296,9 +25295,12 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         
         try:
             # Create the EWS dashboard UI
-            ews_frame = EWSDashboardFrame(self.content_frame)
-            ui = ews_frame.get_frame()
-            ui.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            ews_frame = EWSDashboardFrame(
+                self.content_frame,
+                self.current_user.get('id', 1),
+                self.current_user.get('role', 'guest')
+            )
+            ews_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
             
             self.update_status("Risk Assessment - Early Warning System")
         except Exception as e:
