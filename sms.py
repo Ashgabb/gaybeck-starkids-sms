@@ -25245,8 +25245,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                 self.current_user.get('id', 1),
                 self.current_user.get('role', 'guest')
             )
-            ui = notif_frame.get_frame()
-            ui.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            notif_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
             
             self.update_status("Notifications - Smart Alerts & Messages")
         except Exception as e:

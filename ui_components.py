@@ -8,8 +8,10 @@ from tkinter import ttk, messagebox
 class NotificationCenterFrame(ttk.Frame):
     """Frame for notification center"""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, user_id=None, role=None, **kwargs):
         super().__init__(parent, **kwargs)
+        self.user_id = user_id
+        self.role = role
         self.notifications = []
         self.create_widgets()
     
