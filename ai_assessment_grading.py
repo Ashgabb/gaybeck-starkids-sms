@@ -825,6 +825,13 @@ class AIAssessmentGrading:
 
 # ==================== EXPORT FUNCTIONS ====================
 
-def get_ai_assessment_grading_service(db_connection):
+def get_ai_assessment_grading_service(db_connection=None):
     """Factory function to get AI Assessment and Grading service"""
+    if db_connection is None:
+        # Create a default connection if none provided
+        try:
+            db_connection = sqlite3.connect('database/school_management.db')
+        except Exception as e:
+            print(f"Error creating default database connection: {e}")
+            return None
     return AIAssessmentGrading(db_connection)
