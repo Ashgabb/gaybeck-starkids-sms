@@ -167,6 +167,25 @@ except ImportError:
     logger = logging.getLogger(__name__)
     logger.warning("AI Assessment & Grading not available. Install ai_assessment_grading module.")
 
+# HR Manager Features
+try:
+    from hr_manager import create_hr_manager_ui
+    HR_MANAGER_AVAILABLE = True
+except ImportError:
+    HR_MANAGER_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("HR Manager not available. Install hr_manager module.")
+
+# Biometric Authentication Features
+try:
+    from biometric_auth import BiometricAttendanceManager
+    from biometric_ui import BiometricAttendanceUI, BiometricEnrollmentUI
+    BIOMETRIC_AVAILABLE = True
+except ImportError:
+    BIOMETRIC_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("Biometric authentication not available. Install biometric_auth module.")
+
 # ==================== AI PREDICTOR CLASS ====================
 
 class AIPredictor:
@@ -3696,6 +3715,7 @@ class SchoolManagementSystem:
             ("🤖   AI Tutor", self.show_ai_tutor, "ai_tutor", None),  # Phase 1: AI Chatbot
             ("⚠️   Risk Assessment", self.show_ews_dashboard, "ews", None),  # Phase 1: Early Warning System
             ("📚   Learning Support", self.show_ai_learning_support, "ai_learning", None),  # Phase 2: AI Learning Assistant
+            ("👔   HR Manager", self.show_hr_manager, "hr_manager", None),  # HR Management
             ("⚙️   Settings", self.show_settings, "settings", "admin")  # Admin only - System Settings
         ]
         
@@ -14715,6 +14735,32 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                            self.save_bulk_attendance, 'warning', width=15)
         save_btn.pack(side=tk.LEFT)
 
+        # Biometric authentication section (if available)
+        if BIOMETRIC_AVAILABLE:
+            biometric_section = tk.Frame(control_inner, bg='#f8f9fa', relief=tk.SUNKEN, bd=1)
+            biometric_section.pack(fill=tk.X, pady=(15, 0))
+            
+            biometric_header = tk.Frame(biometric_section, bg='#2c3e50')
+            biometric_header.pack(fill=tk.X)
+            
+            tk.Label(biometric_header, text="🔐 Biometric Attendance", 
+                    font=('Segoe UI', 12, 'bold'), bg='#2c3e50', fg='white', padx=15, pady=10).pack(anchor=tk.W)
+            
+            biometric_buttons = tk.Frame(biometric_section, bg='#f8f9fa')
+            biometric_buttons.pack(fill=tk.X, padx=15, pady=15)
+            
+            facial_btn = self.create_modern_button(biometric_buttons, "📸 Facial Recognition", 
+                                                  self.open_biometric_facial_attendance, 'info', width=18)
+            facial_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            fingerprint_btn = self.create_modern_button(biometric_buttons, "👆 Fingerprint Sensor", 
+                                                       self.open_biometric_fingerprint_attendance, 'info', width=18)
+            fingerprint_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            enroll_btn = self.create_modern_button(biometric_buttons, "📝 Enroll Biometric Data", 
+                                                  self.open_biometric_enrollment, 'secondary', width=18)
+            enroll_btn.pack(side=tk.LEFT)
+
         # Attendance data section
         data_section = tk.Frame(attendance_main_frame, bg='#ffffff')
         data_section.pack(fill=tk.BOTH, expand=True, padx=0)
@@ -15285,6 +15331,371 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                    f"Failed to reset form:\n\n{str(e)}")
                 if hasattr(self, 'update_status'):
                     self.update_status("❌ Error resetting attendance form")
+
+    # ==================== BIOMETRIC ATTENDANCE METHODS ====================
+    
+    def open_biometric_facial_attendance(self):
+        """Open facial recognition attendance dialog"""
+        if not BIOMETRIC_AVAILABLE:
+            messagebox.showerror("❌ Biometric Not Available",
+                               "Facial recognition module is not available.\n"
+                               "Please ensure biometric_auth module is installed.")
+            return
+        
+        try:
+            # Create a new window for facial recognition
+            facial_window = tk.Toplevel(self.root)
+            facial_window.title("📸 Facial Recognition Attendance")
+            facial_window.geometry("500x400")
+            facial_window.resizable(False, False)
+            
+            # Header
+            header = tk.Frame(facial_window, bg='#2c3e50')
+            header.pack(fill=tk.X)
+            tk.Label(header, text="📸 Facial Recognition Attendance", 
+                    font=('Segoe UI', 14, 'bold'), bg='#2c3e50', fg='white',
+                    padx=20, pady=15).pack()
+            
+            # Content frame
+            content = tk.Frame(facial_window, bg='#ffffff')
+            content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            # Student selection
+            tk.Label(content, text="Select Student to Mark Attendance:", 
+                    font=('Segoe UI', 11, 'bold'), bg='#ffffff').pack(anchor=tk.W, pady=(0, 10))
+            
+            # Get list of students
+            self.cursor.execute("SELECT id, name FROM students ORDER BY name")
+            students = self.cursor.fetchall()
+            student_names = [f"{s[1]} (ID: {s[0]})" for s in students]
+            
+            selected_student = tk.StringVar(value=student_names[0] if student_names else "")
+            student_combo = ttk.Combobox(content, textvariable=selected_student, 
+                                        values=student_names, state='readonly', width=40)
+            student_combo.pack(fill=tk.X, pady=(0, 20))
+            
+            # Status display
+            status_label = tk.Label(content, text="Status: Ready", 
+                                  font=('Segoe UI', 10), bg='#ffffff', fg='#3498db')
+            status_label.pack(anchor=tk.W, pady=(10, 20))
+            
+            # Progress bar
+            progress = ttk.Progressbar(content, mode='indeterminate')
+            progress.pack(fill=tk.X, pady=(0, 20))
+            
+            def start_facial():
+                student_text = selected_student.get()
+                if not student_text:
+                    messagebox.showwarning("⚠️ No Student", "Please select a student first.")
+                    return
+                
+                try:
+                    # Extract student ID
+                    student_id = int(student_text.split("(ID: ")[1].split(")")[0])
+                    
+                    status_label.config(text="Status: Starting camera...", fg='#f39c12')
+                    progress.start()
+                    facial_window.update()
+                    
+                    # Initialize biometric system and mark attendance
+                    biometric_manager = BiometricAttendanceManager(self.conn)
+                    success, message = biometric_manager.mark_attendance_with_facial(student_id, 'student')
+                    
+                    progress.stop()
+                    
+                    if success:
+                        status_label.config(text=f"Status: ✅ Attendance marked!", fg='#27ae60')
+                        messagebox.showinfo("✅ Success", 
+                                          f"Attendance marked for {student_text}\n\n{message}")
+                        facial_window.after(2000, facial_window.destroy)
+                    else:
+                        status_label.config(text=f"Status: ❌ {message}", 
+                                          fg='#e74c3c')
+                        messagebox.showerror("❌ Error", 
+                                           f"Failed to mark attendance:\n\n{message}")
+                
+                except Exception as e:
+                    progress.stop()
+                    status_label.config(text=f"Status: ❌ Error: {str(e)}", fg='#e74c3c')
+                    messagebox.showerror("❌ Error", f"Facial recognition error:\n\n{str(e)}")
+            
+            # Button frame
+            btn_frame = tk.Frame(content, bg='#ffffff')
+            btn_frame.pack(fill=tk.X, pady=(20, 0))
+            
+            start_btn = tk.Button(btn_frame, text="🎥 Start Facial Recognition",
+                                 command=start_facial, font=('Segoe UI', 11, 'bold'),
+                                 bg='#3498db', fg='white', relief='solid', bd=0,
+                                 padx=15, pady=10, cursor='hand2')
+            start_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            close_btn = tk.Button(btn_frame, text="❌ Close",
+                                 command=facial_window.destroy, font=('Segoe UI', 11),
+                                 bg='#95a5a6', fg='white', relief='solid', bd=0,
+                                 padx=15, pady=10, cursor='hand2')
+            close_btn.pack(side=tk.LEFT)
+        
+        except Exception as e:
+            messagebox.showerror("❌ Error", f"Failed to open facial recognition:\n\n{str(e)}")
+    
+    def open_biometric_fingerprint_attendance(self):
+        """Open fingerprint sensor attendance dialog"""
+        if not BIOMETRIC_AVAILABLE:
+            messagebox.showerror("❌ Biometric Not Available",
+                               "Fingerprint module is not available.\n"
+                               "Please ensure biometric_auth module is installed.")
+            return
+        
+        try:
+            # Create a new window for fingerprint
+            fingerprint_window = tk.Toplevel(self.root)
+            fingerprint_window.title("👆 Fingerprint Sensor Attendance")
+            fingerprint_window.geometry("500x400")
+            fingerprint_window.resizable(False, False)
+            
+            # Header
+            header = tk.Frame(fingerprint_window, bg='#2c3e50')
+            header.pack(fill=tk.X)
+            tk.Label(header, text="👆 Fingerprint Sensor Attendance", 
+                    font=('Segoe UI', 14, 'bold'), bg='#2c3e50', fg='white',
+                    padx=20, pady=15).pack()
+            
+            # Content frame
+            content = tk.Frame(fingerprint_window, bg='#ffffff')
+            content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            # Student selection
+            tk.Label(content, text="Select Student to Mark Attendance:", 
+                    font=('Segoe UI', 11, 'bold'), bg='#ffffff').pack(anchor=tk.W, pady=(0, 10))
+            
+            # Get list of students
+            self.cursor.execute("SELECT id, name FROM students ORDER BY name")
+            students = self.cursor.fetchall()
+            student_names = [f"{s[1]} (ID: {s[0]})" for s in students]
+            
+            selected_student = tk.StringVar(value=student_names[0] if student_names else "")
+            student_combo = ttk.Combobox(content, textvariable=selected_student, 
+                                        values=student_names, state='readonly', width=40)
+            student_combo.pack(fill=tk.X, pady=(0, 20))
+            
+            # Status display
+            status_label = tk.Label(content, text="Status: Ready", 
+                                  font=('Segoe UI', 10), bg='#ffffff', fg='#3498db')
+            status_label.pack(anchor=tk.W, pady=(10, 20))
+            
+            # Progress bar
+            progress = ttk.Progressbar(content, mode='indeterminate')
+            progress.pack(fill=tk.X, pady=(0, 20))
+            
+            def start_fingerprint():
+                student_text = selected_student.get()
+                if not student_text:
+                    messagebox.showwarning("⚠️ No Student", "Please select a student first.")
+                    return
+                
+                try:
+                    # Extract student ID
+                    student_id = int(student_text.split("(ID: ")[1].split(")")[0])
+                    
+                    status_label.config(text="Status: Waiting for fingerprint...", fg='#f39c12')
+                    progress.start()
+                    fingerprint_window.update()
+                    
+                    # Initialize biometric system and mark attendance
+                    biometric_manager = BiometricAttendanceManager(self.conn)
+                    success, message = biometric_manager.mark_attendance_with_fingerprint(student_id, 'student')
+                    
+                    progress.stop()
+                    
+                    if success:
+                        status_label.config(text=f"Status: ✅ Attendance marked!", fg='#27ae60')
+                        messagebox.showinfo("✅ Success", 
+                                          f"Attendance marked for {student_text}\n\n{message}")
+                        fingerprint_window.after(2000, fingerprint_window.destroy)
+                    else:
+                        status_label.config(text=f"Status: ❌ {message}", 
+                                          fg='#e74c3c')
+                        messagebox.showerror("❌ Error", 
+                                           f"Failed to mark attendance:\n\n{message}")
+                
+                except Exception as e:
+                    progress.stop()
+                    status_label.config(text=f"Status: ❌ Error: {str(e)}", fg='#e74c3c')
+                    messagebox.showerror("❌ Error", f"Fingerprint verification error:\n\n{str(e)}")
+            
+            # Button frame
+            btn_frame = tk.Frame(content, bg='#ffffff')
+            btn_frame.pack(fill=tk.X, pady=(20, 0))
+            
+            start_btn = tk.Button(btn_frame, text="🔍 Start Fingerprint Verification",
+                                 command=start_fingerprint, font=('Segoe UI', 11, 'bold'),
+                                 bg='#8e44ad', fg='white', relief='solid', bd=0,
+                                 padx=15, pady=10, cursor='hand2')
+            start_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            close_btn = tk.Button(btn_frame, text="❌ Close",
+                                 command=fingerprint_window.destroy, font=('Segoe UI', 11),
+                                 bg='#95a5a6', fg='white', relief='solid', bd=0,
+                                 padx=15, pady=10, cursor='hand2')
+            close_btn.pack(side=tk.LEFT)
+        
+        except Exception as e:
+            messagebox.showerror("❌ Error", f"Failed to open fingerprint attendance:\n\n{str(e)}")
+    
+    def open_biometric_enrollment(self):
+        """Open biometric enrollment dialog for new students"""
+        if not BIOMETRIC_AVAILABLE:
+            messagebox.showerror("❌ Biometric Not Available",
+                               "Biometric module is not available.\n"
+                               "Please ensure biometric modules are installed.")
+            return
+        
+        try:
+            # Create a new window for enrollment
+            enrollment_window = tk.Toplevel(self.root)
+            enrollment_window.title("📝 Biometric Enrollment")
+            enrollment_window.geometry("600x500")
+            enrollment_window.resizable(False, False)
+            
+            # Header
+            header = tk.Frame(enrollment_window, bg='#2c3e50')
+            header.pack(fill=tk.X)
+            tk.Label(header, text="📝 Biometric Enrollment", 
+                    font=('Segoe UI', 14, 'bold'), bg='#2c3e50', fg='white',
+                    padx=20, pady=15).pack()
+            
+            # Content frame
+            content = tk.Frame(enrollment_window, bg='#ffffff')
+            content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            
+            # Student selection
+            tk.Label(content, text="Select Student to Enroll Biometric Data:", 
+                    font=('Segoe UI', 11, 'bold'), bg='#ffffff').pack(anchor=tk.W, pady=(0, 10))
+            
+            # Get list of students
+            self.cursor.execute("SELECT id, name FROM students ORDER BY name")
+            students = self.cursor.fetchall()
+            student_names = [f"{s[1]} (ID: {s[0]})" for s in students]
+            
+            selected_student = tk.StringVar(value=student_names[0] if student_names else "")
+            student_combo = ttk.Combobox(content, textvariable=selected_student, 
+                                        values=student_names, state='readonly', width=40)
+            student_combo.pack(fill=tk.X, pady=(0, 20))
+            
+            # Status display
+            status_label = tk.Label(content, text="Status: Ready", 
+                                  font=('Segoe UI', 10), bg='#ffffff', fg='#3498db')
+            status_label.pack(anchor=tk.W, pady=(10, 20))
+            
+            # Progress bar
+            progress = ttk.Progressbar(content, mode='indeterminate')
+            progress.pack(fill=tk.X, pady=(0, 20))
+            
+            def enroll_facial():
+                student_text = selected_student.get()
+                if not student_text:
+                    messagebox.showwarning("⚠️ No Student", "Please select a student first.")
+                    return
+                
+                try:
+                    # Extract student ID and name
+                    student_id = int(student_text.split("(ID: ")[1].split(")")[0])
+                    student_name = student_text.split(" (ID:")[0]
+                    
+                    status_label.config(text="Status: Starting facial enrollment (5 samples)...", fg='#f39c12')
+                    progress.start()
+                    enrollment_window.update()
+                    
+                    # Initialize biometric system and enroll
+                    biometric_manager = BiometricAttendanceManager(self.conn)
+                    
+                    # Capture facial samples
+                    capture_success, capture_msg = biometric_manager.facial_system.capture_face_samples(
+                        student_id, student_name, num_samples=30
+                    )
+                    
+                    if capture_success:
+                        # Train facial recognition model
+                        train_success, train_msg = biometric_manager.facial_system.train_facial_recognition()
+                        progress.stop()
+                        
+                        if train_success:
+                            status_label.config(text=f"Status: ✅ Facial enrollment complete!", fg='#27ae60')
+                            messagebox.showinfo("✅ Enrollment Success", 
+                                              f"Facial data enrolled for {student_name}\n\n{train_msg}")
+                        else:
+                            status_label.config(text=f"Status: ⚠️ {train_msg}", fg='#f39c12')
+                            messagebox.showwarning("⚠️ Warning", train_msg)
+                    else:
+                        progress.stop()
+                        status_label.config(text=f"Status: ❌ {capture_msg}", fg='#e74c3c')
+                        messagebox.showerror("❌ Error", f"Failed to enroll facial data:\n\n{capture_msg}")
+                
+                except Exception as e:
+                    progress.stop()
+                    status_label.config(text=f"Status: ❌ Error: {str(e)}", fg='#e74c3c')
+                    messagebox.showerror("❌ Error", f"Facial enrollment error:\n\n{str(e)}")
+            
+            def enroll_fingerprint():
+                student_text = selected_student.get()
+                if not student_text:
+                    messagebox.showwarning("⚠️ No Student", "Please select a student first.")
+                    return
+                
+                try:
+                    # Extract student ID and name
+                    student_id = int(student_text.split("(ID: ")[1].split(")")[0])
+                    student_name = student_text.split(" (ID:")[0]
+                    
+                    status_label.config(text="Status: Starting fingerprint enrollment...", fg='#f39c12')
+                    progress.start()
+                    enrollment_window.update()
+                    
+                    # Initialize biometric system and enroll
+                    biometric_manager = BiometricAttendanceManager(self.conn)
+                    enroll_success, enroll_msg = biometric_manager.fingerprint_system.enroll_fingerprint(
+                        student_id, student_name
+                    )
+                    
+                    progress.stop()
+                    
+                    if enroll_success:
+                        status_label.config(text=f"Status: ✅ Fingerprint enrollment complete!", fg='#27ae60')
+                        messagebox.showinfo("✅ Enrollment Success", 
+                                          f"Fingerprint data enrolled for {student_name}\n\n{enroll_msg}")
+                    else:
+                        status_label.config(text=f"Status: ❌ {enroll_msg}", fg='#e74c3c')
+                        messagebox.showerror("❌ Error", f"Failed to enroll fingerprint:\n\n{enroll_msg}")
+                
+                except Exception as e:
+                    progress.stop()
+                    status_label.config(text=f"Status: ❌ Error: {str(e)}", fg='#e74c3c')
+                    messagebox.showerror("❌ Error", f"Fingerprint enrollment error:\n\n{str(e)}")
+            
+            # Button frame
+            btn_frame = tk.Frame(content, bg='#ffffff')
+            btn_frame.pack(fill=tk.X, pady=(20, 0))
+            
+            facial_btn = tk.Button(btn_frame, text="📸 Enroll Facial Data",
+                                  command=enroll_facial, font=('Segoe UI', 11, 'bold'),
+                                  bg='#3498db', fg='white', relief='solid', bd=0,
+                                  padx=15, pady=10, cursor='hand2')
+            facial_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            fingerprint_btn = tk.Button(btn_frame, text="👆 Enroll Fingerprint",
+                                       command=enroll_fingerprint, font=('Segoe UI', 11, 'bold'),
+                                       bg='#8e44ad', fg='white', relief='solid', bd=0,
+                                       padx=15, pady=10, cursor='hand2')
+            fingerprint_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            close_btn = tk.Button(btn_frame, text="❌ Close",
+                                 command=enrollment_window.destroy, font=('Segoe UI', 11),
+                                 bg='#95a5a6', fg='white', relief='solid', bd=0,
+                                 padx=15, pady=10, cursor='hand2')
+            close_btn.pack(side=tk.LEFT)
+        
+        except Exception as e:
+            messagebox.showerror("❌ Error", f"Failed to open enrollment dialog:\n\n{str(e)}")
 
     def show_database_view(self):
         self.clear_content_frame()
@@ -25795,6 +26206,26 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
             return result[0] if result else None
         except:
             return None
+    
+    def show_hr_manager(self):
+        """Display HR Manager interface"""
+        # Check if HR Manager is available
+        if not HR_MANAGER_AVAILABLE:
+            messagebox.showwarning("Feature Unavailable",
+                                  "HR Manager is not available.\n\n"
+                                  "Ensure hr_manager.py is installed in the project.")
+            return
+        
+        try:
+            # Clear content frame
+            self.clear_content_frame()
+            
+            # Create HR Manager UI embedded in main window
+            hr_ui = create_hr_manager_ui(self.content_frame, self.conn, self.format_currency)
+            
+            self.update_status("HR Manager - Employee Management System")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load HR Manager:\n{str(e)}")
 
 def start_application():
     """Start the application with login window"""
