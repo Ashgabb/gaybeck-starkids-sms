@@ -3,7 +3,13 @@ AI Learning Support Module
 Provides comprehensive AI-powered learning support services
 """
 import sqlite3
+from collections import namedtuple
 from datetime import datetime
+
+TrainingContent = namedtuple('TrainingContent', [
+    'id', 'content_type', 'subject', 'topic', 'content',
+    'source', 'grade_level', 'timestamp'
+])
 
 class AITutorBot:
     """AI Tutor Bot for student support"""
@@ -209,6 +215,20 @@ class AILearningDatabase:
                     timestamp TEXT
                 )
             ''')
+
+            # Training content table for lesson materials
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS training_content (
+                    id INTEGER PRIMARY KEY,
+                    content_type TEXT,
+                    subject TEXT,
+                    topic TEXT,
+                    content TEXT,
+                    source TEXT,
+                    grade_level TEXT,
+                    timestamp TEXT
+                )
+            ''')
             
             conn.commit()
             conn.close()
@@ -233,6 +253,38 @@ class AILearningDatabase:
             print(f"Error saving conversation: {e}")
             return False
 
+    def add_training_content(self, content_type, subject, topic, content, source='Teacher Upload', grade_level='Grade 1-3'):
+        """Add new training content for lesson materials"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO training_content (content_type, subject, topic, content, source, grade_level, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (content_type, subject, topic, content, source, grade_level, datetime.now().isoformat()))
+            
+            conn.commit()
+            content_id = cursor.lastrowid
+            conn.close()
+            return content_id
+        except Exception as e:
+            print(f"Error adding training content: {e}")
+            return 0
+
+    def get_training_content(self):
+        """Retrieve all available training content"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, content_type, subject, topic, content, source, grade_level, timestamp FROM training_content')
+            rows = cursor.fetchall()
+            conn.close()
+            return [TrainingContent(*row) for row in rows]
+        except Exception as e:
+            print(f"Error getting training content: {e}")
+            return []
+
 # Create a singleton instance
 _ai_learning_service = None
 
@@ -240,11 +292,22 @@ def get_ai_learning_service():
     """Get or create the AI learning service instance"""
     global _ai_learning_service
     if _ai_learning_service is None:
+        database = AILearningDatabase()
+        tutor = AITutorBot()
+        lesson_planner = LessonPlanGenerator()
+        quiz_generator = QuizGenerator()
+        assignment_grader = AssignmentGrader()
+
+        tutor.db = database
+        lesson_planner.db = database
+        quiz_generator.db = database
+        assignment_grader.db = database
+
         _ai_learning_service = {
-            'tutor': AITutorBot(),
-            'lesson_planner': LessonPlanGenerator(),
-            'quiz_generator': QuizGenerator(),
-            'assignment_grader': AssignmentGrader(),
-            'database': AILearningDatabase()
+            'tutor': tutor,
+            'lesson_planner': lesson_planner,
+            'quiz_generator': quiz_generator,
+            'assignment_grader': assignment_grader,
+            'database': database
         }
     return _ai_learning_service

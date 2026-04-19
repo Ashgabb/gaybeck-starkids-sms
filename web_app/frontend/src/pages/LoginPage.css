@@ -90,6 +90,28 @@
   margin: 0.25rem 0;
 }
 
+.download-button-container {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.download-button-container .download-desktop-button {
+  display: inline-block;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.85rem 1rem;
+  background-color: #10b981;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.download-button-container .download-desktop-button:hover {
+  background-color: #0f766e;
+}
+
 .credentials-info p:first-child {
   font-weight: 600;
   margin-bottom: 0.5rem;

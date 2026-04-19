@@ -7,6 +7,8 @@ Web-based wrapper for the Gaybeck Starkids School Management System.
 - `backend/` - Flask API server
 - `frontend/` - React web interface
 
+> The web app is independent from the desktop app. The desktop version now includes an "Open Web App" launcher, and the web app includes a download button for the desktop source package.
+
 ## Backend Setup
 
 ```bash

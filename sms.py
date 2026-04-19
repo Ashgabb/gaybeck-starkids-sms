@@ -1,31 +1,34 @@
 ﻿"""
 School Management System
-Version: 2.0.3
-Build Date: November 11, 2025
+Version: 2.0.4
+Build Date: April 19, 2026
 Organization: Gaybeck Starkids School
 
 A comprehensive school management system with AI-powered analytics.
 Features: Student/Teacher Management, Attendance, Fees, Grading, Reports, AI Insights
          Enhanced Navigation with Arrow Key Scrolling Support
 
-Copyright (c) 2024-2025 Gaybeck Starkids School. All rights reserved.
+Copyright (c) 2024-2026 Gaybeck Starkids School. All rights reserved.
 """
 
-__version__ = "2.0.3"
-__build_date__ = "2025-11-11"
+__version__ = "2.0.4"
+__build_date__ = "2026-04-19"
 __author__ = "Gaybeck Starkids SMS Development Team"
 
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
 import sqlite3
 from datetime import datetime, date, timedelta
 import calendar
-import os
 import sys
+import webbrowser
 import shutil
 import io
 import csv
 import logging
+
+WEB_APP_URL = os.environ.get('WEB_APP_URL', 'http://localhost:3000')
 try:
     from tkcalendar import DateEntry
     CALENDAR_AVAILABLE = True
@@ -1573,7 +1576,15 @@ class ScrollableFrame(tk.Frame):
         bg_color = kwargs.get('bg', 'white')
         
         # Create canvas and scrollbar with clean styling
-        self.canvas = tk.Canvas(self, highlightthickness=0, bd=0, relief=tk.FLAT, bg=bg_color)
+        self.canvas = tk.Canvas(
+            self,
+            highlightthickness=1,
+            highlightbackground='#34495e',
+            highlightcolor='#3b82f6',
+            bd=0,
+            relief=tk.FLAT,
+            bg=bg_color
+        )
         
         # Use tk.Scrollbar instead of ttk for better visibility with custom colors
         # Determine if this is a dark theme based on background color
@@ -1581,14 +1592,34 @@ class ScrollableFrame(tk.Frame):
         
         if is_dark_bg:
             # Light scrollbar for dark backgrounds
-            self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview,
-                                         bg='#34495e', troughcolor='#2c3e50', 
-                                         activebackground='#3498db', highlightthickness=0,
-                                         bd=1, relief=tk.FLAT, width=14)
+            self.scrollbar = tk.Scrollbar(
+                self,
+                orient="vertical",
+                command=self.canvas.yview,
+                bg='#1f2937',
+                troughcolor='#19202a',
+                activebackground='#2563eb',
+                highlightthickness=0,
+                bd=0,
+                relief=tk.FLAT,
+                width=16,
+                cursor='sb_v_double_arrow'
+            )
         else:
             # Standard scrollbar for light backgrounds
-            self.scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview,
-                                         highlightthickness=0, bd=1, relief=tk.FLAT, width=14)
+            self.scrollbar = tk.Scrollbar(
+                self,
+                orient="vertical",
+                command=self.canvas.yview,
+                bg='#e5e7eb',
+                troughcolor='#f8fafc',
+                activebackground='#2563eb',
+                highlightthickness=0,
+                bd=0,
+                relief=tk.FLAT,
+                width=14,
+                cursor='sb_v_double_arrow'
+            )
         
         self.scrollable_frame = tk.Frame(self.canvas, relief=tk.FLAT, bd=0, bg=bg_color)
         
@@ -1602,16 +1633,16 @@ class ScrollableFrame(tk.Frame):
         self.canvas_frame = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Pack canvas first (scrollbar will be packed conditionally or always)
-        self.canvas.pack(side="left", fill="both", expand=True)
-        
         # Track if scrollbar is currently visible
         self.scrollbar_visible = False
         
-        # If always show scrollbar, pack it immediately
+        # If always show scrollbar, pack it immediately before the canvas
         if self.always_show_scrollbar:
             self.scrollbar.pack(side="right", fill="y")
             self.scrollbar_visible = True
+            self.canvas.pack(side="left", fill="both", expand=True)
+        else:
+            self.canvas.pack(side="left", fill="both", expand=True)
         
         # Bind mouse wheel events
         self.bind_mouse_wheel()
@@ -3526,6 +3557,23 @@ class SchoolManagementSystem:
                               font=('Segoe UI', 9, 'bold'), bg='#dc3545', fg='white',
                               relief='solid', bd=0, padx=15, pady=5, cursor='hand2')
         logout_btn.pack(anchor=tk.E)
+
+        # Open Web App button
+        web_btn = tk.Button(right_section, text="Open Web App", command=self.open_web_app,
+                            font=('Segoe UI', 9, 'bold'), bg='#0d6efd', fg='white',
+                            relief='solid', bd=0, padx=15, pady=5, cursor='hand2')
+        web_btn.pack(anchor=tk.E, pady=(8, 0))
+    
+    def open_web_app(self):
+        """Open the web application in the user's default browser."""
+        try:
+            webbrowser.open(WEB_APP_URL)
+        except Exception as e:
+            messagebox.showerror(
+                "Open Web App",
+                f"Unable to open the web application at {WEB_APP_URL}.\n"
+                f"Please open it manually in your browser.\n\nError: {e}"
+            )
     
     def create_report_header(self, parent_frame, title, subtitle=""):
         """Create a consistent header with logo for all reports"""
@@ -3690,6 +3738,7 @@ class SchoolManagementSystem:
         
         # Create scrollable container for navigation buttons with always-visible scrollbar
         nav_scroll_container = ScrollableFrame(self.nav_frame, always_show_scrollbar=True, bg='#2c3e50')
+        nav_scroll_container.canvas.configure(highlightthickness=1, highlightbackground='#1f2937')
         nav_scroll_container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
         nav_buttons_container = nav_scroll_container.get_frame()
         
@@ -25750,6 +25799,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                 self.lesson_planner = ai_learning_service['lesson_planner']
                 self.quiz_generator = ai_learning_service['quiz_generator']
                 self.assignment_grader = ai_learning_service['assignment_grader']
+                self.ai_learning_db = ai_learning_service['database']
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to initialize AI Learning Services: {str(e)}")
                 return
@@ -26042,7 +26092,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                     return
                 
                 try:
-                    content_id = self.assignment_grader.db.add_training_content(
+                    content_id = self.ai_learning_db.add_training_content(
                         content_type_var.get(),
                         subject_var.get(),
                         topic_var.get(),
@@ -26071,7 +26121,7 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
     def _view_lesson_materials(self):
         """View available lesson materials"""
         try:
-            content_list = self.ai_tutor_bot.db.get_training_content()
+            content_list = self.ai_learning_db.get_training_content()
             
             self.clear_content_frame()
             

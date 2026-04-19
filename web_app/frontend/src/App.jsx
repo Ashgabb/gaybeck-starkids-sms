@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
+import AccountantDashboard from './pages/AccountantDashboard';
 import Navigation from './components/Navigation';
 import './App.css';
 
@@ -17,17 +18,21 @@ function App() {
   const handleLogin = async (username, password) => {
     setLoading(true);
     try {
+      console.log('Attempting login with:', username, password);
+      console.log('API URL:', API_URL);
       const response = await axios.post(`${API_URL}/auth/login`, {
         username,
         password
       });
       
+      console.log('Login response:', response.data);
       setUser(response.data.user);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
     } catch (error) {
       console.error('Login failed:', error);
-      alert('Login failed. Please check your credentials.');
+      console.error('Error response:', error.response?.data);
+      alert(`Login failed: ${error.response?.data?.error || 'Please check your credentials.'}`);
     } finally {
       setLoading(false);
     }
@@ -59,6 +64,9 @@ function App() {
           )}
           {user.role === 'teacher' && (
             <Route path="/" element={<TeacherDashboard />} />
+          )}
+          {user.role === 'accountant' && (
+            <Route path="/" element={<AccountantDashboard />} />
           )}
           {user.role === 'student' && (
             <Route path="/" element={<StudentDashboard />} />

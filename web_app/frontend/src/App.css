@@ -106,6 +106,21 @@ button:hover {
   background-color: var(--secondary-color);
 }
 
+.download-desktop-button {
+  display: inline-block;
+  background-color: var(--success-color);
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.download-desktop-button:hover {
+  background-color: #0f766e;
+}
+
 button:disabled {
   background-color: #9ca3af;
   cursor: not-allowed;

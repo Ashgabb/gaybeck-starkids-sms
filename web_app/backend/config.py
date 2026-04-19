@@ -21,7 +21,7 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
     
     # CORS
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
+    CORS_ORIGINS = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:4173']
 
 class DevelopmentConfig(Config):
     """Development configuration"""

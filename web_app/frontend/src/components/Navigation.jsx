@@ -6,6 +6,14 @@ export default function Navigation({ user, onLogout }) {
       </div>
       <div className="nav-user">
         <span>Welcome, {user.username}</span>
+        <a
+          className="download-desktop-button"
+          href="https://github.com/gaybeck/gaybeck-starkids-sms/archive/refs/heads/main.zip"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Download Desktop
+        </a>
         <button onClick={onLogout}>Logout</button>
       </div>
     </nav>

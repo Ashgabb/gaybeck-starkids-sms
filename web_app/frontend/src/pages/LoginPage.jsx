@@ -50,6 +50,16 @@ export default function LoginPage({ onLogin, loading }) {
           <p>Teacher: teacher1 / teacher123</p>
           <p>Student: student1 / student123</p>
         </div>
+        <div className="download-button-container">
+          <a
+            className="download-desktop-button"
+            href="https://github.com/gaybeck/gaybeck-starkids-sms/archive/refs/heads/main.zip"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Download Desktop Version
+          </a>
+        </div>
       </div>
     </div>
   );
