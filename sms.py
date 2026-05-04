@@ -5185,6 +5185,32 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             traceback.print_exc()
             return 0, 0
     
+    def get_student_status_counts(self):
+        """Get count of suspended and inactive students"""
+        try:
+            # Count suspended students
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM students 
+                WHERE status = 'Suspended'
+            ''')
+            suspended_result = self.cursor.fetchone()
+            suspended = suspended_result[0] if suspended_result else 0
+            
+            # Count inactive students
+            self.cursor.execute('''
+                SELECT COUNT(*) FROM students 
+                WHERE status = 'Inactive'
+            ''')
+            inactive_result = self.cursor.fetchone()
+            inactive = inactive_result[0] if inactive_result else 0
+            
+            return suspended, inactive
+        except Exception as e:
+            print(f"Error getting student status counts: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0, 0
+    
     def get_total_classes(self):
         """Get total number of classes"""
         try:
@@ -8416,6 +8442,7 @@ Highest Grade: {max_grade:.1f}%
         total_students = self.get_total_students()
         boys_count, girls_count = self.get_gender_counts()
         fee_paying, scholarship = self.get_payment_status_counts()
+        suspended_count, inactive_count = self.get_student_status_counts()
         total_classes = self.get_total_classes()
         
         # Row 1: Student statistics
@@ -8455,6 +8482,20 @@ Highest Grade: {max_grade:.1f}%
         classes_card = self.create_stats_card(stats_row2, "📚 Total Classes", 
                                              str(total_classes), '#34495e')
         classes_card.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        
+        # Row 3: Student status statistics
+        stats_row3 = tk.Frame(stats_container, bg='#ffffff')
+        stats_row3.pack(fill=tk.X, pady=(15, 0))
+        
+        # Suspended Students Card
+        suspended_card = self.create_stats_card(stats_row3, "⚠️ Suspended", 
+                                               str(suspended_count), '#f39c12')
+        suspended_card.pack(side=tk.LEFT, padx=(0, 15), expand=True, fill=tk.X)
+        
+        # Inactive Students Card
+        inactive_card = self.create_stats_card(stats_row3, "❌ Inactive", 
+                                              str(inactive_count), '#e74c3c')
+        inactive_card.pack(side=tk.LEFT, expand=True, fill=tk.X)
         
         # 📊 📊 Detailed Analytics Section (standalone)
         analytics_section = tk.Frame(dashboard_main_frame, bg='#f8f9fa', relief=tk.FLAT, bd=0)
