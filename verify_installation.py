@@ -1,10 +1,16 @@
 """
-Post-Installation Verification Script for Gaybeck Starkids SMS
-This script verifies that all components are correctly installed and functional
+Gaybeck SMS - Installation Verification Tool
+Purpose: Verify installation status and system compatibility
+For: Administrators to validate deployments
 """
 
-import sys
 import os
+import sys
+import json
+import subprocess
+import platform
+from pathlib import Path
+from datetime import datetime
 import sqlite3
 
 print("\n" + "="*70)

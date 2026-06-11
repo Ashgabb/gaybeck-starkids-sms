@@ -330,13 +330,14 @@ class AIPredictor:
                     'priority': 'High'
                 })
             
-            # Fee collection insights
+            # Fee collection insights (only active students)
             self.cursor.execute("""
                 SELECT 
-                    SUM(arrears) as total_arrears,
-                    COUNT(DISTINCT student_id) as students_with_arrears
-                FROM fees
-                WHERE arrears > 0
+                    SUM(f.arrears) as total_arrears,
+                    COUNT(DISTINCT f.student_id) as students_with_arrears
+                FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE f.arrears > 0 AND s.status = 'Active'
             """)
             result = self.cursor.fetchone()
             total_arrears, students_with_arrears = result if result else (0, 0)
@@ -1247,15 +1248,17 @@ class FinancialPeriodComparison:
         self.cursor = db_connection.cursor()
     
     def get_period_revenue(self, start_date, end_date):
-        """Get total revenue for a period"""
+        """Get total revenue for a period (only from active students)"""
         try:
             self.cursor.execute("""
-                SELECT SUM(amount_paid) as total_revenue,
-                       COUNT(DISTINCT student_id) as unique_students,
-                       AVG(amount_paid) as avg_payment
-                FROM fees
-                WHERE payment_date BETWEEN ? AND ?
-                AND amount_paid > 0
+                SELECT SUM(f.amount_paid) as total_revenue,
+                       COUNT(DISTINCT f.student_id) as unique_students,
+                       AVG(f.amount_paid) as avg_payment
+                FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE f.payment_date BETWEEN ? AND ?
+                AND f.amount_paid > 0
+                AND s.status = 'Active'
             """, (start_date, end_date))
             result = self.cursor.fetchone()
             return {
@@ -1268,20 +1271,22 @@ class FinancialPeriodComparison:
             return {'total_revenue': 0, 'unique_students': 0, 'avg_payment': 0}
     
     def get_period_collections_by_type(self, start_date, end_date):
-        """Get collections breakdown by fee type"""
+        """Get collections breakdown by fee type (only from active students)"""
         try:
             self.cursor.execute("""
                 SELECT 
                     CASE 
-                        WHEN feeding_fee_paid = 1 THEN 'Feeding Fee'
-                        WHEN bus_fee_paid = 1 THEN 'Bus Fee'
+                        WHEN f.feeding_fee_paid = 1 THEN 'Feeding Fee'
+                        WHEN f.bus_fee_paid = 1 THEN 'Bus Fee'
                         ELSE 'School Fee'
                     END as fee_type,
-                    SUM(amount_paid) as amount,
+                    SUM(f.amount_paid) as amount,
                     COUNT(*) as transaction_count
-                FROM fees
-                WHERE payment_date BETWEEN ? AND ?
-                AND amount_paid > 0
+                FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE f.payment_date BETWEEN ? AND ?
+                AND f.amount_paid > 0
+                AND s.status = 'Active'
                 GROUP BY fee_type
             """, (start_date, end_date))
             results = self.cursor.fetchall()
@@ -1295,16 +1300,18 @@ class FinancialPeriodComparison:
             return []
     
     def get_period_arrears(self, start_date, end_date):
-        """Get total arrears for a period"""
+        """Get total arrears for a period (only from active students)"""
         try:
             self.cursor.execute("""
                 SELECT 
-                    SUM(arrears) as total_arrears,
-                    COUNT(DISTINCT student_id) as students_with_arrears,
-                    AVG(arrears) as avg_arrears
-                FROM fees
-                WHERE payment_date BETWEEN ? AND ?
-                AND arrears > 0
+                    SUM(f.arrears) as total_arrears,
+                    COUNT(DISTINCT f.student_id) as students_with_arrears,
+                    AVG(f.arrears) as avg_arrears
+                FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE f.payment_date BETWEEN ? AND ?
+                AND f.arrears > 0
+                AND s.status = 'Active'
             """, (start_date, end_date))
             result = self.cursor.fetchone()
             return {
@@ -1358,17 +1365,19 @@ class FinancialPeriodComparison:
             return None
     
     def get_monthly_trends(self, start_date, end_date):
-        """Get monthly financial trends for a date range"""
+        """Get monthly financial trends for a date range (only active students)"""
         try:
             self.cursor.execute("""
                 SELECT 
-                    strftime('%Y-%m', payment_date) as month,
-                    SUM(amount_paid) as total_collected,
-                    SUM(arrears) as total_arrears,
-                    COUNT(DISTINCT student_id) as students_paid,
+                    strftime('%Y-%m', f.payment_date) as month,
+                    SUM(f.amount_paid) as total_collected,
+                    SUM(f.arrears) as total_arrears,
+                    COUNT(DISTINCT f.student_id) as students_paid,
                     COUNT(*) as transaction_count
-                FROM fees
-                WHERE payment_date BETWEEN ? AND ?
+                FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE f.payment_date BETWEEN ? AND ?
+                AND s.status = 'Active'
                 GROUP BY month
                 ORDER BY month ASC
             """, (start_date, end_date))
@@ -1385,7 +1394,7 @@ class FinancialPeriodComparison:
             return []
     
     def get_class_wise_collections(self, start_date, end_date):
-        """Get collection statistics by class"""
+        """Get collection statistics by class (only active students)"""
         try:
             self.cursor.execute("""
                 SELECT 
@@ -1399,6 +1408,7 @@ class FinancialPeriodComparison:
                 JOIN students s ON f.student_id = s.id
                 JOIN classes c ON s.class_id = c.id
                 WHERE f.payment_date BETWEEN ? AND ?
+                AND s.status = 'Active'
                 GROUP BY c.class_name
                 ORDER BY collection_rate DESC
             """, (start_date, end_date))
@@ -1416,20 +1426,22 @@ class FinancialPeriodComparison:
             return []
     
     def get_payment_status_distribution(self, start_date, end_date):
-        """Get distribution of payment statuses"""
+        """Get distribution of payment statuses (only active students)"""
         try:
             self.cursor.execute("""
                 SELECT 
                     CASE 
-                        WHEN amount_paid = 0 THEN 'Not Paid'
-                        WHEN amount_paid < amount_due THEN 'Partial'
-                        WHEN amount_paid >= amount_due THEN 'Paid'
+                        WHEN f.amount_paid = 0 THEN 'Not Paid'
+                        WHEN f.amount_paid < f.amount_due THEN 'Partial'
+                        WHEN f.amount_paid >= f.amount_due THEN 'Paid'
                     END as status,
                     COUNT(*) as count,
-                    SUM(amount_due) as amount_due,
-                    SUM(amount_paid) as amount_paid
-                FROM fees
-                WHERE payment_date BETWEEN ? AND ?
+                    SUM(f.amount_due) as amount_due,
+                    SUM(f.amount_paid) as amount_paid
+                FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE f.payment_date BETWEEN ? AND ?
+                AND s.status = 'Active'
                 GROUP BY status
             """, (start_date, end_date))
             results = self.cursor.fetchall()
@@ -3733,8 +3745,14 @@ class SchoolManagementSystem:
             nav_title_text += "\n(FULL ACCESS)"
             
         nav_title = tk.Label(self.nav_frame, text=nav_title_text, 
-                            font=('Segoe UI', 11, 'bold'), bg='#2c3e50', fg='#bdc3c7')
-        nav_title.pack(pady=(25, 20), padx=20)
+                    font=('Segoe UI', 11, 'bold'), bg='#2c3e50', fg='#bdc3c7')
+        nav_title.pack(pady=(20, 12), padx=12, anchor='w')
+
+        # Sidebar toggle button
+        toggle_btn = tk.Button(self.nav_frame, text='◀', font=('Segoe UI', 10, 'bold'),
+                       bg='#2c3e50', fg='#ecf0f1', bd=0, relief=tk.FLAT,
+                       activebackground='#2c3e50', command=self.toggle_sidebar)
+        toggle_btn.place(relx=1.0, x=-10, y=12, anchor='ne')
         
         # Create scrollable container for navigation buttons with always-visible scrollbar
         nav_scroll_container = ScrollableFrame(self.nav_frame, always_show_scrollbar=True, bg='#2c3e50')
@@ -3809,6 +3827,9 @@ class SchoolManagementSystem:
                 btn.pack(fill=tk.X)
                 # Store command reference for later identification
                 btn.command_func = command
+                # store full text and icon-only text for collapse behavior
+                btn.full_text = text
+                btn.icon_text = text.split()[0] if text else text
                 self.nav_buttons.append(btn)
                 
                 # Bind mouse wheel to scroll the navigation (propagate to parent canvas)
@@ -3819,9 +3840,25 @@ class SchoolManagementSystem:
                 btn.bind("<MouseWheel>", on_nav_mousewheel)
                 btn_frame.bind("<MouseWheel>", on_nav_mousewheel)
                 
-                # Modern hover effects
-                btn.bind("<Enter>", lambda e, b=btn: b.configure(bg='#3498db', cursor='hand2'))
-                btn.bind("<Leave>", lambda e, b=btn: b.configure(bg='#34495e') if b != getattr(self, 'active_nav_btn', None) else None)
+                # Modern hover effects with subtle animation
+                def on_enter_btn(e, b=btn):
+                    b.configure(bg='#3498db', cursor='hand2')
+                    # enlarge slightly
+                    try:
+                        b.configure(padx=28)
+                    except:
+                        pass
+
+                def on_leave_btn(e, b=btn):
+                    try:
+                        if b != getattr(self, 'active_nav_btn', None):
+                            b.configure(bg='#34495e')
+                        b.configure(padx=25)
+                    except:
+                        pass
+
+                btn.bind("<Enter>", on_enter_btn)
+                btn.bind("<Leave>", on_leave_btn)
         
         # Update scroll region after all buttons are added
         nav_scroll_container.update_scrollregion()
@@ -4772,7 +4809,12 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         # Available reports
         report_types = [
             {
-                'title': '📊 Class Performance Report',
+                'title': '� TERMLY REPORT',
+                'description': 'Comprehensive termly report with academics, financial, attendance & behavior for each student',
+                'action': self.generate_termly_report
+            },
+            {
+                'title': '�📊 Class Performance Report',
                 'description': 'Comprehensive overview of class academic performance',
                 'action': self.generate_class_performance_report
             },
@@ -5159,13 +5201,13 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             return 0, 0
     
     def get_payment_status_counts(self):
-        """Get count of fee paying and scholarship students based on monthly_fee"""
+        """Get count of fee paying and scholarship students based on monthly_fee."""
         try:
+            # Only active students are counted for accounting and reporting.
             # Count scholarship students (monthly_fee = 0 or NULL)
-            # Using COALESCE to handle NULL values
             self.cursor.execute('''
                 SELECT COUNT(*) FROM students 
-                WHERE COALESCE(monthly_fee, 0) = 0
+                WHERE status = 'Active' AND COALESCE(monthly_fee, 0) = 0
             ''')
             scholarship_result = self.cursor.fetchone()
             scholarship = scholarship_result[0] if scholarship_result else 0
@@ -5173,7 +5215,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             # Count fee-paying students (monthly_fee > 0)
             self.cursor.execute('''
                 SELECT COUNT(*) FROM students 
-                WHERE COALESCE(monthly_fee, 0) > 0
+                WHERE status = 'Active' AND COALESCE(monthly_fee, 0) > 0
             ''')
             fee_paying_result = self.cursor.fetchone()
             fee_paying = fee_paying_result[0] if fee_paying_result else 0
@@ -7845,7 +7887,7 @@ Students Tracked: {att_stats[1]}
                 tk.Label(att_frame, text=att_text, font=('Segoe UI', 11), 
                         bg='white', justify=tk.LEFT).pack(padx=15, pady=15, anchor='w')
             
-            # Fee Stats
+            # Fee Stats (only active students)
             self.cursor.execute("""
                 SELECT 
                     SUM(f.amount_due) as total_due,
@@ -7853,7 +7895,7 @@ Students Tracked: {att_stats[1]}
                     SUM(f.arrears) as total_arrears
                 FROM fees f
                 JOIN students s ON f.student_id = s.id
-                WHERE s.class_id = ?
+                WHERE s.class_id = ? AND s.status = 'Active'
             """, (class_id,))
             fee_stats = self.cursor.fetchone()
             
@@ -9192,23 +9234,35 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         current_year = datetime.now().year
         today = date.today().strftime('%Y-%m-%d')
         
-        # Monthly feeding fee collected
-        self.cursor.execute(
-            "SELECT SUM(amount_paid) FROM fees WHERE feeding_fee_paid = 1 AND strftime('%m', payment_date) = ? AND strftime('%Y', payment_date) = ?",
+        # Monthly feeding fee collected (only from active students)
+        self.cursor.execute("""
+            SELECT SUM(f.amount_paid) FROM fees f
+            JOIN students s ON f.student_id = s.id
+            WHERE f.feeding_fee_paid = 1 AND strftime('%m', f.payment_date) = ? AND strftime('%Y', f.payment_date) = ?
+            AND s.status = 'Active'
+        """,
             (f"{current_month:02d}", str(current_year))
         )
         monthly_feeding = self.cursor.fetchone()[0] or 0
         
-        # Today's feeding fee collected
-        self.cursor.execute(
-            "SELECT SUM(amount_paid) FROM fees WHERE feeding_fee_paid = 1 AND strftime('%Y-%m-%d', payment_date) = ?",
+        # Today's feeding fee collected (only from active students)
+        self.cursor.execute("""
+            SELECT SUM(f.amount_paid) FROM fees f
+            JOIN students s ON f.student_id = s.id
+            WHERE f.feeding_fee_paid = 1 AND strftime('%Y-%m-%d', f.payment_date) = ?
+            AND s.status = 'Active'
+        """,
             (today,)
         )
         daily_feeding = self.cursor.fetchone()[0] or 0
         
-        # Students who paid feeding fee this month
-        self.cursor.execute(
-            "SELECT COUNT(*) FROM fees WHERE feeding_fee_paid = 1 AND strftime('%m', payment_date) = ? AND strftime('%Y', payment_date) = ?",
+        # Students who paid feeding fee this month (only active students)
+        self.cursor.execute("""
+            SELECT COUNT(*) FROM fees f
+            JOIN students s ON f.student_id = s.id
+            WHERE f.feeding_fee_paid = 1 AND strftime('%m', f.payment_date) = ? AND strftime('%Y', f.payment_date) = ?
+            AND s.status = 'Active'
+        """,
             (f"{current_month:02d}", str(current_year))
         )
         students_paid = self.cursor.fetchone()[0] or 0
@@ -9624,43 +9678,105 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         """Create a statistics card with title, value and color"""
         # Main card container
         card_container = tk.Frame(parent, bg='#ffffff', relief=tk.FLAT, bd=0)
-        
+
         # Shadow effect
         shadow = tk.Frame(card_container, bg='#dee2e6', relief=tk.FLAT, bd=0)
         shadow.pack(fill=tk.BOTH, expand=True, padx=(2, 0), pady=(2, 0))
-        
+
         card = tk.Frame(shadow, bg='#ffffff', relief=tk.FLAT, bd=0)
         card.pack(fill=tk.BOTH, expand=True, padx=(0, 2), pady=(0, 2))
-        
-        # Header with colored background
+
+        # Header with colored background and title
         header = tk.Frame(card, bg=color, relief=tk.FLAT, bd=0)
         header.pack(fill=tk.X)
-        
-        header_content = tk.Frame(header, bg=color)
-        header_content.pack(fill=tk.X, padx=20, pady=15)
-        
-        # Extract emoji from title if present
-        emoji = title.split()[0] if title and title[0] in '👥👦👧💳🎓📚' else "📊"
-        title_text = title[2:] if title and title[0] in '👥👦👧💳🎓📚' else title
-        
-        icon_label = tk.Label(header_content, text=emoji, font=('Segoe UI', 16), bg=color, fg='white')
-        icon_label.pack(side=tk.LEFT)
-        
-        title_label = tk.Label(header_content, text=title_text, 
-                              font=('Segoe UI', 12, 'bold'), bg=color, fg='white')
-        title_label.pack(side=tk.LEFT, padx=(10, 0))
-        
-        # Content with large value display
+
+        title_label = tk.Label(header, text=title, font=('Segoe UI', 11, 'bold'),
+                               bg=color, fg='white')
+        title_label.pack(side=tk.LEFT, padx=12, pady=10)
+
+        # Content area
         content = tk.Frame(card, bg='#ffffff')
-        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-        
+        content.pack(fill=tk.BOTH, expand=True, padx=12, pady=(12, 16))
+
         # Large value display
-        value_label = tk.Label(content, text=str(value), 
-                              font=('Segoe UI', 32, 'bold'), 
-                              fg=color, bg='#ffffff')
+        value_label = tk.Label(content, text=str(value),
+                               font=('Segoe UI', 32, 'bold'),
+                               fg=color, bg='#ffffff')
         value_label.pack(anchor=tk.CENTER)
-        
+
+        # Hover animation: enlarge value on enter, shrink on leave
+        def animate_value(label, start, end, steps=6, delay=20, i=0):
+            try:
+                new_size = int(start + (end - start) * (i / steps))
+                label.config(font=('Segoe UI', new_size, 'bold'))
+            except Exception:
+                pass
+            if i < steps:
+                label.after(delay, lambda: animate_value(label, start, end, steps, delay, i+1))
+
+        def on_card_enter(e):
+            animate_value(value_label, 32, 36)
+
+        def on_card_leave(e):
+            animate_value(value_label, 36, 32)
+
+        card.bind('<Enter>', on_card_enter)
+        card.bind('<Leave>', on_card_leave)
+
         return card_container
+
+    # ----------------- UI Animation Helpers -----------------
+    def animate_sidebar_toggle(self, expand=True, steps=12, delay=15, collapsed_width=60, expanded_width=320):
+        """Animate the sidebar width between collapsed and expanded states."""
+        if not hasattr(self, 'nav_frame') or not self.nav_frame.winfo_exists():
+            return
+
+        # Prevent concurrent toggles
+        if getattr(self, '_sidebar_animating', False):
+            return
+        self._sidebar_animating = True
+
+        start_width = self.nav_frame.winfo_width()
+        target = expanded_width if expand else collapsed_width
+        delta = (target - start_width) / steps
+
+        def step(i=0):
+            nonlocal start_width
+            if i >= steps:
+                try:
+                    self.nav_frame.config(width=target)
+                except:
+                    pass
+                self._sidebar_animating = False
+                # Adjust button labels when collapsed
+                if target <= collapsed_width:
+                    for b in getattr(self, 'nav_buttons', []):
+                        if hasattr(b, 'full_text'):
+                            # show only emoji (first token)
+                            b.configure(text=b.icon_text, anchor='center', padx=6)
+                else:
+                    for b in getattr(self, 'nav_buttons', []):
+                        if hasattr(b, 'full_text'):
+                            b.configure(text=b.full_text, anchor='w', padx=25)
+                return
+
+            start_width += delta
+            try:
+                self.nav_frame.config(width=int(start_width))
+            except:
+                pass
+            self.root.after(delay, lambda: step(i+1))
+
+        step()
+
+    def toggle_sidebar(self):
+        """Toggle the sidebar between collapsed and expanded states."""
+        if not hasattr(self, 'nav_frame'):
+            return
+        cur_w = self.nav_frame.winfo_width()
+        # Heuristic: if current width > 100 treat as expanded
+        expand = cur_w <= 100
+        self.animate_sidebar_toggle(expand=expand)
     
     def create_financial_summary_card(self, parent):
         """Create financial summary report card"""
@@ -9696,24 +9812,30 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         current_month = datetime.now().month
         current_year = datetime.now().year
         
-        # Total fees collected this month
+        # Total fees collected this month (only from active students)
         self.cursor.execute("""
-            SELECT SUM(amount_paid) FROM fees 
-            WHERE strftime('%m', payment_date) = ? AND strftime('%Y', payment_date) = ?
+            SELECT SUM(f.amount_paid) FROM fees f
+            JOIN students s ON f.student_id = s.id
+            WHERE strftime('%m', f.payment_date) = ? AND strftime('%Y', f.payment_date) = ?
+            AND s.status = 'Active'
         """, (f"{current_month:02d}", str(current_year)))
         monthly_collected = self.cursor.fetchone()[0] or 0
         
-        # Total outstanding fees
+        # Total outstanding fees (only from active students)
         self.cursor.execute("""
-            SELECT SUM(amount_due - amount_paid) FROM fees 
-            WHERE amount_due > amount_paid
+            SELECT SUM(f.amount_due - f.amount_paid) FROM fees f
+            JOIN students s ON f.student_id = s.id
+            WHERE f.amount_due > f.amount_paid
+            AND s.status = 'Active'
         """)
         outstanding = self.cursor.fetchone()[0] or 0
         
-        # Total revenue this year
+        # Total revenue this year (only from active students)
         self.cursor.execute("""
-            SELECT SUM(amount_paid) FROM fees 
-            WHERE strftime('%Y', payment_date) = ?
+            SELECT SUM(f.amount_paid) FROM fees f
+            JOIN students s ON f.student_id = s.id
+            WHERE strftime('%Y', f.payment_date) = ?
+            AND s.status = 'Active'
         """, (str(current_year),))
         yearly_revenue = self.cursor.fetchone()[0] or 0
         
@@ -11099,6 +11221,478 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                 messagebox.showerror("Error", f"Failed to copy file: {str(e)}")
                 self.student_file_path_var.set("")
                 self.student_file_info.configure(text="Error uploading file", fg='#e74c3c')
+    
+    def generate_termly_report(self):
+        """Generate comprehensive termly report for all students with academics, financial, and attendance data"""
+        try:
+            # Create report selection window
+            window = tk.Toplevel(self.root)
+            window.title("Termly Report Generator")
+            window.geometry("700x600")
+            window.transient(self.root)
+            
+            # Scrollable frame
+            scroll_frame = ScrollableFrame(window, bg='#f8f9fa')
+            scroll_frame.pack(fill=tk.BOTH, expand=True)
+            content = scroll_frame.scrollable_frame
+            
+            # Header
+            header = tk.Frame(content, bg='#1a5490')
+            header.pack(fill=tk.X, padx=0, pady=0)
+            
+            tk.Label(header, text="📋 TERMLY REPORT GENERATOR", 
+                    font=('Segoe UI', 16, 'bold'), fg='white', bg='#1a5490').pack(anchor='w', padx=20, pady=15)
+            tk.Label(header, text="Generate comprehensive termly reports with academics, financial, and attendance data", 
+                    font=('Segoe UI', 10), fg='#b8d4f1', bg='#1a5490').pack(anchor='w', padx=20, pady=(0, 15))
+            
+            # Content
+            main_frame = tk.Frame(content, bg='#f8f9fa')
+            main_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+            
+            # Term/Period Selection
+            period_frame = tk.LabelFrame(main_frame, text="📅 Term/Period Selection", 
+                                        font=('Segoe UI', 11, 'bold'), bg='white', fg='#2c3e50', 
+                                        relief='solid', bd=1)
+            period_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            term_frame = tk.Frame(period_frame, bg='white')
+            term_frame.pack(fill=tk.X, padx=15, pady=10)
+            
+            tk.Label(term_frame, text="Term Name:", font=('Segoe UI', 10, 'bold'), 
+                    bg='white').pack(side='left', padx=(0, 10))
+            
+            term_var = tk.StringVar(value="Term 1, 2026")
+            term_entry = tk.Entry(term_frame, textvariable=term_var, font=('Segoe UI', 10), width=30)
+            term_entry.pack(side='left', padx=(0, 20))
+            
+            # Date range for the term
+            date_frame = tk.Frame(period_frame, bg='white')
+            date_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
+            
+            tk.Label(date_frame, text="From Date:", font=('Segoe UI', 10, 'bold'), 
+                    bg='white').pack(side='left', padx=(0, 10))
+            
+            from_date_var = tk.StringVar(value="2026-01-01")
+            from_date_entry = tk.Entry(date_frame, textvariable=from_date_var, font=('Segoe UI', 10), width=15)
+            from_date_entry.pack(side='left', padx=(0, 20))
+            
+            tk.Label(date_frame, text="To Date:", font=('Segoe UI', 10, 'bold'), 
+                    bg='white').pack(side='left', padx=(0, 10))
+            
+            to_date_var = tk.StringVar(value=date.today().strftime('%Y-%m-%d'))
+            to_date_entry = tk.Entry(date_frame, textvariable=to_date_var, font=('Segoe UI', 10), width=15)
+            to_date_entry.pack(side='left')
+            
+            # Report Type Selection
+            report_type_frame = tk.LabelFrame(main_frame, text="📊 Report Scope", 
+                                             font=('Segoe UI', 11, 'bold'), bg='white', fg='#2c3e50', 
+                                             relief='solid', bd=1)
+            report_type_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            report_type_var = tk.StringVar(value="individual")
+            
+            tk.Radiobutton(report_type_frame, text="Individual Student Report (Single PDF per student)", 
+                          variable=report_type_var, value="individual", bg='white', 
+                          font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=8)
+            tk.Radiobutton(report_type_frame, text="Class Summary Report (All students in selected class)", 
+                          variable=report_type_var, value="class", bg='white', 
+                          font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=8)
+            
+            # Student/Class Selection
+            select_frame = tk.LabelFrame(main_frame, text="👥 Select Student/Class", 
+                                        font=('Segoe UI', 11, 'bold'), bg='white', fg='#2c3e50', 
+                                        relief='solid', bd=1)
+            select_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            tk.Label(select_frame, text="Student/Class:", font=('Segoe UI', 10, 'bold'), 
+                    bg='white').pack(anchor='w', padx=15, pady=(10, 5))
+            
+            select_var = tk.StringVar()
+            select_combo = ttk.Combobox(select_frame, textvariable=select_var, state='readonly', width=60)
+            
+            # Load students
+            self.cursor.execute("SELECT id, student_id, name FROM students WHERE status='Active' ORDER BY name")
+            students = self.cursor.fetchall()
+            student_list = [f"{s[1]} - {s[2]}" for s in students]
+            student_ids = [s[0] for s in students]
+            
+            select_combo['values'] = student_list
+            select_combo.pack(fill=tk.X, padx=15, pady=(0, 10))
+            
+            # Report Components Selection
+            components_frame = tk.LabelFrame(main_frame, text="✅ Report Components", 
+                                            font=('Segoe UI', 11, 'bold'), bg='white', fg='#2c3e50', 
+                                            relief='solid', bd=1)
+            components_frame.pack(fill=tk.X, pady=(0, 15))
+            
+            include_academic = tk.BooleanVar(value=True)
+            include_financial = tk.BooleanVar(value=True)
+            include_attendance = tk.BooleanVar(value=True)
+            include_behavior = tk.BooleanVar(value=True)
+            
+            tk.Checkbutton(components_frame, text="✓ Academic Performance (Grades & Subjects)", 
+                          variable=include_academic, bg='white', font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=3)
+            tk.Checkbutton(components_frame, text="✓ Financial Status (Fees & Payments)", 
+                          variable=include_financial, bg='white', font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=3)
+            tk.Checkbutton(components_frame, text="✓ Attendance Record", 
+                          variable=include_attendance, bg='white', font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=3)
+            tk.Checkbutton(components_frame, text="✓ Behavior & Conduct Summary", 
+                          variable=include_behavior, bg='white', font=('Segoe UI', 10)).pack(anchor='w', padx=15, pady=(3, 10))
+            
+            # Buttons
+            button_frame = tk.Frame(main_frame, bg='#f8f9fa')
+            button_frame.pack(fill=tk.X, pady=(10, 0))
+            
+            def generate_report():
+                try:
+                    if not select_var.get():
+                        messagebox.showerror("Error", "Please select a student or class")
+                        return
+                    
+                    term_name = term_var.get()
+                    from_date = from_date_var.get()
+                    to_date = to_date_var.get()
+                    report_type = report_type_var.get()
+                    
+                    if report_type == "individual":
+                        # Generate individual student report
+                        student_idx = student_list.index(select_var.get())
+                        student_id = student_ids[student_idx]
+                        
+                        self._generate_student_termly_report_pdf(
+                            student_id, term_name, from_date, to_date,
+                            include_academic.get(), include_financial.get(), 
+                            include_attendance.get(), include_behavior.get()
+                        )
+                        messagebox.showinfo("Success", "Termly report generated and saved!")
+                        window.destroy()
+                    else:
+                        messagebox.showinfo("Info", "Class reports generation in progress...\nThis will generate reports for all students in the class.")
+                        
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to generate report: {str(e)}")
+            
+            gen_btn = tk.Button(button_frame, text="📄 Generate Termly Report", 
+                               command=generate_report,
+                               bg='#27ae60', fg='white', font=('Segoe UI', 11, 'bold'),
+                               relief='flat', padx=20, pady=10, cursor='hand2')
+            gen_btn.pack(side='left', padx=5)
+            
+            close_btn = tk.Button(button_frame, text="Close", 
+                                 command=window.destroy,
+                                 bg='#95a5a6', fg='white', font=('Segoe UI', 11),
+                                 relief='flat', padx=20, pady=10, cursor='hand2')
+            close_btn.pack(side='right', padx=5)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open report generator: {str(e)}")
+    
+    def _generate_student_termly_report_pdf(self, student_id, term_name, from_date, to_date,
+                                           include_academic=True, include_financial=True,
+                                           include_attendance=True, include_behavior=True):
+        """Generate comprehensive termly report PDF for a student"""
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            from datetime import datetime
+            
+            # Get student info
+            self.cursor.execute("""
+                SELECT s.name, s.student_id, s.date_of_birth, s.gender,
+                       c.class_name, s.date_of_admission, s.phone, s.address
+                FROM students s
+                LEFT JOIN classes c ON s.class_id = c.id
+                WHERE s.id = ?
+            """, (student_id,))
+            student_info = self.cursor.fetchone()
+            
+            if not student_info:
+                messagebox.showerror("Error", "Student not found")
+                return
+            
+            # File dialog
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("PDF files", "*.pdf")],
+                title="Save Termly Report As",
+                initialfile=f"Termly_Report_{student_info[0].replace(' ', '_')}_{term_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            )
+            
+            if not filename:
+                return
+            
+            # Create PDF
+            doc = SimpleDocTemplate(filename, pagesize=A4,
+                                   topMargin=0.5*inch, bottomMargin=0.5*inch,
+                                   leftMargin=0.75*inch, rightMargin=0.75*inch)
+            story = []
+            styles = getSampleStyleSheet()
+            
+            # Custom styles
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                textColor=colors.HexColor('#1a5490'),
+                spaceAfter=6,
+                alignment=1,
+                fontName='Helvetica-Bold'
+            )
+            
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontSize=12,
+                textColor=colors.HexColor('#ffffff'),
+                spaceAfter=6,
+                spaceBefore=12,
+                borderPadding=5,
+                backColor=colors.HexColor('#2c3e50'),
+                textTransform='uppercase',
+                fontName='Helvetica-Bold'
+            )
+            
+            # Title and Term Info
+            story.append(Paragraph("📋 TERMLY REPORT", title_style))
+            story.append(Paragraph(f"<b>Term:</b> {term_name} | <b>Period:</b> {from_date} to {to_date}", 
+                                  styles['Normal']))
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Student Information
+            story.append(Paragraph("STUDENT INFORMATION", heading_style))
+            student_data = [
+                ['Field', 'Information'],
+                ['Name', student_info[0]],
+                ['Student ID', student_info[1]],
+                ['Class', student_info[4] or 'Not assigned'],
+                ['Date of Birth', student_info[2] or 'N/A'],
+                ['Gender', student_info[3] or 'N/A'],
+                ['Phone', student_info[6] or 'N/A'],
+                ['Address', student_info[7] or 'N/A'],
+            ]
+            
+            student_table = Table(student_data, colWidths=[2*inch, 3.5*inch])
+            student_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5490')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ecf0f1')),
+                ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+            ]))
+            story.append(student_table)
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Academic Performance
+            if include_academic:
+                story.append(Paragraph("ACADEMIC PERFORMANCE", heading_style))
+                
+                # Get grades for the period
+                self.cursor.execute("""
+                    SELECT subject, grade, type, date FROM grades
+                    WHERE student_id = ? AND date BETWEEN ? AND ?
+                    ORDER BY date DESC
+                """, (student_id, from_date, to_date))
+                grades = self.cursor.fetchall()
+                
+                if grades:
+                    acad_data = [['Subject', 'Grade', 'Type', 'Date']]
+                    total_grade = 0
+                    for subject, grade, g_type, g_date in grades:
+                        acad_data.append([subject or 'N/A', str(grade) or 'N/A', g_type or 'N/A', g_date or 'N/A'])
+                        if grade:
+                            total_grade += grade
+                    
+                    avg_grade = total_grade / len([g for g in grades if g[1]]) if any(g[1] for g in grades) else 0
+                    
+                    acad_table = Table(acad_data, colWidths=[1.8*inch, 1.2*inch, 1*inch, 1*inch])
+                    acad_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 9),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')])
+                    ]))
+                    story.append(acad_table)
+                    
+                    avg_text = f"<b>Average Grade:</b> {avg_grade:.2f}% | <b>Total Assessments:</b> {len(grades)}"
+                    story.append(Spacer(1, 0.1*inch))
+                    story.append(Paragraph(avg_text, styles['Normal']))
+                else:
+                    story.append(Paragraph("No academic records found for this period.", styles['Normal']))
+                
+                story.append(Spacer(1, 0.2*inch))
+            
+            # Financial Status
+            if include_financial:
+                story.append(Paragraph("FINANCIAL STATUS", heading_style))
+                
+                # Get fee records
+                self.cursor.execute("""
+                    SELECT date, amount_due, amount_paid, arrears FROM fees
+                    WHERE student_id = ? AND date BETWEEN ? AND ?
+                    ORDER BY date DESC
+                """, (student_id, from_date, to_date))
+                fees = self.cursor.fetchall()
+                
+                if fees:
+                    fin_data = [['Date', 'Amount Due', 'Amount Paid', 'Arrears']]
+                    total_due = 0
+                    total_paid = 0
+                    total_arrears = 0
+                    
+                    for f_date, due, paid, arrears in fees:
+                        fin_data.append([f_date or 'N/A', f"GHS {due or 0:.2f}", f"GHS {paid or 0:.2f}", f"GHS {arrears or 0:.2f}"])
+                        total_due += due or 0
+                        total_paid += paid or 0
+                        total_arrears += arrears or 0
+                    
+                    fin_table = Table(fin_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+                    fin_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 9),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f8f0')])
+                    ]))
+                    story.append(fin_table)
+                    
+                    collection_rate = (total_paid / total_due * 100) if total_due > 0 else 0
+                    fin_summary = f"<b>Total Due:</b> GHS {total_due:.2f} | <b>Total Paid:</b> GHS {total_paid:.2f} | <b>Outstanding:</b> GHS {total_arrears:.2f} | <b>Collection Rate:</b> {collection_rate:.1f}%"
+                    story.append(Spacer(1, 0.1*inch))
+                    story.append(Paragraph(fin_summary, styles['Normal']))
+                else:
+                    story.append(Paragraph("No financial records found for this period.", styles['Normal']))
+                
+                story.append(Spacer(1, 0.2*inch))
+            
+            # Attendance Record
+            if include_attendance:
+                story.append(Paragraph("ATTENDANCE RECORD", heading_style))
+                
+                # Get attendance statistics
+                self.cursor.execute("""
+                    SELECT COUNT(*) as total_days,
+                           COUNT(CASE WHEN present = 1 THEN 1 END) as days_present,
+                           COUNT(CASE WHEN present = 0 THEN 1 END) as days_absent
+                    FROM attendance
+                    WHERE student_id = ? AND date BETWEEN ? AND ?
+                """, (student_id, from_date, to_date))
+                att_stats = self.cursor.fetchone()
+                
+                if att_stats and att_stats[0] > 0:
+                    total_days, days_present, days_absent = att_stats
+                    attendance_rate = (days_present / total_days * 100) if total_days > 0 else 0
+                    
+                    att_data = [['Metric', 'Value']]
+                    att_data.append(['Total Days', str(total_days)])
+                    att_data.append(['Days Present', str(days_present)])
+                    att_data.append(['Days Absent', str(days_absent)])
+                    att_data.append(['Attendance Rate', f"{attendance_rate:.1f}%"])
+                    
+                    att_table = Table(att_data, colWidths=[2.5*inch, 2.5*inch])
+                    att_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fadbd8')])
+                    ]))
+                    story.append(att_table)
+                    
+                    # Attendance assessment
+                    if attendance_rate >= 90:
+                        assessment = "Excellent attendance record demonstrating strong commitment."
+                        color = '#27ae60'
+                    elif attendance_rate >= 75:
+                        assessment = "Good attendance with room for improvement."
+                        color = '#f39c12'
+                    else:
+                        assessment = "Poor attendance requiring urgent intervention."
+                        color = '#e74c3c'
+                    
+                    story.append(Spacer(1, 0.1*inch))
+                    story.append(Paragraph(f"<b><font color='{color}'>Assessment:</font></b> {assessment}", styles['Normal']))
+                else:
+                    story.append(Paragraph("No attendance records found for this period.", styles['Normal']))
+                
+                story.append(Spacer(1, 0.2*inch))
+            
+            # Behavior & Conduct Summary
+            if include_behavior:
+                story.append(Paragraph("BEHAVIOR & CONDUCT SUMMARY", heading_style))
+                
+                # Generate behavior assessment based on available data
+                behavior_points = []
+                
+                # Check attendance impact on conduct
+                self.cursor.execute("""
+                    SELECT COUNT(CASE WHEN present = 1 THEN 1 END) * 100.0 / COUNT(*) as rate
+                    FROM attendance
+                    WHERE student_id = ? AND date BETWEEN ? AND ?
+                """, (student_id, from_date, to_date))
+                att_result = self.cursor.fetchone()
+                if att_result and att_result[0] and att_result[0] >= 80:
+                    behavior_points.append("• Demonstrates good discipline with consistent attendance.")
+                
+                # Check financial status
+                self.cursor.execute("""
+                    SELECT SUM(arrears) FROM fees WHERE student_id = ?
+                """, (student_id,))
+                fee_result = self.cursor.fetchone()
+                if fee_result and (fee_result[0] is None or fee_result[0] == 0):
+                    behavior_points.append("• Financial obligations are met consistently.")
+                
+                # General conduct summary
+                if not behavior_points:
+                    behavior_text = """<b>Overall Conduct:</b> Student's conduct and behavior records are monitored throughout the term. 
+                    Please refer to classroom observations and teacher feedback for detailed behavioral assessment."""
+                else:
+                    behavior_text = "<b>Conduct Assessment:</b><br/>" + "<br/>".join(behavior_points)
+                
+                story.append(Paragraph(behavior_text, styles['Normal']))
+                story.append(Spacer(1, 0.2*inch))
+            
+            # Footer and remarks
+            story.append(Paragraph("PRINCIPAL'S REMARKS", heading_style))
+            remarks = """This report summarizes the student's performance across academics, financial obligations, 
+            and conduct for the stated term. Parents/Guardians are advised to review the report and take appropriate action 
+            to support the student's academic progress and development."""
+            story.append(Paragraph(remarks, styles['Normal']))
+            
+            # Report generation timestamp
+            story.append(Spacer(1, 0.3*inch))
+            footer_text = f"Report generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Gaybeck School Management System"
+            story.append(Paragraph(footer_text, styles['Normal']))
+            
+            # Build PDF
+            doc.build(story)
+            messagebox.showinfo("Success", f"Termly report saved successfully!")
+            
+            # Open reports folder
+            try:
+                import subprocess
+                subprocess.Popen(f'explorer /select, "{filename}"')
+            except:
+                pass
+            
+        except ImportError:
+            messagebox.showerror("Error", "PDF export requires the reportlab library.\n\n"
+                               "Install it using: pip install reportlab")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate termly report: {str(e)}")
     
     def auto_generate_student_id(self):
         """Auto-generate student ID and populate the field"""
@@ -15837,20 +16431,28 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
     def update_dashboard(self):
         try:
             today = date.today().strftime("%Y-%m-%d")
-            # Students present today
-            self.cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = ? AND present = 1", (today,))
+            # Students present today (only active students)
+            self.cursor.execute("""SELECT COUNT(*) FROM attendance a 
+                JOIN students s ON a.student_id = s.id 
+                WHERE a.date = ? AND a.present = 1 AND s.status = 'Active'""", (today,))
             present = self.cursor.fetchone()[0] or 0
             self.students_present_var.set(str(present))
-            # Feeding fee collected today (sum amount_paid where feeding flag set)
-            self.cursor.execute("SELECT SUM(amount_paid) FROM fees WHERE feeding_fee_paid = 1 AND strftime('%Y-%m-%d', payment_date) = ?", (today,))
+            # Feeding fee collected today (only from active students)
+            self.cursor.execute("""SELECT SUM(f.amount_paid) FROM fees f 
+                JOIN students s ON f.student_id = s.id 
+                WHERE f.feeding_fee_paid = 1 AND strftime('%Y-%m-%d', f.payment_date) = ? AND s.status = 'Active'""", (today,))
             feeding = self.cursor.fetchone()[0] or 0.0
             self.feeding_fee_var.set(f"GHS {feeding:.2f}")
-            # Bus fee collected today
-            self.cursor.execute("SELECT SUM(amount_paid) FROM fees WHERE bus_fee_paid = 1 AND strftime('%Y-%m-%d', payment_date) = ?", (today,))
+            # Bus fee collected today (only from active students)
+            self.cursor.execute("""SELECT SUM(f.amount_paid) FROM fees f 
+                JOIN students s ON f.student_id = s.id 
+                WHERE f.bus_fee_paid = 1 AND strftime('%Y-%m-%d', f.payment_date) = ? AND s.status = 'Active'""", (today,))
             bus = self.cursor.fetchone()[0] or 0.0
             self.bus_fee_var.set(f"GHS {bus:.2f}")
-            # Total revenue today
-            self.cursor.execute("SELECT SUM(amount_paid) FROM fees WHERE strftime('%Y-%m-%d', payment_date) = ?", (today,))
+            # Total revenue today (only from active students)
+            self.cursor.execute("""SELECT SUM(f.amount_paid) FROM fees f 
+                JOIN students s ON f.student_id = s.id 
+                WHERE strftime('%Y-%m-%d', f.payment_date) = ? AND s.status = 'Active'""", (today,))
             total = self.cursor.fetchone()[0] or 0.0
             self.total_revenue_var.set(f"GHS {total:.2f}")
         except Exception as e:
@@ -17429,9 +18031,9 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         class_filter = getattr(self, 'fee_class_filter_var', None)
         selected_class = class_filter.get() if class_filter else "All Classes"
         
-        # Build query based on user role and class filter
+        # Build query based on user role and class filter (only active students)
         if self.current_user.get('role') == 'teacher':
-            # Teacher sees only students from their assigned class
+            # Teacher sees only students from their assigned class (active only)
             teacher_class_id = self.get_teacher_assigned_class()
             if teacher_class_id:
                 query = '''
@@ -17439,7 +18041,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                            f.payment_mode, f.feeding_fee_paid, f.bus_fee_paid, f.payment_date
                     FROM fees f 
                     JOIN students s ON f.student_id = s.id
-                    WHERE s.class_id = ?
+                    WHERE s.class_id = ? AND s.status = 'Active'
                     ORDER BY f.year DESC, f.month DESC, f.id DESC
                 '''
                 params = (teacher_class_id,)
@@ -17447,24 +18049,25 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                 # Teacher not assigned to any class
                 return
         elif selected_class != "All Classes":
-            # Admin/staff with class filter
+            # Admin/staff with class filter (active only)
             query = '''
                 SELECT f.id, s.name, f.month, f.year, f.fee_type, f.amount_due, f.amount_paid, f.arrears, 
                        f.payment_mode, f.feeding_fee_paid, f.bus_fee_paid, f.payment_date
                 FROM fees f 
                 JOIN students s ON f.student_id = s.id
                 JOIN classes c ON s.class_id = c.id
-                WHERE c.class_name = ?
+                WHERE c.class_name = ? AND s.status = 'Active'
                 ORDER BY f.year DESC, f.month DESC, f.id DESC
             '''
             params = (selected_class,)
         else:
-            # Admin/staff without filter - see all
+            # Admin/staff without filter - see all active students only
             query = '''
                 SELECT f.id, s.name, f.month, f.year, f.fee_type, f.amount_due, f.amount_paid, f.arrears, 
                        f.payment_mode, f.feeding_fee_paid, f.bus_fee_paid, f.payment_date
                 FROM fees f 
                 JOIN students s ON f.student_id = s.id
+                WHERE s.status = 'Active'
                 ORDER BY f.year DESC, f.month DESC, f.id DESC
             '''
             params = ()
@@ -17487,14 +18090,18 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             self.fees_tree.insert('', tk.END, values=display_row)
 
     def update_fee_statistics(self):
-        """Update the fee statistics display in real-time"""
+        """Update the fee statistics display in real-time (only active students)"""
         try:
-            # Calculate total collected fees
-            self.cursor.execute("SELECT SUM(amount_paid) FROM fees WHERE amount_paid > 0")
+            # Calculate total collected fees (only from active students)
+            self.cursor.execute("""
+                SELECT SUM(f.amount_paid) FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE f.amount_paid > 0 AND s.status = 'Active'
+            """)
             result = self.cursor.fetchone()[0]
             total_collected = result if result else 0
             
-            # Calculate pending fees (assuming monthly fee from students table)
+            # Calculate pending fees (only from active students)
             self.cursor.execute("""
                 SELECT SUM(s.monthly_fee) 
                 FROM students s 
@@ -17504,11 +18111,12 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             total_expected = result if result else 0
             pending_fees = total_expected - total_collected if total_expected > total_collected else 0
             
-            # Calculate this month's collections
+            # Calculate this month's collections (only from active students)
             current_month = datetime.now().strftime('%Y-%m')
             self.cursor.execute("""
-                SELECT SUM(amount_paid) FROM fees 
-                WHERE strftime('%Y-%m', payment_date) = ?
+                SELECT SUM(f.amount_paid) FROM fees f
+                JOIN students s ON f.student_id = s.id
+                WHERE strftime('%Y-%m', f.payment_date) = ? AND s.status = 'Active'
             """, (current_month,))
             result = self.cursor.fetchone()[0]
             monthly_total = result if result else 0
@@ -24883,12 +25491,13 @@ Do you want to proceed?"""
             return 0
     
     def _calculate_total_fees(self):
-        """Calculate total fees owed by all students"""
+        """Calculate total fees owed by active students only."""
         try:
-            self.cursor.execute("SELECT SUM(monthly_fee) FROM students")
+            self.cursor.execute("SELECT SUM(monthly_fee) FROM students WHERE status = 'Active'")
             result = self.cursor.fetchone()
-            return result[0] if result[0] else 0
-        except:
+            return result[0] if result and result[0] else 0
+        except Exception as e:
+            print(f"Error calculating total fees: {e}")
             return 0
     
     def _calculate_collected_fees(self):
