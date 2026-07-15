@@ -11,6 +11,9 @@ import shutil
 import subprocess
 import platform
 import logging
+import socket
+import ctypes
+import importlib.util
 from pathlib import Path
 from datetime import datetime
 import tkinter as tk
@@ -29,6 +32,7 @@ APP_VERSION = "2.0"
 PYTHON_MIN_VERSION = (3, 8)
 PYTHON_RECOMMENDED = (3, 13)
 MIN_DISK_SPACE_GB = 2  # Minimum required disk space in GB
+MIN_RAM_GB = 4
 
 # Required files/folders to validate
 REQUIRED_FILES = [
@@ -47,6 +51,20 @@ REQUIRED_PACKAGES = [
     'tkcalendar',
     'opencv-python',
 ]
+
+PACKAGE_IMPORT_MAP = {
+    'pillow': 'PIL',
+    'reportlab': 'reportlab',
+    'pandas': 'pandas',
+    'numpy': 'numpy',
+    'scikit-learn': 'sklearn',
+    'tkcalendar': 'tkcalendar',
+    'opencv-python': 'cv2',
+    'opencv-contrib-python': 'cv2',
+    'schedule': 'schedule',
+    'openpyxl': 'openpyxl',
+    'pywin32': 'win32api',
+}
 
 # ============================================================================
 # LOGGER SETUP
@@ -121,6 +139,55 @@ class SystemValidator:
             return result.returncode == 0, result.stdout.strip()
         except FileNotFoundError:
             return False, "pip not found in PATH"
+
+    @staticmethod
+    def check_os_support():
+        """Validate supported operating system"""
+        current_os = platform.system()
+        if current_os != "Windows":
+            return False, f"Detected OS: {current_os}. This installer currently supports Windows only."
+        return True, f"Detected OS: {current_os}"
+
+    @staticmethod
+    def check_ram():
+        """Check minimum RAM availability"""
+        try:
+            total_gb = 0.0
+            if platform.system() == 'Windows':
+                class MEMORYSTATUSEX(ctypes.Structure):
+                    _fields_ = [
+                        ('dwLength', ctypes.c_ulong),
+                        ('dwMemoryLoad', ctypes.c_ulong),
+                        ('ullTotalPhys', ctypes.c_ulonglong),
+                        ('ullAvailPhys', ctypes.c_ulonglong),
+                        ('ullTotalPageFile', ctypes.c_ulonglong),
+                        ('ullAvailPageFile', ctypes.c_ulonglong),
+                        ('ullTotalVirtual', ctypes.c_ulonglong),
+                        ('ullAvailVirtual', ctypes.c_ulonglong),
+                        ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
+                    ]
+
+                stat = MEMORYSTATUSEX()
+                stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+                ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+                total_gb = stat.ullTotalPhys / (1024 ** 3)
+            else:
+                return True, "RAM check skipped on non-Windows host"
+
+            if total_gb < MIN_RAM_GB:
+                return False, f"RAM detected: {total_gb:.1f}GB. Minimum recommended: {MIN_RAM_GB}GB"
+            return True, f"RAM detected: {total_gb:.1f}GB"
+        except Exception as e:
+            return False, f"Unable to verify RAM: {e}"
+
+    @staticmethod
+    def check_internet():
+        """Check internet availability for package installation"""
+        try:
+            socket.create_connection(("pypi.org", 443), timeout=5)
+            return True, "Internet connection is available"
+        except OSError:
+            return False, "Internet connection unavailable. Package installation may fail."
 
 
 class InstallerGUI:
@@ -242,6 +309,7 @@ class InstallerGUI:
                 ("Selecting Installation Directory", self.select_install_dir),
                 ("Preparing Installation Files", self.prepare_files),
                 ("Installing Python Dependencies", self.install_dependencies),
+                ("Verifying Runtime Requirements", self.verify_runtime_requirements),
                 ("Creating Application Shortcuts", self.create_shortcuts),
                 ("Finalizing Installation", self.finalize),
             ]
@@ -269,10 +337,13 @@ class InstallerGUI:
     def validate_system(self):
         """Validate system requirements"""
         checks = [
+            ("Operating System", SystemValidator.check_os_support),
             ("Python Version", SystemValidator.check_python_version),
             ("Python Executable", SystemValidator.check_python_executable),
             ("pip Package Manager", SystemValidator.check_pip_available),
+            ("System RAM", SystemValidator.check_ram),
             ("Disk Space", SystemValidator.check_disk_space),
+            ("Internet Connection", SystemValidator.check_internet),
         ]
         
         all_passed = True
@@ -400,7 +471,7 @@ class InstallerGUI:
             if result.returncode != 0:
                 self.log_message(f"pip upgrade warning: {result.stderr}", "WARNING")
             
-            cmd = [sys.executable, '-m', 'pip', 'install', '-r', str(req_file)]
+            cmd = [sys.executable, '-m', 'pip', 'install', '--upgrade', '-r', str(req_file)]
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
@@ -413,6 +484,69 @@ class InstallerGUI:
         except Exception as e:
             self.log_message(f"Dependency installation error: {str(e)}", "ERROR")
             return False
+
+    def verify_runtime_requirements(self):
+        """Verify and remediate runtime imports after pip installation"""
+        try:
+            req_file = Path(self.install_dir) / "requirements.txt"
+            if not req_file.exists():
+                self.log_message("requirements.txt missing; runtime verification skipped", "WARNING")
+                return True
+
+            packages = self._parse_requirements(req_file)
+            missing = self._get_missing_packages(packages)
+
+            if not missing:
+                self.log_message("✓ Runtime requirement verification passed")
+                return True
+
+            self.log_message(f"Missing runtime packages detected: {', '.join(missing)}", "WARNING")
+            self.log_message("Attempting remediation installation for missing packages...")
+
+            cmd = [sys.executable, '-m', 'pip', 'install'] + missing
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                self.log_message(f"Runtime package remediation failed: {result.stderr}", "ERROR")
+                return False
+
+            still_missing = self._get_missing_packages(packages)
+            if still_missing:
+                self.log_message(f"Still missing after remediation: {', '.join(still_missing)}", "ERROR")
+                return False
+
+            self.log_message("✓ Runtime requirements verified and remediated")
+            return True
+        except Exception as e:
+            self.log_message(f"Runtime verification error: {str(e)}", "ERROR")
+            return False
+
+    def _parse_requirements(self, req_file):
+        """Parse installable package names from requirements.txt"""
+        packages = []
+        with open(req_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if line.startswith('-'):
+                    continue
+                normalized = line.split(';')[0].strip()
+                for sep in ['>=', '==', '<=', '~=', '!=', '>', '<']:
+                    if sep in normalized:
+                        normalized = normalized.split(sep)[0].strip()
+                        break
+                if normalized:
+                    packages.append(normalized.lower())
+        return packages
+
+    def _get_missing_packages(self, packages):
+        """Return package names whose mapped import cannot be resolved"""
+        missing = []
+        for package in packages:
+            module_name = PACKAGE_IMPORT_MAP.get(package, package.replace('-', '_'))
+            if importlib.util.find_spec(module_name) is None:
+                missing.append(package)
+        return missing
     
     def create_shortcuts(self):
         """Create application shortcuts"""

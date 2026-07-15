@@ -6,6 +6,11 @@ Tests that the installed package works correctly
 import os
 import sys
 
+# Ensure project root is importable when script is executed from tests/.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 def main():
     print("\n" + "="*70)
     print("FINAL INSTALLATION VERIFICATION")

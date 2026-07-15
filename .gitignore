@@ -66,3 +66,24 @@ dev-scripts/
 # Test files
 test_*.py
 *_test.py
+
+# Runtime/generated local data
+school_management.db
+database/teacher_learning_sync.db
+database_backups/*.db
+restore_points/
+teacher_documents/learning_support/
+
+# Export artifacts
+*.xlsx
+students_by_class_*.xlsx
+student_database_*.xlsx
+student_profile_*.xlsx
+teachers_directory_*.xlsx
+financial_summary_*.xlsx
+
+# Installer output artifacts
+INSTALLATION_REPORT.json
+INSTALLATION_REPORT.txt
+FIRST_RUN.bat
+create_shortcut.vbs

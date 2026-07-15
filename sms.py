@@ -28,6 +28,22 @@ import io
 import csv
 import logging
 
+logger = logging.getLogger(__name__)
+
+# Import Excel export module
+try:
+    from excel_export import ExcelExporter
+    EXCEL_EXPORT_AVAILABLE = True
+except ImportError:
+    EXCEL_EXPORT_AVAILABLE = False
+
+# Import Promotion Manager
+try:
+    from promotion_manager import PromotionManager
+    PROMOTION_AVAILABLE = True
+except ImportError:
+    PROMOTION_AVAILABLE = False
+
 WEB_APP_URL = os.environ.get('WEB_APP_URL', 'http://localhost:3000')
 try:
     from tkcalendar import DateEntry
@@ -41,11 +57,11 @@ except ImportError:
             kwargs.pop('date_pattern', None)
             kwargs.pop('background', None)
             kwargs.pop('foreground', None)
-            
+
             # Set defaults for fallback
             tk.Entry.__init__(self, parent, **kwargs)
             self.insert(0, datetime.now().strftime('%Y-%m-%d'))
-        
+
         def set_date(self, date_obj):
             """Set date in fallback widget"""
             self.delete(0, tk.END)
@@ -53,10 +69,11 @@ except ImportError:
                 self.insert(0, date_obj)
             else:
                 self.insert(0, date_obj.strftime('%Y-%m-%d'))
-        
+
         def get_date(self):
             """Get date from fallback widget"""
             return self.get()
+
 try:
     from reportlab.lib.pagesizes import letter, A4
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -76,7 +93,7 @@ except ImportError:
 
 # Check for camera availability (requires both cv2 and PIL)
 try:
-    import cv2
+    import cv2  # type: ignore[import-not-found]
     import threading
     if PIL_AVAILABLE:
         CAMERA_AVAILABLE = True
@@ -110,6 +127,7 @@ try:
 except ImportError:
     AI_AVAILABLE = False
 
+#+#+#+#+#+#+#+#+#+#+#+#+ AI PREDICTOR CLASS #+#+#+#+#+#+#+#+#+
 # Phase 1 AI Features imports
 try:
     from notification_service import get_notification_service
@@ -133,7 +151,7 @@ try:
     from ui_components import NotificationCenterFrame, AITutorChatFrame, EWSDashboardFrame, NotificationSettingsFrame
     UI_COMPONENTS_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: Could not import ui_components: {e}")
+    logger.warning("UI components not available: %s", e)
     UI_COMPONENTS_AVAILABLE = False
 
 # Phase 2: AI Learning Support Features
@@ -184,10 +202,31 @@ try:
     from biometric_auth import BiometricAttendanceManager
     from biometric_ui import BiometricAttendanceUI, BiometricEnrollmentUI
     BIOMETRIC_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     BIOMETRIC_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("Biometric authentication not available. Install biometric_auth module.")
+    logger.warning("Biometric authentication not available: %s", e)
+    logger.info("To enable biometric facial recognition, install: pip install opencv-contrib-python>=4.8.0")
+
+# Input Validation Framework
+try:
+    from input_validation import (
+        InputValidator, StudentValidator, TeacherValidator, 
+        FinancialValidator, ValidationError
+    )
+    INPUT_VALIDATION_AVAILABLE = True
+except ImportError:
+    INPUT_VALIDATION_AVAILABLE = False
+    # Fallback - create dummy classes
+    class ValidationError(Exception):
+        pass
+    class InputValidator:
+        pass
+    class StudentValidator:
+        pass
+    class TeacherValidator:
+        pass
+    class FinancialValidator:
+        pass
 
 # ==================== AI PREDICTOR CLASS ====================
 
@@ -2458,6 +2497,20 @@ class SchoolManagementSystem:
         # Initialize database
         self.init_database()
         
+        # Initialize backup manager and scheduler
+        try:
+            from backup_manager import get_backup_manager, get_backup_scheduler
+            self.backup_manager = get_backup_manager(self.db_path, 'database_backups', 30, 'restore_points')
+            self.backup_manager.create_restore_point("startup")
+            # Start automated backups at 2:00 AM daily
+            self.backup_scheduler = get_backup_scheduler(self.backup_manager, "02:00")
+            self.backup_scheduler.start()
+            logger.info("✅ Backup system initialized and scheduled")
+        except Exception as e:
+            logger.error(f"Failed to initialize backup system: {e}")
+            self.backup_manager = None
+            self.backup_scheduler = None
+        
         # Initialize AI predictor
         if AI_AVAILABLE:
             self.ai_predictor = AIPredictor(self.conn)
@@ -2571,6 +2624,9 @@ class SchoolManagementSystem:
                     os.makedirs(db_dir)
                 db_path = os.path.join(db_dir, 'school_management.db')
         
+        # Store db_path as instance variable for backup manager and other components
+        self.db_path = db_path
+        
         # Connect to SQLite database
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
@@ -2655,6 +2711,15 @@ class SchoolManagementSystem:
                 FOREIGN KEY (class_id) REFERENCES classes (id)
             )
         ''')
+
+        # Migration: add user linkage column for user <-> teacher binding
+        self.cursor.execute("PRAGMA table_info(teachers)")
+        teacher_columns = [row[1] for row in self.cursor.fetchall()]
+        if 'user_id' not in teacher_columns:
+            try:
+                self.cursor.execute("ALTER TABLE teachers ADD COLUMN user_id INTEGER")
+            except Exception as e:
+                print("Warning: could not add user_id column to teachers:", e)
         
         # Add new columns to students table for enhanced functionality (migration for older databases)
         self.cursor.execute("PRAGMA table_info(students)")
@@ -3770,6 +3835,7 @@ class SchoolManagementSystem:
              self.show_dashboard if self.current_user.get('role') != 'teacher' else self.show_teacher_class_selection, 
              "dashboard", True),  # Always available
             ("🏫   Class Management", self.show_class_management, "classes", "no_teacher"),  # Disabled for teachers
+            ("🚀   Student Promotion", self.show_promotion_management, "promotion", "no_teacher"),  # Promotion management
             ("🎓   Student Management", self.show_student_management, "students", None),
             ("👨‍🏫   Teacher Management", self.show_teacher_management, "teachers", None),
             ("💵   Fees Management", self.show_fees_management, "fees", None),
@@ -3905,53 +3971,74 @@ class SchoolManagementSystem:
             return None
         
         try:
+            # Prefer explicit class selected in teacher portal.
+            if hasattr(self, 'selected_class') and hasattr(self, 'class_data'):
+                selected = self.selected_class.get()
+                if selected and selected in self.class_data:
+                    return self.class_data[selected]
+
             # Get teacher info
+            user_id = self.current_user.get('id')
+            email = self.current_user.get('email', '')
             full_name = self.current_user.get('full_name', '')
-            username = self.current_user.get('username', '')
-            
-            # First, try to get teacher by exact full_name match
+
+            # Primary: class assignment via teacher profile linked to user account.
+            if user_id:
+                self.cursor.execute('''
+                    SELECT c.id
+                    FROM classes c
+                    JOIN teachers t ON c.class_teacher_id = t.id
+                    WHERE t.user_id = ?
+                    LIMIT 1
+                ''', (user_id,))
+
+                result = self.cursor.fetchone()
+                if result and result[0]:
+                    return result[0]
+
+            # Secondary: teacher profile by user-linked teacher record.
+            if user_id:
+                self.cursor.execute('''
+                    SELECT class_id
+                    FROM teachers
+                    WHERE user_id = ? AND class_id IS NOT NULL AND class_id > 0
+                    LIMIT 1
+                ''', (user_id,))
+
+                result = self.cursor.fetchone()
+                if result and result[0]:
+                    return result[0]
+
+            # Tertiary: teacher profile by email.
+            if email:
+                self.cursor.execute('''
+                    SELECT class_id
+                    FROM teachers
+                    WHERE LOWER(email) = LOWER(?) AND class_id IS NOT NULL AND class_id > 0
+                    LIMIT 1
+                ''', (email,))
+
+                result = self.cursor.fetchone()
+                if result and result[0]:
+                    return result[0]
+
+            # Last trusted fallback: exact teacher full-name match.
             if full_name:
                 self.cursor.execute('''
-                    SELECT class_id FROM teachers 
-                    WHERE LOWER(name) = LOWER(?)
+                    SELECT class_id
+                    FROM teachers
+                    WHERE LOWER(name) = LOWER(?) AND class_id IS NOT NULL AND class_id > 0
+                    LIMIT 1
                 ''', (full_name,))
                 
                 result = self.cursor.fetchone()
                 if result and result[0]:
                     return result[0]
-            
-            # If not found, try username-based lookup in multiple ways
-            if username:
-                # Try matching username to email or name
-                self.cursor.execute('''
-                    SELECT class_id FROM teachers 
-                    WHERE LOWER(email) LIKE LOWER(?) OR LOWER(name) LIKE LOWER(?)
-                ''', (f'%{username}%', f'%{username}%'))
-                
-                result = self.cursor.fetchone()
-                if result and result[0]:
-                    return result[0]
-            
-            # If still not found, join with users table
-            self.cursor.execute('''
-                SELECT DISTINCT t.class_id 
-                FROM teachers t
-                WHERE t.class_id IS NOT NULL AND t.class_id > 0
-                LIMIT 1
-            ''')
-            
-            result = self.cursor.fetchone()
-            if result and result[0]:
-                return result[0]
-            
-            # Last resort: get any teacher record
-            self.cursor.execute('SELECT DISTINCT class_id FROM teachers WHERE class_id IS NOT NULL ORDER BY class_id LIMIT 1')
-            result = self.cursor.fetchone()
-            return result[0] if result and result[0] else None
+
+            # No trustworthy assignment found.
+            return None
             
         except Exception as e:
-            print(f"Error getting teacher assigned class: {e}")
-            return None
             print(f"Error getting teacher assigned class: {e}")
             return None
     
@@ -4136,30 +4223,69 @@ Note: Classes are created and managed by administrators. Teachers can only selec
         features_label.pack(anchor='w', pady=(5, 0))
     
     def get_teacher_assigned_classes(self):
-        """Get classes from the database that are assigned to the current teacher or available classes"""
+        """Get classes assigned to the current teacher only"""
         try:
-            # First, try to get classes assigned to the current teacher
-            teacher_username = self.current_user.get('username')
-            
-            # Query to get classes (either assigned to teacher or all available classes)
-            self.cursor.execute('''
-                SELECT c.id, c.class_name, c.capacity, c.current_students
-                FROM classes c
-                LEFT JOIN users u ON c.class_teacher_id = u.id
-                WHERE u.username = ? OR c.class_teacher_id IS NULL
-                ORDER BY c.class_name
-            ''', (teacher_username,))
-            
-            assigned_classes = self.cursor.fetchall()
-            
-            if not assigned_classes:
-                # If no classes assigned to teacher, get all available classes
+            user_id = self.current_user.get('id')
+            full_name = self.current_user.get('full_name', '')
+            email = self.current_user.get('email', '')
+
+            assigned_classes = []
+            seen_class_ids = set()
+
+            # Primary source: classes linked to teacher profile for this user account.
+            if user_id:
                 self.cursor.execute('''
-                    SELECT id, class_name, capacity, current_students
-                    FROM classes
+                    SELECT c.id, c.class_name, c.capacity, c.current_students
+                    FROM classes c
+                    JOIN teachers t ON c.class_teacher_id = t.id
+                    WHERE t.user_id = ?
                     ORDER BY class_name
-                ''')
-                assigned_classes = self.cursor.fetchall()
+                ''', (user_id,))
+
+                for row in self.cursor.fetchall():
+                    if row[0] not in seen_class_ids:
+                        assigned_classes.append(row)
+                        seen_class_ids.add(row[0])
+
+            # Secondary source: class_id directly on teacher profile.
+            if user_id:
+                self.cursor.execute('''
+                    SELECT c.id, c.class_name, c.capacity, c.current_students
+                    FROM teachers t
+                    JOIN classes c ON c.id = t.class_id
+                    WHERE t.user_id = ?
+                    ORDER BY c.class_name
+                ''', (user_id,))
+
+                for row in self.cursor.fetchall():
+                    if row[0] not in seen_class_ids:
+                        assigned_classes.append(row)
+                        seen_class_ids.add(row[0])
+
+            # Tertiary source: teacher profile record by email/name.
+            teacher_filters = []
+            params = []
+            if email:
+                teacher_filters.append("LOWER(t.email) = LOWER(?)")
+                params.append(email)
+            if full_name:
+                teacher_filters.append("LOWER(t.name) = LOWER(?)")
+                params.append(full_name)
+
+            if teacher_filters:
+                filter_sql = " OR ".join(teacher_filters)
+                self.cursor.execute(f'''
+                    SELECT c.id, c.class_name, c.capacity, c.current_students
+                    FROM teachers t
+                    JOIN classes c ON c.id = t.class_id
+                    WHERE ({filter_sql})
+                    ORDER BY c.class_name
+                ''', tuple(params))
+
+                for row in self.cursor.fetchall():
+                    if row[0] not in seen_class_ids:
+                        assigned_classes.append(row)
+                        seen_class_ids.add(row[0])
             
             if assigned_classes:
                 # Store class data with IDs for later retrieval
@@ -4171,22 +4297,22 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                     self.class_data[class_display] = class_id  # Store ID for lookup
                 return class_list
             else:
-                # If no classes exist in database, return message
-                return ["No classes available - Contact admin to create classes"]
+                self.class_data = {}
+                return ["No assigned classes - Contact admin"]
                 
         except Exception as e:
             print(f"Error fetching classes: {e}")
-            # Return sample classes as fallback
-            return [
-                "Sample Class A (15/30 students)",
-                "Sample Class B (20/30 students)",
-                "Contact admin to set up actual classes"
-            ]
+            self.class_data = {}
+            return ["No assigned classes - Contact admin"]
     
     def load_teacher_dashboard(self):
         """Load the teacher dashboard with selected class"""
         if not self.selected_class.get():
             messagebox.showerror("Error", "Please select a class first!")
+            return
+
+        if hasattr(self, 'class_data') and self.selected_class.get() not in self.class_data:
+            messagebox.showerror("Access Denied", "No class is assigned to your teacher account. Contact administrator.")
             return
             
         self.show_teacher_dashboard()
@@ -4386,6 +4512,38 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             quizzes_card = self._create_learning_card(summary_frame, "❓ Quizzes",
                                                       summary['quizzes'], "#e74c3c")
             quizzes_card.pack(side='left', fill='both', expand=True, padx=5)
+
+            # Quick actions for file-based learning resources.
+            actions_frame = tk.Frame(learning_content, bg='#ffffff')
+            actions_frame.pack(fill='x', padx=10, pady=(10, 5))
+
+            upload_btn = tk.Button(
+                actions_frame,
+                text="📤 Upload Curriculum/Lesson Materials",
+                command=self._open_learning_resource_uploader,
+                font=('Segoe UI', 9, 'bold'),
+                bg='#27ae60',
+                fg='white',
+                relief='flat',
+                padx=12,
+                pady=6,
+                cursor='hand2'
+            )
+            upload_btn.pack(side='left')
+
+            view_btn = tk.Button(
+                actions_frame,
+                text="📖 View Uploaded Resources",
+                command=self._open_teacher_learning_resources,
+                font=('Segoe UI', 9, 'bold'),
+                bg='#3498db',
+                fg='white',
+                relief='flat',
+                padx=12,
+                pady=6,
+                cursor='hand2'
+            )
+            view_btn.pack(side='left', padx=(10, 0))
             
             # Content details section
             details_label = tk.Label(learning_content, text="📋 Detailed Content", 
@@ -4411,6 +4569,13 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             # Quizzes Tab
             quizzes = teacher_sync.get_teacher_quizzes(teacher_id)
             self._create_quizzes_sync_tab(content_notebook, "Quizzes", quizzes)
+
+            # Resource files tab (curriculum/lesson notes/learning materials)
+            resource_files = teacher_sync.get_teacher_resources(
+                teacher_id,
+                resource_types=['curriculum', 'lesson_note', 'learning_material']
+            )
+            self._create_learning_resource_files_tab(content_notebook, "Resource Files", resource_files)
             
             self.update_status("Learning Support Content - Showing synced content from AI Learning Support")
         
@@ -4590,6 +4755,320 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                                  text=f"{quiz.subject} - {quiz.topic} | {quiz.num_questions} Questions | {quiz.total_marks} Marks | {status}",
                                  font=('Segoe UI', 9), fg='#555', bg='#f8f9fa')
             info_label.pack(anchor='w')
+
+    def _create_learning_resource_files_tab(self, notebook, tab_name, resources):
+        """Create file-based learning resources tab (PDF/images/materials)"""
+        files_frame = ttk.Frame(notebook)
+        notebook.add(files_frame, text=tab_name)
+
+        scrollable = ScrollableFrame(files_frame, bg='#ffffff')
+        scrollable.pack(fill='both', expand=True)
+        content = scrollable.scrollable_frame
+
+        if not resources:
+            empty_label = tk.Label(content, text="No uploaded resource files yet",
+                                  font=('Segoe UI', 11), fg='#95a5a6', bg='#ffffff')
+            empty_label.pack(pady=20)
+            return
+
+        for resource in resources:
+            card = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
+            card.pack(fill='x', padx=10, pady=5)
+
+            info_frame = tk.Frame(card, bg='#f8f9fa')
+            info_frame.pack(side='left', fill='both', expand=True, padx=10, pady=10)
+
+            type_text = str(getattr(resource, 'resource_type', 'learning_material') or 'learning_material').replace('_', ' ').title()
+            title = getattr(resource, 'resource_name', 'Untitled Resource')
+            subject = getattr(resource, 'subject', 'General')
+            path = getattr(resource, 'resource_path', '')
+            created_at = getattr(resource, 'created_at', '')
+            created_text = created_at.split('T')[0] if created_at else 'N/A'
+
+            title_label = tk.Label(info_frame, text=f"{title}",
+                                  font=('Segoe UI', 10, 'bold'), fg='#2c3e50', bg='#f8f9fa')
+            title_label.pack(anchor='w')
+
+            meta_label = tk.Label(info_frame,
+                                 text=f"{type_text} | {subject} | Added: {created_text}",
+                                 font=('Segoe UI', 9), fg='#555', bg='#f8f9fa')
+            meta_label.pack(anchor='w', pady=(2, 0))
+
+            file_label = tk.Label(info_frame,
+                                 text=os.path.basename(path) if path else "No file path",
+                                 font=('Segoe UI', 8), fg='#7f8c8d', bg='#f8f9fa')
+            file_label.pack(anchor='w', pady=(2, 0))
+
+            actions_frame = tk.Frame(card, bg='#f8f9fa')
+            actions_frame.pack(side='right', padx=10, pady=10)
+
+            open_btn = tk.Button(actions_frame, text="📖 Open",
+                                command=lambda p=path: self._open_learning_resource_file(p),
+                                font=('Segoe UI', 9, 'bold'), bg='#3498db', fg='white',
+                                relief='flat', padx=10, pady=5, cursor='hand2')
+            open_btn.pack()
+
+    def _open_learning_resource_file(self, file_path):
+        """Open and read a learning resource file (image preview or system reader)"""
+        if not file_path:
+            messagebox.showerror("File Missing", "No file path is associated with this resource.")
+            return
+
+        if not os.path.exists(file_path):
+            messagebox.showerror("File Missing", f"Resource file not found:\n{file_path}")
+            return
+
+        ext = os.path.splitext(file_path)[1].lower()
+
+        try:
+            if ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'] and PIL_AVAILABLE:
+                viewer = tk.Toplevel(self.root)
+                viewer.title(f"Resource Viewer - {os.path.basename(file_path)}")
+                viewer.geometry("900x700")
+                viewer.configure(bg='#ffffff')
+
+                container = ScrollableFrame(viewer, bg='#ffffff')
+                container.pack(fill='both', expand=True, padx=10, pady=10)
+                content = container.get_frame()
+
+                image = Image.open(file_path)
+                max_w = 860
+                if image.width > max_w:
+                    ratio = max_w / float(image.width)
+                    new_h = int(image.height * ratio)
+                    image = image.resize((max_w, new_h), Image.Resampling.LANCZOS)
+
+                photo = ImageTk.PhotoImage(image)
+                image_label = tk.Label(content, image=photo, bg='#ffffff')
+                image_label.image = photo
+                image_label.pack(anchor='center', pady=10)
+
+                path_label = tk.Label(content, text=file_path, font=('Segoe UI', 8),
+                                     fg='#7f8c8d', bg='#ffffff', wraplength=850, justify='left')
+                path_label.pack(anchor='w', pady=(5, 10))
+                return
+
+            # PDFs and other files are opened with the OS default reader.
+            if hasattr(os, 'startfile'):
+                os.startfile(file_path)
+            else:
+                webbrowser.open('file:///' + file_path.replace('\\', '/'))
+        except Exception as e:
+            messagebox.showerror("Open Failed", f"Could not open file:\n{str(e)}")
+
+    def _open_teacher_learning_resources(self):
+        """Open uploaded resources for current teacher"""
+        if not TEACHER_LEARNING_SYNC_AVAILABLE:
+            messagebox.showwarning("Unavailable", "Teacher Learning Sync is not available.")
+            return
+
+        teacher_id = self._get_current_teacher_id()
+        if not teacher_id:
+            messagebox.showwarning("No Teacher", "Could not determine your teacher profile.")
+            return
+
+        self._show_learning_resource_library(teacher_id, "My Learning Resources")
+
+    def _open_student_learning_resources(self):
+        """Open uploaded resources assigned to the current student's class teacher"""
+        if not TEACHER_LEARNING_SYNC_AVAILABLE:
+            messagebox.showwarning("Unavailable", "Teacher Learning Sync is not available.")
+            return
+
+        teacher_id = self._get_current_student_assigned_teacher_id()
+        if not teacher_id:
+            messagebox.showwarning("No Resources", "No class teacher resources are currently assigned to you.")
+            return
+
+        self._show_learning_resource_library(teacher_id, "Class Learning Resources")
+
+    def _show_learning_resource_library(self, teacher_id, window_title):
+        """Render a popup library for uploaded curriculum/lesson/material resources"""
+        try:
+            teacher_sync = get_teacher_learning_sync_db()
+            resources = teacher_sync.get_teacher_resources(
+                teacher_id,
+                resource_types=['curriculum', 'lesson_note', 'learning_material']
+            )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load resources:\n{str(e)}")
+            return
+
+        library_window = tk.Toplevel(self.root)
+        library_window.title(window_title)
+        library_window.geometry("920x700")
+        library_window.configure(bg='#ffffff')
+
+        scrollable = ScrollableFrame(library_window, bg='#ffffff')
+        scrollable.pack(fill='both', expand=True, padx=10, pady=10)
+        content = scrollable.get_frame()
+
+        title = tk.Label(content, text=f"📚 {window_title}",
+                        font=('Segoe UI', 14, 'bold'), fg='#2c3e50', bg='#ffffff')
+        title.pack(anchor='w', pady=(0, 10))
+
+        if not resources:
+            empty = tk.Label(content, text="No uploaded files available yet.",
+                            font=('Segoe UI', 11), fg='#7f8c8d', bg='#ffffff')
+            empty.pack(pady=30)
+            return
+
+        for resource in resources:
+            card = tk.Frame(content, bg='#f8f9fa', relief='solid', bd=1)
+            card.pack(fill='x', padx=5, pady=5)
+
+            info = tk.Frame(card, bg='#f8f9fa')
+            info.pack(side='left', fill='both', expand=True, padx=10, pady=10)
+
+            resource_name = getattr(resource, 'resource_name', 'Untitled Resource')
+            resource_type = str(getattr(resource, 'resource_type', 'learning_material')).replace('_', ' ').title()
+            subject = getattr(resource, 'subject', 'General')
+            resource_path = getattr(resource, 'resource_path', '')
+
+            tk.Label(info, text=resource_name, font=('Segoe UI', 10, 'bold'),
+                    fg='#2c3e50', bg='#f8f9fa').pack(anchor='w')
+            tk.Label(info, text=f"{resource_type} | {subject}", font=('Segoe UI', 9),
+                    fg='#555', bg='#f8f9fa').pack(anchor='w', pady=(2, 0))
+            tk.Label(info, text=os.path.basename(resource_path) if resource_path else 'No file attached',
+                    font=('Segoe UI', 8), fg='#7f8c8d', bg='#f8f9fa').pack(anchor='w', pady=(2, 0))
+
+            open_btn = tk.Button(card, text="📖 Open",
+                                command=lambda p=resource_path: self._open_learning_resource_file(p),
+                                font=('Segoe UI', 9, 'bold'), bg='#3498db', fg='white',
+                                relief='flat', padx=10, pady=5, cursor='hand2')
+            open_btn.pack(side='right', padx=10, pady=10)
+
+    def _open_learning_resource_uploader(self):
+        """Upload curriculum, lesson notes, and learning materials (PDF/images)"""
+        if not TEACHER_LEARNING_SYNC_AVAILABLE:
+            messagebox.showwarning("Unavailable", "Teacher Learning Sync is not available.")
+            return
+
+        teacher_id = self._get_current_teacher_id()
+        if not teacher_id:
+            messagebox.showwarning("No Teacher", "Could not determine your teacher profile.")
+            return
+
+        uploader = tk.Toplevel(self.root)
+        uploader.title("Upload Learning Resource")
+        uploader.geometry("560x360")
+        uploader.configure(bg='#ffffff')
+        uploader.transient(self.root)
+        uploader.grab_set()
+
+        frame = tk.Frame(uploader, bg='#ffffff')
+        frame.pack(fill='both', expand=True, padx=20, pady=20)
+
+        tk.Label(frame, text="📤 Upload Learning Resource", font=('Segoe UI', 14, 'bold'),
+                bg='#ffffff', fg='#2c3e50').pack(anchor='w', pady=(0, 10))
+
+        resource_type_var = tk.StringVar(value='curriculum')
+        subject_var = tk.StringVar()
+        title_var = tk.StringVar()
+        file_var = tk.StringVar()
+
+        tk.Label(frame, text="Resource Type", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor='w')
+        type_cb = ttk.Combobox(frame, textvariable=resource_type_var,
+                               values=['curriculum', 'lesson_note', 'learning_material'],
+                               state='readonly', width=30)
+        type_cb.pack(anchor='w', pady=(2, 10))
+
+        tk.Label(frame, text="Subject", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor='w')
+        tk.Entry(frame, textvariable=subject_var, width=48, relief='solid', bd=1,
+                font=('Segoe UI', 10)).pack(anchor='w', pady=(2, 10))
+
+        tk.Label(frame, text="Title", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor='w')
+        tk.Entry(frame, textvariable=title_var, width=48, relief='solid', bd=1,
+                font=('Segoe UI', 10)).pack(anchor='w', pady=(2, 10))
+
+        tk.Label(frame, text="File (PDF or image)", font=('Segoe UI', 10, 'bold'), bg='#ffffff').pack(anchor='w')
+        file_row = tk.Frame(frame, bg='#ffffff')
+        file_row.pack(fill='x', pady=(2, 10))
+
+        tk.Entry(file_row, textvariable=file_var, width=45, relief='solid', bd=1,
+                font=('Segoe UI', 10)).pack(side='left')
+
+        def browse_file():
+            chosen = filedialog.askopenfilename(
+                title="Select Learning Resource",
+                filetypes=[
+                    ("Supported", "*.pdf *.jpg *.jpeg *.png *.gif *.bmp *.webp"),
+                    ("PDF files", "*.pdf"),
+                    ("Image files", "*.jpg *.jpeg *.png *.gif *.bmp *.webp"),
+                    ("All files", "*.*")
+                ]
+            )
+            if chosen:
+                file_var.set(chosen)
+                if not title_var.get().strip():
+                    title_var.set(os.path.splitext(os.path.basename(chosen))[0])
+
+        tk.Button(file_row, text="Browse", command=browse_file,
+                 font=('Segoe UI', 9, 'bold'), bg='#6c757d', fg='white',
+                 relief='flat', padx=10, pady=4, cursor='hand2').pack(side='left', padx=(8, 0))
+
+        def save_upload():
+            source_path = file_var.get().strip()
+            subject = subject_var.get().strip() or "General"
+            resource_title = title_var.get().strip()
+            resource_type = resource_type_var.get().strip().lower()
+
+            if not source_path:
+                messagebox.showwarning("Missing File", "Please choose a file to upload.")
+                return
+
+            if not os.path.exists(source_path):
+                messagebox.showerror("File Missing", "Selected file does not exist.")
+                return
+
+            ext = os.path.splitext(source_path)[1].lower()
+            if ext not in ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+                messagebox.showerror("Unsupported File", "Only PDF and image files are supported.")
+                return
+
+            if not resource_title:
+                resource_title = os.path.splitext(os.path.basename(source_path))[0]
+
+            try:
+                resource_dir = self.get_data_directory(os.path.join('teacher_documents', 'learning_support'))
+                os.makedirs(resource_dir, exist_ok=True)
+
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+                target_name = f"resource_{teacher_id}_{timestamp}{ext}"
+                target_path = os.path.join(resource_dir, target_name)
+                shutil.copy2(source_path, target_path)
+
+                teacher_sync = get_teacher_learning_sync_db()
+                ok = teacher_sync.add_resource(
+                    teacher_id=teacher_id,
+                    subject=subject,
+                    resource_type=resource_type,
+                    resource_name=resource_title,
+                    resource_path=target_path
+                )
+
+                if not ok:
+                    messagebox.showerror("Upload Failed", "Resource metadata could not be saved.")
+                    return
+
+                messagebox.showinfo("Success", "Learning resource uploaded successfully.")
+                self.update_status(f"Uploaded {resource_type.replace('_', ' ')}: {resource_title}")
+                uploader.destroy()
+
+                if hasattr(self, 'teacher_notebook'):
+                    self.show_teacher_dashboard()
+            except Exception as e:
+                messagebox.showerror("Upload Failed", f"Could not upload resource:\n{str(e)}")
+
+        actions = tk.Frame(frame, bg='#ffffff')
+        actions.pack(fill='x', pady=(10, 0))
+
+        tk.Button(actions, text="Upload", command=save_upload,
+                 font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
+                 relief='flat', padx=16, pady=8, cursor='hand2').pack(side='left')
+        tk.Button(actions, text="Cancel", command=uploader.destroy,
+                 font=('Segoe UI', 10, 'bold'), bg='#95a5a6', fg='white',
+                 relief='flat', padx=16, pady=8, cursor='hand2').pack(side='left', padx=(10, 0))
     
     def create_students_list(self, parent):
         """Create detailed students list with information"""
@@ -4865,34 +5344,34 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     def get_class_students_data(self):
         """Get actual student data from the database for the selected class"""
         if not hasattr(self, 'selected_class') or not self.selected_class.get():
-            print("[DEBUG] No selected_class variable set, returning sample data")
+            logger.debug("No selected_class variable set, returning sample data")
             return self.get_sample_students_data()
         
         try:
             selected_class_text = self.selected_class.get()
-            print(f"[DEBUG] Selected class text: {selected_class_text}")
+            logger.debug(f"Selected class text: {selected_class_text}")
             
             if selected_class_text == "No classes available - Contact admin to create classes":
                 return self.get_sample_students_data()
             
             # Get class ID from the stored class_data dictionary
             if not hasattr(self, 'class_data') or selected_class_text not in self.class_data:
-                print(f"[DEBUG] Class data not found, extracting from text")
+                logger.debug("Class data not found, extracting from text")
                 # Fallback: extract class name and look it up
                 class_name = selected_class_text.split(' (')[0].strip()
-                print(f"[DEBUG] Extracted class name: {class_name}")
+                logger.debug(f"Extracted class name: {class_name}")
                 self.cursor.execute('SELECT id FROM classes WHERE class_name = ?', (class_name,))
                 class_result = self.cursor.fetchone()
                 if not class_result:
-                    print(f"[DEBUG] No class found with name: {class_name}, returning sample data")
+                    logger.debug(f"No class found with name: {class_name}, returning sample data")
                     return self.get_sample_students_data()
                 class_id = class_result[0]
             else:
                 # Use the stored class ID
                 class_id = self.class_data[selected_class_text]
-                print(f"[DEBUG] Got class ID from dictionary: {class_id}")
+                logger.debug(f"Got class ID from dictionary: {class_id}")
             
-            print(f"[DEBUG] Using class ID: {class_id}")
+            logger.debug(f"Using class ID: {class_id}")
             
             # Get students in this class with their financial information
             # Using a simpler query first to check if we get results
@@ -4904,17 +5383,17 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             ''', (class_id,))
             
             students = self.cursor.fetchall()
-            print(f"[DEBUG] Found {len(students)} students in class {class_id}")
+            logger.debug(f"Found {len(students)} students in class {class_id}")
             
             if not students:
-                print(f"[DEBUG] No students found in database for class {class_id}, returning sample data")
+                logger.debug(f"No students found in database for class {class_id}, returning sample data")
                 return self.get_sample_students_data()
             
             students_data = []
             for student in students:
                 db_student_id, student_id, name, dob, gender = student
                 
-                print(f"[DEBUG] Processing student: {name} (ID: {student_id})")
+                logger.debug(f"Processing student: {name} (ID: {student_id})")
                 
                 # Calculate age from date_of_birth
                 age = self.calculate_age(dob) if dob else "N/A"
@@ -4942,13 +5421,11 @@ Note: Classes are created and managed by administrators. Teachers can only selec
                 }
                 students_data.append(student_data)
             
-            print(f"[DEBUG] Successfully loaded {len(students_data)} students")
+            logger.debug(f"Successfully loaded {len(students_data)} students")
             return students_data
             
         except Exception as e:
-            print(f"[ERROR] Error fetching student data: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("Error fetching student data")
             return self.get_sample_students_data()
     
     def get_student_fees_summary(self, student_db_id):
@@ -5197,7 +5674,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             
             return boys, girls
         except Exception as e:
-            print(f"Error getting gender counts: {e}")
+            logger.error("Error getting gender counts: %s", e, exc_info=True)
             return 0, 0
     
     def get_payment_status_counts(self):
@@ -5222,9 +5699,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             
             return fee_paying, scholarship
         except Exception as e:
-            print(f"Error getting payment status counts: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Error getting payment status counts: %s", e, exc_info=True)
             return 0, 0
     
     def get_student_status_counts(self):
@@ -5248,9 +5723,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             
             return suspended, inactive
         except Exception as e:
-            print(f"Error getting student status counts: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Error getting student status counts: %s", e, exc_info=True)
             return 0, 0
     
     def get_total_classes(self):
@@ -5260,7 +5733,7 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             result = self.cursor.fetchone()
             return result[0] if result else 0
         except Exception as e:
-            print(f"Error getting total classes: {e}")
+            logger.error("Error getting total classes: %s", e, exc_info=True)
             return 0
     
     def manage_student_attendance(self, student):
@@ -7369,6 +7842,17 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     def schedule_auto_refresh(self):
         """Schedule automatic refresh of summary data with countdown"""
         if hasattr(self, 'auto_refresh_enabled') and self.auto_refresh_enabled:
+            # Stop scheduling if the summary UI was closed/destroyed.
+            try:
+                if not (hasattr(self, 'summary_content_frame') and self.summary_content_frame.winfo_exists()):
+                    self.auto_refresh_enabled = False
+                    self.countdown_active = False
+                    return
+            except tk.TclError:
+                self.auto_refresh_enabled = False
+                self.countdown_active = False
+                return
+
             # Reset countdown
             self.countdown_seconds = 30
             self.countdown_active = True
@@ -7380,21 +7864,50 @@ Note: Classes are created and managed by administrators. Teachers can only selec
     def auto_refresh_callback(self):
         """Callback for automatic refresh"""
         if hasattr(self, 'auto_refresh_enabled') and self.auto_refresh_enabled:
+            try:
+                if not (hasattr(self, 'summary_content_frame') and self.summary_content_frame.winfo_exists()):
+                    self.auto_refresh_enabled = False
+                    self.countdown_active = False
+                    return
+            except tk.TclError:
+                self.auto_refresh_enabled = False
+                self.countdown_active = False
+                return
+
             self.refresh_assignment_summary()
             self.schedule_auto_refresh()
     
     def update_countdown(self):
         """Update countdown timer display"""
         if hasattr(self, 'countdown_active') and self.countdown_active and hasattr(self, 'countdown_label'):
+            try:
+                if not self.countdown_label.winfo_exists():
+                    self.countdown_active = False
+                    return
+            except tk.TclError:
+                self.countdown_active = False
+                return
+
             if self.countdown_seconds > 0:
-                self.countdown_label.config(text=f"Next refresh: {self.countdown_seconds}s")
+                try:
+                    self.countdown_label.config(text=f"Next refresh: {self.countdown_seconds}s")
+                except tk.TclError:
+                    self.countdown_active = False
+                    return
                 self.countdown_seconds -= 1
                 # Schedule next countdown update in 1 second
                 self.root.after(1000, self.update_countdown)
             else:
-                self.countdown_label.config(text="Refreshing...")
+                try:
+                    self.countdown_label.config(text="Refreshing...")
+                except tk.TclError:
+                    self.countdown_active = False
         elif hasattr(self, 'countdown_label') and not getattr(self, 'countdown_active', False):
-            self.countdown_label.config(text="Auto-refresh disabled")
+            try:
+                if self.countdown_label.winfo_exists():
+                    self.countdown_label.config(text="Auto-refresh disabled")
+            except tk.TclError:
+                pass
     
     def refresh_detailed_analytics(self):
         """Refresh detailed analytics section with real-time data"""
@@ -7650,10 +8163,20 @@ Note: Classes are created and managed by administrators. Teachers can only selec
             # Get teacher ID if logged in as teacher
             teacher_id = None
             if self.current_user.get('role') == 'teacher':
-                self.cursor.execute("SELECT id FROM teachers WHERE name = ?", (self.current_user.get('full_name'),))
-                teacher_result = self.cursor.fetchone()
-                if teacher_result:
-                    teacher_id = teacher_result[0]
+                email = self.current_user.get('email', '')
+                full_name = self.current_user.get('full_name', '')
+
+                if email:
+                    self.cursor.execute("SELECT id FROM teachers WHERE LOWER(email) = LOWER(?) LIMIT 1", (email,))
+                    teacher_result = self.cursor.fetchone()
+                    if teacher_result:
+                        teacher_id = teacher_result[0]
+
+                if not teacher_id and full_name:
+                    self.cursor.execute("SELECT id FROM teachers WHERE LOWER(name) = LOWER(?) LIMIT 1", (full_name,))
+                    teacher_result = self.cursor.fetchone()
+                    if teacher_result:
+                        teacher_id = teacher_result[0]
             
             # Insert grade into database
             self.cursor.execute('''
@@ -9492,7 +10015,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         # Click indicator
         click_label = tk.Label(bottom_section, text="→", 
                               font=('Segoe UI', 12, 'bold'), bg='#ffffff', fg=card_data['color'], anchor='e')
-        click_label.pack(side=tk.RIGHT)
+        click_label.pack(side= tk.RIGHT)
         
         # Click functionality
         def on_click(event):
@@ -10343,6 +10866,45 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                 command=self.open_student_form_popup)
         add_form_btn.pack(anchor='w')
         
+        if self.current_user.get('role') != 'teacher':
+            # Excel Export Buttons
+            export_button_frame = tk.Frame(data_section, bg='#ffffff')
+            export_button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+            
+            tk.Label(export_button_frame, text="📊 Export to Excel:", 
+                font=('Segoe UI', 11, 'bold'), bg='#ffffff', fg='#2c3e50').pack(anchor='w', pady=(10, 8))
+            
+            export_buttons_row = tk.Frame(export_button_frame, bg='#ffffff')
+            export_buttons_row.pack(fill=tk.X, padx=(10, 0))
+            
+            export_all_btn = tk.Button(export_buttons_row, text="📥 All Students", 
+                          font=('Segoe UI', 10, 'bold'), 
+                          bg='#3498db', fg='white',
+                          relief=tk.FLAT, bd=0, padx=15, pady=8, cursor='hand2',
+                          command=self.export_students_to_excel)
+            export_all_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            export_class_btn = tk.Button(export_buttons_row, text="📑 By Class", 
+                        font=('Segoe UI', 10, 'bold'), 
+                        bg='#9b59b6', fg='white',
+                        relief=tk.FLAT, bd=0, padx=15, pady=8, cursor='hand2',
+                        command=self.export_students_by_class_excel)
+            export_class_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            export_teachers_btn = tk.Button(export_buttons_row, text="👨‍🏫 Teachers", 
+                           font=('Segoe UI', 10, 'bold'), 
+                           bg='#f39c12', fg='white',
+                           relief=tk.FLAT, bd=0, padx=15, pady=8, cursor='hand2',
+                           command=self.export_teachers_to_excel)
+            export_teachers_btn.pack(side=tk.LEFT, padx=(0, 10))
+            
+            export_financial_btn = tk.Button(export_buttons_row, text="💰 Financial", 
+                            font=('Segoe UI', 10, 'bold'), 
+                            bg='#1abc9c', fg='white',
+                            relief=tk.FLAT, bd=0, padx=15, pady=8, cursor='hand2',
+                            command=self.export_financial_to_excel)
+            export_financial_btn.pack(side=tk.LEFT)
+        
         # Students List
         list_container = ScrollableFrame(data_section, bg='#ffffff')
         list_container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
@@ -10940,10 +11502,10 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             # Get academic records (grades)
             if include_academic:
                 self.cursor.execute("""
-                    SELECT subject, grade, assignment_type, date_recorded
+                    SELECT subject, grade, assignment_type, date_submitted
                     FROM grades
-                    WHERE student_id = ? AND date_recorded BETWEEN ? AND ?
-                    ORDER BY date_recorded DESC
+                    WHERE student_id = ? AND date_submitted BETWEEN ? AND ?
+                    ORDER BY date_submitted DESC
                 """, (student_id, from_date, to_date))
                 
                 grades = self.cursor.fetchall()
@@ -11495,9 +12057,9 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                 
                 # Get grades for the period
                 self.cursor.execute("""
-                    SELECT subject, grade, type, date FROM grades
-                    WHERE student_id = ? AND date BETWEEN ? AND ?
-                    ORDER BY date DESC
+                    SELECT subject, grade, assignment_type, date_submitted FROM grades
+                    WHERE student_id = ? AND date_submitted BETWEEN ? AND ?
+                    ORDER BY date_submitted DESC
                 """, (student_id, from_date, to_date))
                 grades = self.cursor.fetchall()
                 
@@ -12255,6 +12817,24 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             messagebox.showerror("Error", "Please fill in all required fields (*)")
             return
         
+        # Validate student data
+        if INPUT_VALIDATION_AVAILABLE:
+            try:
+                student_data = {
+                    'name': name,
+                    'student_id': student_id or 'AUTO',
+                    'date_of_birth': date_of_birth,
+                    'gender': gender,
+                    'phone': phone if phone else None,
+                    'parent_email': '',  # Not in form
+                    'bus_fee': bus_fee,
+                    'monthly_fee': monthly_fee
+                }
+                StudentValidator.validate_student_data(student_data)
+            except ValidationError as e:
+                messagebox.showerror("Validation Error", f"Invalid student data:\n{str(e)}")
+                return
+        
         # Auto-generate Student ID if empty
         if not student_id:
             try:
@@ -12355,6 +12935,24 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         if not name or not date_of_admission or not current_class_name:
             messagebox.showerror("Error", "Please fill in all required fields (*)")
             return
+        
+        # Validate student data
+        if INPUT_VALIDATION_AVAILABLE:
+            try:
+                student_data = {
+                    'name': name,
+                    'student_id': student_id,
+                    'date_of_birth': date_of_birth,
+                    'gender': gender,
+                    'phone': phone if phone else None,
+                    'parent_email': '',
+                    'bus_fee': bus_fee,
+                    'monthly_fee': monthly_fee
+                }
+                StudentValidator.validate_student_data(student_data)
+            except ValidationError as e:
+                messagebox.showerror("Validation Error", f"Invalid student data:\n{str(e)}")
+                return
         
         # Get new class ID
         new_class_id = self.class_dict.get(current_class_name)
@@ -13277,9 +13875,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             self.update_student_statistics()
             
         except Exception as e:
-            print(f"Error loading students: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Error loading students: %s", e, exc_info=True)
     
     def load_promotions(self):
         # Clear existing data
@@ -13726,6 +14322,602 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                 messagebox.showinfo("Success","Class deleted")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
+
+    def show_promotion_management(self):
+        """Show student promotion management interface"""
+        self.clear_content_frame()
+        
+        if not PROMOTION_AVAILABLE:
+            messagebox.showwarning("Feature Not Available", 
+                "Promotion manager module not available. Features will be limited.")
+            return
+        
+        # Initialize promotion manager
+        self.promotion_manager = PromotionManager('school_management.db')
+        
+        # Create main container
+        main_container = tk.Frame(self.content_frame, bg='#f8f9fa')
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Create scrollable frame
+        scrollable = ScrollableFrame(main_container, bg='#f8f9fa')
+        scrollable.pack(fill=tk.BOTH, expand=True)
+        main_frame = scrollable.get_frame()
+        
+        # Hero Header Section
+        header_bg = tk.Frame(main_frame, bg='#9b59b6', relief=tk.FLAT, bd=0)
+        header_bg.pack(fill=tk.X)
+        
+        header_content = tk.Frame(header_bg, bg='#9b59b6')
+        header_content.pack(fill=tk.X, padx=40, pady=30)
+        
+        icon_label = tk.Label(header_content, text="🚀", font=('Segoe UI', 40), 
+                              bg='#9b59b6', fg='white')
+        icon_label.pack(side=tk.LEFT, padx=(0, 15))
+        
+        title_text = tk.Frame(header_content, bg='#9b59b6')
+        title_text.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        title = tk.Label(title_text, text="🚀 Student Promotion Management",
+                        font=('Segoe UI', 32, 'bold'), fg='white', bg='#9b59b6')
+        title.pack(anchor=tk.W)
+        
+        subtitle = tk.Label(title_text, 
+                           text="Manage student promotions, repetitions, and class progressions",
+                           font=('Segoe UI', 14), fg='#ecf0f1', bg='#9b59b6')
+        subtitle.pack(anchor=tk.W, pady=(5, 0))
+        
+        # Main content area with tabs
+        content_frame = tk.Frame(main_frame, bg='#f8f9fa')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=30)
+        
+        # Create notebook for tabs
+        notebook = ttk.Notebook(content_frame, style='TNotebook')
+        notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Tab 1: Single Student Promotion
+        self.create_single_promotion_tab(notebook)
+        
+        # Tab 2: Bulk Promotion
+        self.create_bulk_promotion_tab(notebook)
+        
+        # Tab 3: Promotion History
+        self.create_promotion_history_tab(notebook)
+        
+        # Tab 4: Academic Year Settings
+        self.create_academic_year_tab(notebook)
+
+    def create_single_promotion_tab(self, parent_notebook):
+        """Create tab for single student promotion with live search"""
+        tab = tk.Frame(parent_notebook, bg='#f8f9fa')
+        parent_notebook.add(tab, text="👤 Single Student Promotion")
+        
+        # Content frame
+        content = tk.Frame(tab, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Student selection section with live search
+        select_frame = tk.LabelFrame(content, text="Select Student (Live Search)", 
+                                     font=('Segoe UI', 11, 'bold'),
+                                     bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        select_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        tk.Label(select_frame, text="Search Student ID or Name (type to search):",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, padx=15, pady=(15, 5))
+        
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(select_frame, textvariable=search_var, 
+                               font=('Segoe UI', 11), width=40)
+        search_entry.pack(padx=15, pady=5, fill=tk.X)
+        
+        # Search results listbox (dropdown style)
+        results_frame = tk.Frame(select_frame, bg='#ffffff')
+        results_frame.pack(padx=15, pady=5, fill=tk.BOTH)
+        
+        results_label = tk.Label(results_frame, text="Search Results:", 
+                font=('Segoe UI', 9, 'italic'), bg='#ffffff', fg='#7f8c8d')
+        
+        # Create listbox with scrollbar (initially hidden)
+        listbox_container = tk.Frame(results_frame, bg='#ffffff')
+        
+        scrollbar = tk.Scrollbar(listbox_container)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        results_listbox = tk.Listbox(listbox_container, font=('Segoe UI', 10),
+                                    yscrollcommand=scrollbar.set, height=8,
+                                    bg='#ecf0f1', fg='#2c3e50', activestyle='none',
+                                    relief=tk.FLAT, bd=0)
+        results_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=results_listbox.yview)
+        
+        # Student details display
+        details_frame = tk.LabelFrame(content, text="Selected Student Details",
+                                     font=('Segoe UI', 11, 'bold'),
+                                     bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        details_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        details_text = scrolledtext.ScrolledText(details_frame, height=7,
+                                                font=('Segoe UI', 10),
+                                                bg='#ecf0f1', fg='#2c3e50',
+                                                relief=tk.FLAT, bd=0)
+        details_text.pack(fill=tk.X, padx=15, pady=15)
+        details_text.config(state=tk.DISABLED)
+        
+        # Promotion options
+        options_frame = tk.LabelFrame(content, text="Promotion Options",
+                                     font=('Segoe UI', 11, 'bold'),
+                                     bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        options_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        tk.Label(options_frame, text="Promotion Type:",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, padx=15, pady=(15, 5))
+        
+        promo_type_var = tk.StringVar(value="promotion")
+        promo_types_frame = tk.Frame(options_frame, bg='#ffffff')
+        promo_types_frame.pack(anchor=tk.W, padx=15, pady=5)
+        
+        ttk.Radiobutton(promo_types_frame, text="✅ Promotion (move to next class)",
+                       variable=promo_type_var, value="promotion").pack(anchor=tk.W)
+        ttk.Radiobutton(promo_types_frame, text="⚠️  Repetition (stay in same class)",
+                       variable=promo_type_var, value="repetition").pack(anchor=tk.W)
+        ttk.Radiobutton(promo_types_frame, text="🔄 Transfer (move to specific class)",
+                       variable=promo_type_var, value="transfer").pack(anchor=tk.W)
+        
+        tk.Label(options_frame, text="Target Class:",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, padx=15, pady=(15, 5))
+        
+        # Get classes
+        try:
+            self.conn.execute("SELECT id, class_name FROM classes ORDER BY class_name")
+            classes = self.conn.fetchall()
+            class_names = [f"{name} (ID: {id})" for id, name in classes]
+            class_ids = [id for id, name in classes]
+        except:
+            class_names = []
+            class_ids = []
+        
+        target_class_var = tk.StringVar()
+        target_class_combo = ttk.Combobox(options_frame, textvariable=target_class_var,
+                                         values=class_names, state='readonly',
+                                         font=('Segoe UI', 10), width=40)
+        target_class_combo.pack(padx=15, pady=5, fill=tk.X)
+        
+        tk.Label(options_frame, text="Remarks (Optional):",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, padx=15, pady=(15, 5))
+        
+        remarks_text = tk.Text(options_frame, height=3, font=('Segoe UI', 10), width=40)
+        remarks_text.pack(padx=15, pady=5, fill=tk.X)
+        
+        # Action buttons
+        button_frame = tk.Frame(content, bg='#f8f9fa')
+        button_frame.pack(fill=tk.X, pady=20)
+        
+        def perform_live_search():
+            """Perform live search as user types"""
+            search_term = search_var.get().strip()
+            results_listbox.delete(0, tk.END)
+            
+            if not search_term or len(search_term) < 1:
+                # Hide dropdown if no search term
+                listbox_container.pack_forget()
+                results_label.pack_forget()
+                return
+            
+            try:
+                results = self.promotion_manager.search_students(search_term, limit=20)
+                
+                if results:
+                    # Show dropdown with results
+                    results_label.pack(anchor=tk.W, pady=(5, 5))
+                    listbox_container.pack(fill=tk.BOTH, expand=True)
+                    
+                    for student in results:
+                        display_text = f"{student['student_id']} - {student['name']} ({student['class_name']})"
+                        results_listbox.insert(tk.END, display_text)
+                    
+                    # Auto-select first result if only one
+                    if len(results) == 1:
+                        results_listbox.selection_set(0)
+                        on_student_selected(None)
+                else:
+                    # Hide dropdown if no results
+                    listbox_container.pack_forget()
+                    results_label.pack_forget()
+                    
+            except Exception as e:
+                print(f"Search error: {e}")
+                listbox_container.pack_forget()
+                results_label.pack_forget()
+        
+        def on_student_selected(event):
+            """Handle student selection from listbox"""
+            selection = results_listbox.curselection()
+            if not selection:
+                return
+            
+            try:
+                search_term = search_var.get().strip()
+                results = self.promotion_manager.search_students(search_term, limit=20)
+                
+                selected_idx = selection[0]
+                if selected_idx < len(results):
+                    student = results[selected_idx]
+                    
+                    self.current_promotion_student = (
+                        student['id'],
+                        student['student_id'],
+                        student['name'],
+                        student['class_id']
+                    )
+                    
+                    # Display student details
+                    details = f"""
+Student ID: {student['student_id']}
+Name: {student['name']}
+Current Class: {student['class_name'] or 'Not Assigned'}
+Date of Birth: {student['date_of_birth'] or 'N/A'}
+Status: {student['status'] or 'Active'}
+
+✅ Student selected and ready for promotion
+                    """.strip()
+                    
+                    details_text.config(state=tk.NORMAL)
+                    details_text.delete(1.0, tk.END)
+                    details_text.insert(tk.END, details)
+                    details_text.config(state=tk.DISABLED)
+                    
+                    # Hide dropdown after selection
+                    listbox_container.pack_forget()
+                    results_label.pack_forget()
+                    
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+        
+        def promote_student():
+            if not hasattr(self, 'current_promotion_student'):
+                messagebox.showwarning("Error", "Please select a student from the list")
+                return
+            
+            if promo_type_var.get() == "transfer" and not target_class_var.get():
+                messagebox.showwarning("Error", "Please select target class for transfer")
+                return
+            
+            student_id_db, student_id_code, name, current_class_id = self.current_promotion_student
+            promo_type = promo_type_var.get()
+            remarks = remarks_text.get(1.0, tk.END).strip()
+            
+            try:
+                if promo_type == "promotion":
+                    # Get next class
+                    next_class = self.promotion_manager.get_next_class(current_class_id)
+                    if not next_class:
+                        messagebox.showerror("Error", "Cannot determine next class")
+                        return
+                    to_class_id = next_class[0]
+                elif promo_type == "transfer":
+                    selected_idx = target_class_combo.current()
+                    if selected_idx < 0:
+                        messagebox.showwarning("Error", "Please select target class")
+                        return
+                    to_class_id = class_ids[selected_idx]
+                else:  # repetition
+                    to_class_id = current_class_id
+                
+                # Perform promotion
+                success, message = self.promotion_manager.promote_student(
+                    student_id_code, to_class_id, promo_type,
+                    self.current_user.get('full_name', 'System'), remarks
+                )
+                
+                if success:
+                    messagebox.showinfo("Success", message)
+                    search_var.set("")
+                    results_listbox.delete(0, tk.END)
+                    listbox_container.pack_forget()
+                    results_label.pack_forget()
+                    details_text.config(state=tk.NORMAL)
+                    details_text.delete(1.0, tk.END)
+                    details_text.config(state=tk.DISABLED)
+                    remarks_text.delete(1.0, tk.END)
+                    target_class_var.set("")
+                    promo_type_var.set("promotion")
+                else:
+                    messagebox.showerror("Promotion Failed", message)
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+        
+        # Bind search entry to live search
+        search_var.trace('w', lambda *args: perform_live_search())
+        
+        # Bind listbox selection
+        results_listbox.bind('<<ListboxSelect>>', on_student_selected)
+        
+        # Buttons
+        tk.Button(button_frame, text="✅ Promote Student", command=promote_student,
+                 bg='#27ae60', fg='white', font=('Segoe UI', 11, 'bold'),
+                 padx=20, pady=10, relief=tk.FLAT).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(button_frame, text="🔄 Clear", 
+                 command=lambda: (search_var.set(""), results_listbox.delete(0, tk.END),
+                                 listbox_container.pack_forget(), results_label.pack_forget(),
+                                 details_text.config(state=tk.NORMAL),
+                                 details_text.delete(1.0, tk.END),
+                                 details_text.config(state=tk.DISABLED)),
+                 bg='#95a5a6', fg='white', font=('Segoe UI', 11, 'bold'),
+                 padx=20, pady=10, relief=tk.FLAT).pack(side=tk.LEFT, padx=5)
+
+    def create_bulk_promotion_tab(self, parent_notebook):
+        """Create tab for bulk class promotion"""
+        tab = tk.Frame(parent_notebook, bg='#f8f9fa')
+        parent_notebook.add(tab, text="📚 Bulk Class Promotion")
+        
+        # Content frame
+        content = tk.Frame(tab, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Class selection
+        select_frame = tk.LabelFrame(content, text="Select Class for Promotion",
+                                     font=('Segoe UI', 11, 'bold'),
+                                     bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        select_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        tk.Label(select_frame, text="Class to Promote:",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, padx=15, pady=(15, 5))
+        
+        # Get classes
+        try:
+            self.conn.execute("SELECT id, class_name FROM classes ORDER BY class_name")
+            classes = self.conn.fetchall()
+            class_names = [f"{name} (ID: {id})" for id, name in classes]
+            class_ids = [id for id, name in classes]
+        except:
+            class_names = []
+            class_ids = []
+        
+        class_var = tk.StringVar()
+        class_combo = ttk.Combobox(select_frame, textvariable=class_var,
+                                   values=class_names, state='readonly',
+                                   font=('Segoe UI', 10))
+        class_combo.pack(padx=15, pady=5, fill=tk.X)
+        
+        # Promotion type
+        promo_frame = tk.LabelFrame(content, text="Promotion Type",
+                                   font=('Segoe UI', 11, 'bold'),
+                                   bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        promo_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        promo_type_var = tk.StringVar(value="promotion")
+        ttk.Radiobutton(promo_frame, text="✅ Promote all to next class",
+                       variable=promo_type_var, value="promotion").pack(anchor=tk.W, padx=15, pady=5)
+        ttk.Radiobutton(promo_frame, text="⚠️  Repeat all in same class",
+                       variable=promo_type_var, value="repetition").pack(anchor=tk.W, padx=15, pady=5)
+        
+        # Results display
+        results_frame = tk.LabelFrame(content, text="Promotion Results",
+                                     font=('Segoe UI', 11, 'bold'),
+                                     bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        results_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        
+        results_text = scrolledtext.ScrolledText(results_frame, height=10,
+                                                font=('Segoe UI', 9),
+                                                bg='#ecf0f1', fg='#2c3e50')
+        results_text.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        # Action buttons
+        button_frame = tk.Frame(content, bg='#f8f9fa')
+        button_frame.pack(fill=tk.X, pady=20)
+        
+        def promote_class():
+            if not class_var.get():
+                messagebox.showwarning("Error", "Please select a class")
+                return
+            
+            selected_idx = class_combo.current()
+            from_class_id = class_ids[selected_idx]
+            promo_type = promo_type_var.get()
+            
+            if messagebox.askyesno("Confirm", f"Promote all students in {class_var.get()}?"):
+                try:
+                    success, summary, results_dict = self.promotion_manager.promote_entire_class(
+                        from_class_id, promo_type,
+                        self.current_user.get('full_name', 'System'), ""
+                    )
+                    
+                    # Display results
+                    results_text.config(state=tk.NORMAL)
+                    results_text.delete(1.0, tk.END)
+                    results_text.insert(tk.END, f"Summary: {summary}\n\n")
+                    results_text.insert(tk.END, "Details:\n")
+                    for detail in results_dict.get('details', []):
+                        results_text.insert(tk.END, detail + "\n")
+                    results_text.config(state=tk.DISABLED)
+                    
+                    messagebox.showinfo("Success", summary)
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+        
+        tk.Button(button_frame, text="🚀 Promote Entire Class", command=promote_class,
+                 bg='#e74c3c', fg='white', font=('Segoe UI', 11, 'bold'),
+                 padx=20, pady=10, relief=tk.FLAT).pack(side=tk.LEFT, padx=5)
+
+    def create_promotion_history_tab(self, parent_notebook):
+        """Create tab for viewing promotion history"""
+        tab = tk.Frame(parent_notebook, bg='#f8f9fa')
+        parent_notebook.add(tab, text="📜 Promotion History")
+        
+        # Content frame
+        content = tk.Frame(tab, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Filter section
+        filter_frame = tk.LabelFrame(content, text="Filter History",
+                                    font=('Segoe UI', 11, 'bold'),
+                                    bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        filter_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        filter_content = tk.Frame(filter_frame, bg='#ffffff')
+        filter_content.pack(fill=tk.X, padx=15, pady=15)
+        
+        tk.Label(filter_content, text="Student ID:",
+                font=('Segoe UI', 10), bg='#ffffff').pack(side=tk.LEFT, padx=(0, 10))
+        
+        student_var = tk.StringVar()
+        tk.Entry(filter_content, textvariable=student_var,
+                font=('Segoe UI', 10), width=20).pack(side=tk.LEFT, padx=(0, 20))
+        
+        tk.Label(filter_content, text="Academic Year:",
+                font=('Segoe UI', 10), bg='#ffffff').pack(side=tk.LEFT, padx=(0, 10))
+        
+        year_var = tk.StringVar()
+        tk.Entry(filter_content, textvariable=year_var,
+                font=('Segoe UI', 10), width=15).pack(side=tk.LEFT, padx=(0, 20))
+        
+        # History display
+        history_frame = tk.LabelFrame(content, text="Recent Promotions",
+                                     font=('Segoe UI', 11, 'bold'),
+                                     bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        history_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Create treeview for history
+        columns = ('Student ID', 'Name', 'From Class', 'To Class', 'Type', 'Date', 'By')
+        tree = ttk.Treeview(history_frame, columns=columns, height=15, show='headings')
+        tree.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        for col in columns:
+            tree.column(col, width=100)
+            tree.heading(col, text=col)
+        
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(history_frame, orient=tk.VERTICAL, command=tree.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        tree.config(yscroll=scrollbar.set)
+        
+        # Buttons
+        button_frame = tk.Frame(content, bg='#f8f9fa')
+        button_frame.pack(fill=tk.X, pady=20)
+        
+        def load_history():
+            try:
+                # Clear tree
+                for item in tree.get_children():
+                    tree.delete(item)
+                
+                # Load history
+                history = self.promotion_manager.get_promotion_history(
+                    student_var.get() if student_var.get() else None,
+                    year_var.get() if year_var.get() else None
+                )
+                
+                for record in history:
+                    tree.insert('', tk.END, values=(
+                        record.get('student_id', ''),
+                        record.get('student_name', ''),
+                        record.get('from_class_name', ''),
+                        record.get('to_class_name', ''),
+                        record.get('promotion_type', ''),
+                        record.get('promotion_date', ''),
+                        record.get('promoted_by', '')
+                    ))
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+        
+        tk.Button(button_frame, text="🔄 Load History", command=load_history,
+                 bg='#3498db', fg='white', font=('Segoe UI', 11, 'bold'),
+                 padx=20, pady=10, relief=tk.FLAT).pack(side=tk.LEFT, padx=5)
+
+    def create_academic_year_tab(self, parent_notebook):
+        """Create tab for academic year settings"""
+        tab = tk.Frame(parent_notebook, bg='#f8f9fa')
+        parent_notebook.add(tab, text="📅 Academic Year Settings")
+        
+        # Content frame
+        content = tk.Frame(tab, bg='#f8f9fa')
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # New academic year section
+        new_year_frame = tk.LabelFrame(content, text="Create New Academic Year",
+                                       font=('Segoe UI', 11, 'bold'),
+                                       bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        new_year_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        form_content = tk.Frame(new_year_frame, bg='#ffffff')
+        form_content.pack(fill=tk.X, padx=15, pady=15)
+        
+        tk.Label(form_content, text="Academic Year (e.g., 2024-2025):",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, pady=(0, 5))
+        year_entry = tk.Entry(form_content, font=('Segoe UI', 10), width=30)
+        year_entry.pack(anchor=tk.W, pady=(0, 15))
+        
+        tk.Label(form_content, text="Start Date (YYYY-MM-DD):",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, pady=(0, 5))
+        start_entry = tk.Entry(form_content, font=('Segoe UI', 10), width=30)
+        start_entry.pack(anchor=tk.W, pady=(0, 15))
+        
+        tk.Label(form_content, text="End Date (YYYY-MM-DD):",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, pady=(0, 5))
+        end_entry = tk.Entry(form_content, font=('Segoe UI', 10), width=30)
+        end_entry.pack(anchor=tk.W, pady=(0, 15))
+        
+        tk.Label(form_content, text="Promotion Date (YYYY-MM-DD):",
+                font=('Segoe UI', 10), bg='#ffffff').pack(anchor=tk.W, pady=(0, 5))
+        promo_entry = tk.Entry(form_content, font=('Segoe UI', 10), width=30)
+        promo_entry.pack(anchor=tk.W, pady=(0, 15))
+        
+        def create_year():
+            try:
+                success, message = self.promotion_manager.create_academic_year(
+                    year_entry.get(), start_entry.get(), end_entry.get(), promo_entry.get()
+                )
+                if success:
+                    messagebox.showinfo("Success", message)
+                    year_entry.delete(0, tk.END)
+                    start_entry.delete(0, tk.END)
+                    end_entry.delete(0, tk.END)
+                    promo_entry.delete(0, tk.END)
+                    load_years()
+                else:
+                    messagebox.showerror("Error", message)
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+        
+        tk.Button(form_content, text="➕ Create Academic Year", command=create_year,
+                 bg='#27ae60', fg='white', font=('Segoe UI', 11, 'bold'),
+                 padx=20, pady=10, relief=tk.FLAT).pack(pady=(15, 0))
+        
+        # Academic years list
+        years_frame = tk.LabelFrame(content, text="Existing Academic Years",
+                                   font=('Segoe UI', 11, 'bold'),
+                                   bg='#ffffff', fg='#2c3e50', relief=tk.FLAT, bd=1)
+        years_frame.pack(fill=tk.BOTH, expand=True)
+        
+        years_text = scrolledtext.ScrolledText(years_frame, height=10,
+                                              font=('Segoe UI', 10),
+                                              bg='#ecf0f1', fg='#2c3e50')
+        years_text.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        def load_years():
+            try:
+                years_text.config(state=tk.NORMAL)
+                years_text.delete(1.0, tk.END)
+                
+                years = self.promotion_manager.get_academic_years()
+                if years:
+                    for year in years:
+                        years_text.insert(tk.END, f"\n{'='*60}\n")
+                        years_text.insert(tk.END, f"Year: {year['year']}\n")
+                        years_text.insert(tk.END, f"Start Date: {year['start_date']}\n")
+                        years_text.insert(tk.END, f"End Date: {year['end_date']}\n")
+                        years_text.insert(tk.END, f"Promotion Date: {year['promotion_date']}\n")
+                        years_text.insert(tk.END, f"Status: {'Active' if year['is_active'] else 'Inactive'}\n")
+                else:
+                    years_text.insert(tk.END, "No academic years configured yet.\n")
+                
+                years_text.config(state=tk.DISABLED)
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+        
+        # Load initial data
+        load_years()
 
     def show_teacher_management(self):
         self.clear_content_frame()
@@ -14603,13 +15795,14 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         # Handle hire date
         hire_date = teacher_data[3] or date.today().strftime("%Y-%m-%d")
         try:
-            hire_date_obj = datetime.strptime(hire_date, "%Y-%m-%d").date()
+            hire_date_obj = datetime.strptime(str(hire_date)[:10], "%Y-%m-%d").date()
             self.teacher_hire_entry.set_date(hire_date_obj)
         except:
             self.teacher_hire_entry.set_date(date.today())
         
         # Set class
-        self.teacher_class_var.set(teacher_data[12] if teacher_data[12] else "None")
+        selected_class_name = teacher_data[13] if len(teacher_data) > 13 else None
+        self.teacher_class_var.set(selected_class_name if selected_class_name else "None")
         
         # Set salary (remove "GHS" prefix if present)
         salary_str = str(teacher_data[5] or 0)
@@ -14850,12 +16043,38 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             name = self.teacher_name_entry.get().strip()
             
             # Handle DateEntry for hire date
-            hire = self.teacher_hire_entry.get_date().strftime('%Y-%m-%d')
+            hire_raw = self.teacher_hire_entry.get_date() if hasattr(self.teacher_hire_entry, 'get_date') else self.teacher_hire_entry.get()
+            if isinstance(hire_raw, str):
+                hire = hire_raw.strip()
+            else:
+                hire = hire_raw.strftime('%Y-%m-%d')
+
+            if not hire:
+                hire = date.today().strftime('%Y-%m-%d')
                 
             class_name = self.teacher_class_var.get().strip()
-            salary = self.teacher_salary_entry.get().strip() or 0
+            salary_text = self.teacher_salary_entry.get().strip() or "0"
             phone = self.teacher_phone_entry.get().strip()
             email = self.teacher_email_entry.get().strip()
+
+            try:
+                salary_value = float(salary_text)
+            except ValueError:
+                messagebox.showerror("Validation Error", "Salary must be a valid number.")
+                return
+            
+            # Validate teacher data
+            if INPUT_VALIDATION_AVAILABLE:
+                try:
+                    teacher_data = {
+                        'name': name,
+                        'hire_date': hire,
+                        'starting_salary': salary_value
+                    }
+                    TeacherValidator.validate_teacher_data(teacher_data)
+                except (ValidationError, ValueError) as e:
+                    messagebox.showerror("Validation Error", f"Invalid teacher data:\n{str(e)}")
+                    return
             
             # Get qualifications and skills
             qualifications = self.teacher_qualifications_text.get('1.0', 'end-1c').strip()
@@ -14893,7 +16112,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                    (name, hire_date, class_id, starting_salary, qualifications, 
                                     skills, phone, email, photo) 
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                                    (name, hire, class_id, float(salary), qualifications, 
+                                    (name, hire, class_id, salary_value, qualifications, 
                                      skills, phone, email, photo_data))
             
             # Get the newly inserted teacher ID
@@ -14931,12 +16150,25 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         name = self.teacher_name_entry.get().strip()
         
         # Handle DateEntry for hire date
-        hire = self.teacher_hire_entry.get_date().strftime('%Y-%m-%d')
+        hire_raw = self.teacher_hire_entry.get_date() if hasattr(self.teacher_hire_entry, 'get_date') else self.teacher_hire_entry.get()
+        if isinstance(hire_raw, str):
+            hire = hire_raw.strip()
+        else:
+            hire = hire_raw.strftime('%Y-%m-%d')
+
+        if not hire:
+            hire = date.today().strftime('%Y-%m-%d')
             
         class_name = self.teacher_class_var.get().strip()
-        salary = self.teacher_salary_entry.get().strip() or 0
+        salary_text = self.teacher_salary_entry.get().strip() or "0"
         phone = self.teacher_phone_entry.get().strip()
         email = self.teacher_email_entry.get().strip()
+
+        try:
+            salary_value = float(salary_text)
+        except ValueError:
+            messagebox.showerror("Validation Error", "Salary must be a valid number.")
+            return
         
         # Get qualifications and skills
         qualifications = self.teacher_qualifications_text.get('1.0', 'end-1c').strip()
@@ -14973,14 +16205,14 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                    name=?, hire_date=?, class_id=?, starting_salary=?, 
                                    qualifications=?, skills=?, phone=?, email=?, photo=? 
                                    WHERE id=?""",
-                                    (name, hire, class_id, float(salary), qualifications, 
+                                    (name, hire, class_id, salary_value, qualifications, 
                                      skills, phone, email, photo_data, tid))
             else:
                 self.cursor.execute("""UPDATE teachers SET 
                                    name=?, hire_date=?, class_id=?, starting_salary=?, 
                                    qualifications=?, skills=?, phone=?, email=? 
                                    WHERE id=?""",
-                                    (name, hire, class_id, float(salary), qualifications, 
+                                    (name, hire, class_id, salary_value, qualifications, 
                                      skills, phone, email, tid))
             
             # Update documents - first delete existing ones
@@ -15046,12 +16278,14 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         tid = self.teachers_tree.item(sel[0])['values'][0]
         if messagebox.askyesno("Confirm","Delete selected teacher?"):
             try:
+                # Delete dependent document rows first for compatibility with older SQLite settings.
+                self.cursor.execute("DELETE FROM teacher_documents WHERE teacher_id = ?", (tid,))
+                self.cursor.execute("DELETE FROM teachers WHERE id = ?", (tid,))
+                self.conn.commit()
                 self.load_teachers()
                 self.update_dashboard()
                 self.clear_teacher_form()
-               
-                self.cursor.execute("DELETE FROM teachers WHERE id = ?", (tid,))
-                self.conn.commit(); self.load_teachers(); messagebox.showinfo("Success","Teacher deleted")
+                messagebox.showinfo("Success", "Teacher deleted")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
@@ -16626,9 +17860,9 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         tk.Label(fields_frame, text="Full Name:", font=('Segoe UI', 10, 'bold'), 
                 bg='#ffffff', fg='#2c3e50').grid(row=1, column=0, sticky='w', pady=(0, 5))
         self.user_fullname_var = tk.StringVar()
-        fullname_entry = tk.Entry(fields_frame, textvariable=self.user_fullname_var,
-                                 font=('Segoe UI', 10), width=25, relief='solid', bd=1)
-        fullname_entry.grid(row=1, column=1, sticky='w', padx=(10, 0), pady=(0, 10))
+        self.user_fullname_cb = ttk.Combobox(fields_frame, textvariable=self.user_fullname_var,
+                            font=('Segoe UI', 10), width=25, state='normal')
+        self.user_fullname_cb.grid(row=1, column=1, sticky='w', padx=(10, 0), pady=(0, 10))
         
         # Email field
         tk.Label(fields_frame, text="Email:", font=('Segoe UI', 10, 'bold'), 
@@ -16645,15 +17879,24 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         password_entry = tk.Entry(fields_frame, textvariable=self.user_password_var,
                                  font=('Segoe UI', 10), width=25, relief='solid', bd=1, show='*')
         password_entry.grid(row=3, column=1, sticky='w', padx=(10, 0), pady=(0, 10))
+
+        # Teacher class binding field
+        tk.Label(fields_frame, text="Teacher Class:", font=('Segoe UI', 10, 'bold'),
+            bg='#ffffff', fg='#2c3e50').grid(row=4, column=0, sticky='w', pady=(0, 5))
+        self.user_teacher_class_var = tk.StringVar()
+        self.user_teacher_class_cb = ttk.Combobox(fields_frame, textvariable=self.user_teacher_class_var,
+                             state='readonly', width=25)
+        self.user_teacher_class_cb.grid(row=4, column=1, sticky='w', padx=(10, 0), pady=(0, 10))
         
         # Role field
         tk.Label(fields_frame, text="Role:", font=('Segoe UI', 10, 'bold'), 
                 bg='#ffffff', fg='#2c3e50').grid(row=0, column=2, sticky='w', padx=(40, 0), pady=(0, 5))
         self.user_role_var = tk.StringVar()
         role_cb = ttk.Combobox(fields_frame, textvariable=self.user_role_var,
-                              values=['admin', 'teacher', 'staff', 'student', 'viewer'],
+                              values=['admin', 'accountant', 'teacher', 'staff', 'student', 'viewer'],
                               state='readonly', width=22)
         role_cb.grid(row=0, column=3, sticky='w', padx=(10, 0), pady=(0, 10))
+        role_cb.bind('<<ComboboxSelected>>', lambda e: self._on_user_role_changed())
         
         # Status field
         tk.Label(fields_frame, text="Status:", font=('Segoe UI', 10, 'bold'), 
@@ -16719,6 +17962,10 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         tk.Button(template_frame, text="Staff Role", command=self.apply_staff_template,
                  bg='#6c757d', fg='white', font=('Segoe UI', 8), relief='flat',
                  padx=8, pady=1).pack(fill='x', pady=1)
+
+        tk.Button(template_frame, text="Accountant Role", command=self.apply_accountant_template,
+             bg='#fd7e14', fg='white', font=('Segoe UI', 8), relief='flat',
+             padx=8, pady=1).pack(fill='x', pady=1)
         
         tk.Button(template_frame, text="Viewer Role", command=self.apply_viewer_template,
                  bg='#6f42c1', fg='white', font=('Segoe UI', 8), relief='flat',
@@ -16750,6 +17997,10 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         
         # Store editing user ID
         self.editing_user_id = None
+        self.user_teacher_class_map = {}
+        self._refresh_user_teacher_class_options()
+        self._refresh_user_fullname_options()
+        self._on_user_role_changed()
     
     def select_all_permissions(self):
         """Select all permission checkboxes"""
@@ -16769,6 +18020,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             if perm in self.permission_vars:
                 self.permission_vars[perm].set(True)
         self.user_role_var.set('teacher')
+        self._on_user_role_changed()
     
     def apply_student_template(self):
         """Apply student role permissions - minimal access for learning"""
@@ -16778,6 +18030,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             if perm in self.permission_vars:
                 self.permission_vars[perm].set(True)
         self.user_role_var.set('student')
+        self._on_user_role_changed()
     
     def apply_staff_template(self):
         """Apply staff role permissions"""
@@ -16787,6 +18040,17 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             if perm in self.permission_vars:
                 self.permission_vars[perm].set(True)
         self.user_role_var.set('staff')
+        self._on_user_role_changed()
+
+    def apply_accountant_template(self):
+        """Apply accountant role permissions"""
+        self.clear_all_permissions()
+        accountant_perms = ['dashboard', 'fees']
+        for perm in accountant_perms:
+            if perm in self.permission_vars:
+                self.permission_vars[perm].set(True)
+        self.user_role_var.set('accountant')
+        self._on_user_role_changed()
     
     def apply_viewer_template(self):
         """Apply viewer role permissions"""
@@ -16796,6 +18060,145 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             if perm in self.permission_vars:
                 self.permission_vars[perm].set(True)
         self.user_role_var.set('viewer')
+        self._on_user_role_changed()
+
+    def _refresh_user_teacher_class_options(self):
+        """Refresh class options used for teacher-user binding"""
+        try:
+            self.cursor.execute('SELECT id, class_name FROM classes ORDER BY class_name')
+            rows = self.cursor.fetchall()
+            self.user_teacher_class_map = {name: cid for cid, name in rows}
+            class_names = [''] + [name for _, name in rows]
+            if hasattr(self, 'user_teacher_class_cb'):
+                self.user_teacher_class_cb['values'] = class_names
+        except Exception:
+            self.user_teacher_class_map = {}
+            if hasattr(self, 'user_teacher_class_cb'):
+                self.user_teacher_class_cb['values'] = ['']
+
+    def _get_teacher_fullname_options(self):
+        """Get full-name options from Teacher Management records"""
+        try:
+            self.cursor.execute('SELECT name FROM teachers WHERE name IS NOT NULL AND TRIM(name) <> "" ORDER BY name')
+            return [row[0] for row in self.cursor.fetchall() if row[0]]
+        except Exception:
+            return []
+
+    def _get_hr_fullname_options(self):
+        """Get full-name options from HR Manager employee records"""
+        try:
+            self.cursor.execute('SELECT name FROM employees WHERE name IS NOT NULL AND TRIM(name) <> "" ORDER BY name')
+            return [row[0] for row in self.cursor.fetchall() if row[0]]
+        except Exception:
+            return []
+
+    def _refresh_user_fullname_options(self):
+        """Refresh Full Name selection list based on selected role"""
+        if not hasattr(self, 'user_fullname_cb'):
+            return
+
+        role = (self.user_role_var.get() or '').strip().lower()
+        current_value = (self.user_fullname_var.get() or '').strip()
+
+        if role == 'teacher':
+            options = self._get_teacher_fullname_options()
+        else:
+            options = self._get_hr_fullname_options()
+
+        # Deduplicate while preserving order.
+        seen = set()
+        deduped = []
+        for item in options:
+            if item not in seen:
+                seen.add(item)
+                deduped.append(item)
+
+        if current_value and current_value not in deduped:
+            deduped = [current_value] + deduped
+
+        self.user_fullname_cb['values'] = deduped
+
+    def _on_user_role_changed(self):
+        """Handle role-dependent user form fields"""
+        self._refresh_user_fullname_options()
+
+        if not hasattr(self, 'user_teacher_class_cb'):
+            return
+
+        if self.user_role_var.get() == 'teacher':
+            self.user_teacher_class_cb.configure(state='readonly')
+        else:
+            self.user_teacher_class_var.set('')
+            self.user_teacher_class_cb.configure(state='disabled')
+
+    def _sync_user_teacher_binding(self, user_id, full_name, email, role, selected_class_name=''):
+        """Synchronize user account with teachers and classes tables"""
+        try:
+            # Ensure teachers table supports user linkage.
+            self.cursor.execute('PRAGMA table_info(teachers)')
+            teacher_cols = [r[1] for r in self.cursor.fetchall()]
+            if 'user_id' not in teacher_cols:
+                self.cursor.execute('ALTER TABLE teachers ADD COLUMN user_id INTEGER')
+
+            if role != 'teacher':
+                # Remove class-teacher links for this user's teacher profile.
+                self.cursor.execute('SELECT id FROM teachers WHERE user_id = ?', (user_id,))
+                teacher_row = self.cursor.fetchone()
+                if teacher_row:
+                    teacher_id = teacher_row[0]
+                    self.cursor.execute('UPDATE classes SET class_teacher_id = NULL WHERE class_teacher_id = ?', (teacher_id,))
+                    self.cursor.execute('UPDATE teachers SET class_id = NULL WHERE id = ?', (teacher_id,))
+                return
+
+            selected_class_id = self.user_teacher_class_map.get(selected_class_name) if selected_class_name else None
+
+            # Resolve teacher profile by user_id first, then exact email/name.
+            teacher_id = None
+            self.cursor.execute('SELECT id FROM teachers WHERE user_id = ? LIMIT 1', (user_id,))
+            row = self.cursor.fetchone()
+            if row:
+                teacher_id = row[0]
+
+            if not teacher_id and email:
+                self.cursor.execute('SELECT id FROM teachers WHERE LOWER(email) = LOWER(?) LIMIT 1', (email,))
+                row = self.cursor.fetchone()
+                if row:
+                    teacher_id = row[0]
+
+            if not teacher_id and full_name:
+                self.cursor.execute('SELECT id FROM teachers WHERE LOWER(name) = LOWER(?) LIMIT 1', (full_name,))
+                row = self.cursor.fetchone()
+                if row:
+                    teacher_id = row[0]
+
+            if teacher_id:
+                self.cursor.execute('''
+                    UPDATE teachers
+                    SET user_id = ?, name = ?, email = ?, class_id = ?
+                    WHERE id = ?
+                ''', (user_id, full_name, email if email else None, selected_class_id, teacher_id))
+            else:
+                self.cursor.execute('''
+                    INSERT INTO teachers (name, hire_date, class_id, starting_salary, qualifications, skills, phone, email, user_id)
+                    VALUES (?, DATE('now'), ?, 0, ?, ?, ?, ?, ?)
+                ''', (
+                    full_name,
+                    selected_class_id,
+                    'Linked from User Management',
+                    '',
+                    '',
+                    email if email else None,
+                    user_id
+                ))
+                teacher_id = self.cursor.lastrowid
+
+            # Keep class assignment one-to-one at class table level.
+            self.cursor.execute('UPDATE classes SET class_teacher_id = NULL WHERE class_teacher_id = ?', (teacher_id,))
+            if selected_class_id:
+                self.cursor.execute('UPDATE classes SET class_teacher_id = ? WHERE id = ?', (teacher_id, selected_class_id))
+
+        except Exception as e:
+            raise RuntimeError(f'Teacher/class synchronization failed: {str(e)}')
     
     def create_user_activity_report(self, parent):
         """Create comprehensive user activity report"""
@@ -17332,6 +18735,12 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         # Clear permissions
         for var in self.permission_vars.values():
             var.set(False)
+
+        if hasattr(self, 'user_teacher_class_var'):
+            self.user_teacher_class_var.set('')
+        self._refresh_user_teacher_class_options()
+        self._refresh_user_fullname_options()
+        self._on_user_role_changed()
         
         self.editing_user_id = None
         self.update_status("Form cleared")
@@ -17345,6 +18754,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         password = self.user_password_var.get().strip()
         role = self.user_role_var.get()
         is_active = self.user_status_var.get()
+        selected_class_name = self.user_teacher_class_var.get().strip() if hasattr(self, 'user_teacher_class_var') else ''
         
         if not username or not full_name or not role:
             messagebox.showerror("Error", "Username, Full Name, and Role are required!")
@@ -17372,6 +18782,8 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         permissions_str = ','.join(permissions)
         
         try:
+            target_user_id = None
+
             if self.editing_user_id:
                 # Update existing user
                 if password:  # Update password only if provided
@@ -17388,8 +18800,8 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                         WHERE id=?
                     ''', (username, full_name, email, role, is_active, 
                           permissions_str, self.editing_user_id))
-                
-                self.conn.commit()
+
+                target_user_id = self.editing_user_id
                 self.update_status(f"User '{username}' updated successfully")
                 
             else:
@@ -17405,9 +18817,19 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                      permissions, is_active, created_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, DATE('now'))
                 ''', (username, password, full_name, role, email, permissions_str, is_active))
-                
-                self.conn.commit()
+
+                target_user_id = self.cursor.lastrowid
                 self.update_status(f"User '{username}' created successfully")
+
+            self._sync_user_teacher_binding(
+                user_id=target_user_id,
+                full_name=full_name,
+                email=email,
+                role=role,
+                selected_class_name=selected_class_name
+            )
+
+            self.conn.commit()
             
             # Refresh users list and clear form
             self.load_users_data()
@@ -17448,6 +18870,25 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
             self.user_email_var.set(user[4] or "")
             self.user_password_var.set("")  # Don't show existing password
             self.user_status_var.set(bool(user[6]))
+
+            # Load class binding for teacher accounts
+            self._refresh_user_teacher_class_options()
+            self._refresh_user_fullname_options()
+            selected_class = ''
+            if user[3] == 'teacher':
+                self.cursor.execute('''
+                    SELECT c.class_name
+                    FROM teachers t
+                    LEFT JOIN classes c ON c.id = t.class_id
+                    WHERE t.user_id = ?
+                    LIMIT 1
+                ''', (user[0],))
+                class_row = self.cursor.fetchone()
+                if class_row and class_row[0]:
+                    selected_class = class_row[0]
+            if hasattr(self, 'user_teacher_class_var'):
+                self.user_teacher_class_var.set(selected_class)
+            self._on_user_role_changed()
             
             # Set permissions
             user_permissions = user[5].split(',') if user[5] else []
@@ -17469,7 +18910,12 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         values = self.users_tree.item(selection[0])['values']
         user_id = values[0]
         username = values[1]
-        current_role = values[3]
+        current_role_display = values[3]
+
+        # Normalize the tree display value back to the stored lowercase role key.
+        self.cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+        role_row = self.cursor.fetchone()
+        current_role = role_row[0] if role_row and role_row[0] else str(current_role_display).strip().lower()
         
         # Don't allow changing the current user's role
         if username == self.current_user.get('username'):
@@ -17521,6 +18967,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         roles = [
             ('admin', 'Administrator - Full system access'),
             ('accountant', 'Accountant - Financial management'),
+            ('student', 'Student - Learning access'),
             ('teacher', 'Teacher - Class and student management'),
             ('staff', 'Staff - Limited access'),
             ('viewer', 'Viewer - Read-only access')
@@ -17552,6 +18999,13 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                   "This will affect their permissions and access level."):
                 try:
                     self.cursor.execute("UPDATE users SET role=? WHERE id=?", (new_role, user_id))
+
+                    self.cursor.execute("SELECT full_name, email FROM users WHERE id = ?", (user_id,))
+                    user_row = self.cursor.fetchone()
+                    user_full_name = user_row[0] if user_row else ''
+                    user_email = user_row[1] if user_row else ''
+                    self._sync_user_teacher_binding(user_id, user_full_name, user_email, new_role, '')
+
                     self.conn.commit()
                     self.load_users_data()
                     self.update_status(f"User '{username}' role changed to '{new_role}'")
@@ -17670,6 +19124,12 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
                                   f"This is your final confirmation.\n\n"
                                   f"Permanently delete user '{username}'?"):
                 try:
+                    # Unlink teacher/class binding before deleting user.
+                    self.cursor.execute("SELECT full_name, email, role FROM users WHERE id = ?", (user_id,))
+                    user_row = self.cursor.fetchone()
+                    if user_row:
+                        self._sync_user_teacher_binding(user_id, user_row[0] or '', user_row[1] or '', 'deleted', '')
+
                     self.cursor.execute("DELETE FROM users WHERE id=?", (user_id,))
                     self.conn.commit()
                     self.load_users_data()
@@ -18314,6 +19774,20 @@ Financial Summary:
         
         # Handle DateEntry for payment date
         payment_date = self.fee_payment_date.get_date().strftime('%Y-%m-%d')
+        
+        # Validate financial transaction
+        if INPUT_VALIDATION_AVAILABLE:
+            try:
+                transaction_data = {
+                    'amount': amount_due,
+                    'payment_amount': amount_paid,
+                    'transaction_type': 'Fee Payment',
+                    'payment_method': payment_mode
+                }
+                FinancialValidator.validate_transaction_data(transaction_data)
+            except ValidationError as e:
+                messagebox.showerror("Validation Error", f"Invalid fee data:\n{str(e)}")
+                return
 
         try:
             self.cursor.execute('''
@@ -18478,7 +19952,7 @@ Financial Summary:
             self.cursor.execute("SELECT id FROM financial_categories WHERE category_name = 'School Fees'")
             category_result = self.cursor.fetchone()
             if not category_result:
-                print("Warning: 'School Fees' category not found. Creating it...")
+                logger.warning("'School Fees' category not found. Creating it.")
                 self.cursor.execute("""
                     INSERT INTO financial_categories (category_name, category_type, description)
                     VALUES ('School Fees', 'income', 'Student tuition and school fees')
@@ -18518,18 +19992,27 @@ Financial Summary:
             ))
             
             self.conn.commit()
-            print(f"Financial transaction created for fee payment: {amount_paid} for {student_name}")
+            logger.info(
+                "Financial transaction created for fee payment: amount=%s, student=%s, fee_id=%s",
+                amount_paid,
+                student_name,
+                fee_id,
+            )
             
             # Log the sync activity if sync manager is available
             if hasattr(self, 'sync_manager') and self.sync_manager:
-                self.sync_manager.log_activity(
-                    'fee_payment_sync',
-                    f"Created financial transaction for fee payment: {amount_paid} for {student_name}",
-                    {'fee_id': fee_id, 'transaction_amount': amount_paid, 'student_id': student_id}
+                self.sync_manager.log_user_activity(
+                    self.current_user.get('username', 'system') if self.current_user else 'system',
+                    'CREATE',
+                    'financial_transactions',
+                    fee_id,
+                    None,
+                    {'fee_id': fee_id, 'transaction_amount': amount_paid, 'student_id': student_id},
+                    f"Created financial transaction for fee payment by {self.current_user.get('role', 'system') if self.current_user else 'system'}"
                 )
                 
         except Exception as e:
-            print(f"Error creating financial transaction for fee payment: {e}")
+            logger.error("Error creating financial transaction for fee payment: %s", e, exc_info=True)
             # Don't raise the exception to avoid breaking the fee payment process
             
     def update_financial_transaction_for_fee_payment(self, fee_id, old_amount_paid, new_amount_paid, payment_date, student_id):
@@ -18549,7 +20032,7 @@ Financial Summary:
                 if new_amount_paid <= 0:
                     # Delete the transaction if no payment
                     self.cursor.execute("DELETE FROM financial_transactions WHERE id = ?", (transaction_id,))
-                    print(f"Deleted financial transaction for fee {fee_id} (payment reduced to 0)")
+                    logger.info("Deleted financial transaction for fee %s (payment reduced to 0)", fee_id)
                 else:
                     # Update the transaction amount and date
                     self.cursor.execute("""
@@ -18557,7 +20040,12 @@ Financial Summary:
                         SET amount = ?, transaction_date = ?
                         WHERE id = ?
                     """, (new_amount_paid, payment_date, transaction_id))
-                    print(f"Updated financial transaction for fee {fee_id}: {current_amount} -> {new_amount_paid}")
+                    logger.info(
+                        "Updated financial transaction for fee %s: %s -> %s",
+                        fee_id,
+                        current_amount,
+                        new_amount_paid,
+                    )
             else:
                 # No existing transaction, create new one if there's a payment
                 if new_amount_paid > 0:
@@ -18569,14 +20057,18 @@ Financial Summary:
             
             # Log the sync activity
             if hasattr(self, 'sync_manager') and self.sync_manager:
-                self.sync_manager.log_activity(
-                    'fee_payment_update_sync',
-                    f"Updated financial transaction for fee {fee_id}: {old_amount_paid} -> {new_amount_paid}",
-                    {'fee_id': fee_id, 'old_amount': old_amount_paid, 'new_amount': new_amount_paid}
+                self.sync_manager.log_user_activity(
+                    self.current_user.get('username', 'system') if self.current_user else 'system',
+                    'UPDATE',
+                    'financial_transactions',
+                    fee_id,
+                    {'old_amount': old_amount_paid},
+                    {'new_amount': new_amount_paid},
+                    "Updated financial transaction after fee payment change"
                 )
                 
         except Exception as e:
-            print(f"Error updating financial transaction for fee payment: {e}")
+            logger.error("Error updating financial transaction for fee payment: %s", e, exc_info=True)
 
     # ============ FINANCIAL MANAGEMENT SYSTEM ============
     
@@ -19870,11 +21362,11 @@ Financial Summary:
         """Refresh financial analytics data"""
         try:
             # Calculate total income, expenses, and net balance
-            self.cursor.execute("SELECT SUM(amount) FROM financial_transactions WHERE type='Income'")
+            self.cursor.execute("SELECT SUM(amount) FROM financial_transactions WHERE transaction_type='income'")
             income_result = self.cursor.fetchone()
             total_income = income_result[0] if income_result[0] else 0
             
-            self.cursor.execute("SELECT SUM(amount) FROM financial_transactions WHERE type='Expense'")
+            self.cursor.execute("SELECT SUM(amount) FROM financial_transactions WHERE transaction_type='expense'")
             expense_result = self.cursor.fetchone()
             total_expenses = expense_result[0] if expense_result[0] else 0
             
@@ -24052,6 +25544,156 @@ For support, contact: support@gaybeckstarkids.edu.gh
             except:
                 pass
     
+    def export_students_to_excel(self):
+        """Export all students to Excel file"""
+        if self.current_user and self.current_user.get('role') == 'teacher':
+            messagebox.showerror("Access Denied", "Teachers are not allowed to export data to Excel.")
+            return
+
+        if not EXCEL_EXPORT_AVAILABLE:
+            messagebox.showwarning("Excel Export Not Available", 
+                                  "Excel export requires the openpyxl library.\n\n"
+                                  "Please install it using: pip install openpyxl")
+            return
+        
+        try:
+            exporter = ExcelExporter('school_management.db')
+            success, message = exporter.export_students_full()
+            
+            if success:
+                messagebox.showinfo("Success", message)
+                # Open the file location
+                import subprocess
+                file_list = [f for f in os.listdir('.') if f.startswith('student_database_')]
+                if file_list:
+                    file_list.sort()
+                    file_path = file_list[-1]
+                    subprocess.Popen(f'explorer /select,"{file_path}"')
+            else:
+                messagebox.showerror("Error", message)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export students: {str(e)}")
+    
+    def export_students_by_class_excel(self):
+        """Export students grouped by class to Excel"""
+        if self.current_user and self.current_user.get('role') == 'teacher':
+            messagebox.showerror("Access Denied", "Teachers are not allowed to export data to Excel.")
+            return
+
+        if not EXCEL_EXPORT_AVAILABLE:
+            messagebox.showwarning("Excel Export Not Available", 
+                                  "Excel export requires the openpyxl library.\n\n"
+                                  "Please install it using: pip install openpyxl")
+            return
+        
+        try:
+            exporter = ExcelExporter('school_management.db')
+            success, message = exporter.export_students_by_class()
+            
+            if success:
+                messagebox.showinfo("Success", message)
+                # Open the file location
+                import subprocess
+                file_list = [f for f in os.listdir('.') if f.startswith('students_by_class_')]
+                if file_list:
+                    file_list.sort()
+                    file_path = file_list[-1]
+                    subprocess.Popen(f'explorer /select,"{file_path}"')
+            else:
+                messagebox.showerror("Error", message)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export by class: {str(e)}")
+    
+    def export_student_profile_excel(self, student_id):
+        """Export individual student profile to Excel"""
+        if self.current_user and self.current_user.get('role') == 'teacher':
+            messagebox.showerror("Access Denied", "Teachers are not allowed to export data to Excel.")
+            return
+
+        if not EXCEL_EXPORT_AVAILABLE:
+            messagebox.showwarning("Excel Export Not Available", 
+                                  "Excel export requires the openpyxl library.\n\n"
+                                  "Please install it using: pip install openpyxl")
+            return
+        
+        try:
+            exporter = ExcelExporter('school_management.db')
+            success, message = exporter.export_student_profile(student_id)
+            
+            if success:
+                messagebox.showinfo("Success", message)
+                # Open the file location
+                import subprocess
+                file_list = [f for f in os.listdir('.') if f.startswith(f'student_profile_{student_id}_')]
+                if file_list:
+                    file_list.sort()
+                    file_path = file_list[-1]
+                    subprocess.Popen(f'explorer /select,"{file_path}"')
+            else:
+                messagebox.showerror("Error", message)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export profile: {str(e)}")
+    
+    def export_teachers_to_excel(self):
+        """Export all teachers to Excel"""
+        if self.current_user and self.current_user.get('role') == 'teacher':
+            messagebox.showerror("Access Denied", "Teachers are not allowed to export data to Excel.")
+            return
+
+        if not EXCEL_EXPORT_AVAILABLE:
+            messagebox.showwarning("Excel Export Not Available", 
+                                  "Excel export requires the openpyxl library.\n\n"
+                                  "Please install it using: pip install openpyxl")
+            return
+        
+        try:
+            exporter = ExcelExporter('school_management.db')
+            success, message = exporter.export_teachers_directory()
+            
+            if success:
+                messagebox.showinfo("Success", message)
+                # Open the file location
+                import subprocess
+                file_list = [f for f in os.listdir('.') if f.startswith('teachers_directory_')]
+                if file_list:
+                    file_list.sort()
+                    file_path = file_list[-1]
+                    subprocess.Popen(f'explorer /select,"{file_path}"')
+            else:
+                messagebox.showerror("Error", message)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export teachers: {str(e)}")
+    
+    def export_financial_to_excel(self):
+        """Export financial summary to Excel"""
+        if self.current_user and self.current_user.get('role') == 'teacher':
+            messagebox.showerror("Access Denied", "Teachers are not allowed to export data to Excel.")
+            return
+
+        if not EXCEL_EXPORT_AVAILABLE:
+            messagebox.showwarning("Excel Export Not Available", 
+                                  "Excel export requires the openpyxl library.\n\n"
+                                  "Please install it using: pip install openpyxl")
+            return
+        
+        try:
+            exporter = ExcelExporter('school_management.db')
+            success, message = exporter.export_financial_summary()
+            
+            if success:
+                messagebox.showinfo("Success", message)
+                # Open the file location
+                import subprocess
+                file_list = [f for f in os.listdir('.') if f.startswith('financial_summary_')]
+                if file_list:
+                    file_list.sort()
+                    file_path = file_list[-1]
+                    subprocess.Popen(f'explorer /select,"{file_path}"')
+            else:
+                messagebox.showerror("Error", message)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export financial data: {str(e)}")
+    
     def export_database_to_csv(self):
         """Export all database tables to CSV files"""
         try:
@@ -24613,7 +26255,9 @@ For support, contact: support@gaybeckstarkids.edu.gh
         tk.Label(button_container, text="Class:", font=('Segoe UI', 11, 'bold'), 
                 bg='white', fg='#2c3e50').pack(side=tk.LEFT, padx=(0, 10))
         
-        class_var = tk.StringVar(value=classes[0][1])
+        default_class_id = getattr(self, '_assessment_admin_selected_class_id', classes[0][0])
+        default_class = next((c for c in classes if c[0] == default_class_id), classes[0])
+        class_var = tk.StringVar(value=default_class[1])
         class_combo = ttk.Combobox(button_container, textvariable=class_var, 
                                   values=[c[1] for c in classes],
                                   state='readonly', width=30, font=('Segoe UI', 11))
@@ -24623,10 +26267,32 @@ For support, contact: support@gaybeckstarkids.edu.gh
             selected_class_name = class_var.get()
             selected_class = next((c for c in classes if c[1] == selected_class_name), None)
             if selected_class:
-                self.show_ai_assessment_management()  # Refresh with new class
+                self._assessment_admin_selected_class_id = selected_class[0]
+                return selected_class
+            return None
+
+        assessment_list_holder = tk.Frame(parent, bg='white')
+        assessment_list_holder.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+
+        def render_assessment_list():
+            for widget in assessment_list_holder.winfo_children():
+                widget.destroy()
+
+            selected_class = on_class_selected()
+            if selected_class:
+                self.show_class_assessments_list(assessment_list_holder, selected_class[0])
+
+        def create_assessment_for_selected_class():
+            selected_class = on_class_selected()
+            if not selected_class:
+                messagebox.showerror("Selection Error", "Please select a valid class.")
+                return
+            self.show_create_assessment_dialog(selected_class[0], selected_class[1])
+
+        class_combo.bind('<<ComboboxSelected>>', lambda event: render_assessment_list())
         
         tk.Button(button_container, text="✨ Create Assessment", 
-                 command=lambda: on_class_selected(),
+                 command=create_assessment_for_selected_class,
                  font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
                  relief='flat', bd=0, padx=12, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
         
@@ -24637,6 +26303,9 @@ For support, contact: support@gaybeckstarkids.edu.gh
         
         # Global Statistics
         self.show_global_assessment_statistics(parent)
+
+        # Initial class assessment list
+        render_assessment_list()
     
     def show_class_assessments_list(self, parent, class_id):
         """Display list of assessments for a specific class"""
@@ -24701,7 +26370,7 @@ For support, contact: support@gaybeckstarkids.edu.gh
                      relief='flat', bd=0, padx=10, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=(0, 5))
             
             tk.Button(action_frame, text="✏️ Edit", 
-                     command=lambda aid=assessment_id: messagebox.showinfo("Edit", "Edit functionality coming soon"),
+                     command=lambda aid=assessment_id: self.show_edit_assessment_dialog(aid),
                      font=('Segoe UI', 9), bg='#f39c12', fg='white',
                      relief='flat', bd=0, padx=10, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=(0, 5))
             
@@ -24788,15 +26457,19 @@ For support, contact: support@gaybeckstarkids.edu.gh
             
             # Check if teacher is assigned to this class (security check)
             teacher_id = self.current_user.get('id')
-            self.cursor.execute('''
-                SELECT id FROM teachers 
-                WHERE id = ? AND class_id = ?
-            ''', (teacher_id, class_id))
-            
-            if not self.cursor.fetchone():
-                messagebox.showerror("Permission Error", 
-                                    "You are not assigned to this class. Contact administrator.")
-                return
+            if self.current_user.get('role') == 'teacher':
+                self.cursor.execute('''
+                    SELECT id FROM teachers 
+                    WHERE id = ? AND class_id = ?
+                ''', (teacher_id, class_id))
+                
+                if not self.cursor.fetchone():
+                    messagebox.showerror("Permission Error", 
+                                        "You are not assigned to this class. Contact administrator.")
+                    return
+            elif self.current_user.get('role') == 'admin':
+                # Admins can create assessments across classes.
+                teacher_id = None
             
             # Show confirmation dialog
             confirmation_message = f"""Assessment Summary:
@@ -25081,6 +26754,494 @@ Do you want to proceed?"""
         
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load results: {str(e)}")
+
+    def show_edit_assessment_dialog(self, assessment_id):
+        """Show dialog to edit an existing assessment"""
+        try:
+            self.cursor.execute('''
+                SELECT id, class_id, teacher_id, assessment_name, subject, assessment_type,
+                       total_marks, difficulty_level, description, due_date, status
+                FROM ai_assessments
+                WHERE id = ?
+            ''', (assessment_id,))
+            assessment = self.cursor.fetchone()
+
+            if not assessment:
+                messagebox.showerror("Error", "Assessment not found.")
+                return
+
+            (_, class_id, teacher_id, current_name, current_subject, current_type,
+             current_total_marks, current_difficulty, current_description,
+             current_due_date, current_status) = assessment
+
+            if self.current_user.get('role') == 'teacher':
+                assigned_class_id = self.get_teacher_assigned_class()
+                if assigned_class_id != class_id:
+                    messagebox.showerror("Permission Error", "You can only edit assessments for your assigned class.")
+                    return
+
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Edit Assessment")
+            dialog.geometry("720x760")
+            dialog.resizable(True, True)
+
+            tk.Label(dialog, text="Edit Assessment", font=('Segoe UI', 14, 'bold'),
+                    bg='#2c3e50', fg='white', pady=15).pack(fill=tk.X)
+
+            scrollable_content = ScrollableFrame(dialog, bg='#f8f9fa')
+            scrollable_content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            content = scrollable_content.scrollable_frame
+
+            tk.Label(content, text="Assessment Name:", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            name_entry = tk.Entry(content, font=('Segoe UI', 11), width=50)
+            name_entry.insert(0, current_name or '')
+            name_entry.pack(anchor='w', pady=(5, 15))
+
+            tk.Label(content, text="Subject:", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            subject_var = tk.StringVar(value=current_subject or 'Mathematics')
+            subject_combo = ttk.Combobox(content, textvariable=subject_var,
+                                        values=['Mathematics', 'English', 'Science', 'History', 'Geography'],
+                                        state='readonly', width=48, font=('Segoe UI', 11))
+            subject_combo.pack(anchor='w', pady=(5, 15))
+
+            tk.Label(content, text="Assessment Type:", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            type_var = tk.StringVar(value=current_type or 'Quiz')
+            type_combo = ttk.Combobox(content, textvariable=type_var,
+                                     values=['Quiz', 'Test', 'Assignment', 'Project'],
+                                     state='readonly', width=48, font=('Segoe UI', 11))
+            type_combo.pack(anchor='w', pady=(5, 15))
+
+            tk.Label(content, text="Difficulty Level:", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            difficulty_var = tk.StringVar(value=current_difficulty or 'Medium')
+            difficulty_combo = ttk.Combobox(content, textvariable=difficulty_var,
+                                           values=['Easy', 'Medium', 'Hard'],
+                                           state='readonly', width=48, font=('Segoe UI', 11))
+            difficulty_combo.pack(anchor='w', pady=(5, 15))
+
+            tk.Label(content, text="Total Marks:", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            total_marks_entry = tk.Entry(content, font=('Segoe UI', 11), width=50)
+            total_marks_entry.insert(0, str(current_total_marks if current_total_marks is not None else 100))
+            total_marks_entry.pack(anchor='w', pady=(5, 15))
+
+            tk.Label(content, text="Due Date (YYYY-MM-DD, optional):", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            due_date_entry = tk.Entry(content, font=('Segoe UI', 11), width=50)
+            due_date_entry.insert(0, current_due_date or '')
+            due_date_entry.pack(anchor='w', pady=(5, 15))
+
+            tk.Label(content, text="Status:", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            status_var = tk.StringVar(value=current_status or 'Draft')
+            status_combo = ttk.Combobox(content, textvariable=status_var,
+                                       values=['Draft', 'Published', 'Archived'],
+                                       state='readonly', width=48, font=('Segoe UI', 11))
+            status_combo.pack(anchor='w', pady=(5, 15))
+
+            tk.Label(content, text="Description (optional):", font=('Segoe UI', 11, 'bold'),
+                    bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+            description_text = tk.Text(content, height=4, width=58, font=('Segoe UI', 10),
+                                      relief=tk.SOLID, bd=1)
+            description_text.insert('1.0', current_description or '')
+            description_text.pack(anchor='w', pady=(5, 20))
+
+            button_frame = tk.Frame(content, bg='#f8f9fa')
+            button_frame.pack(anchor='e', pady=(5, 0))
+
+            tk.Button(button_frame, text="Manage Questions",
+                     command=lambda: self.show_assessment_questions_editor(assessment_id),
+                     font=('Segoe UI', 11, 'bold'), bg='#3498db', fg='white',
+                     relief='flat', bd=0, padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+
+            def save_assessment_changes():
+                name = name_entry.get().strip()
+                subject = subject_var.get().strip()
+                assessment_type = type_var.get().strip()
+                difficulty = difficulty_var.get().strip()
+                due_date = due_date_entry.get().strip()
+                status = status_var.get().strip()
+                description = description_text.get('1.0', tk.END).strip()
+
+                if not name or not subject or not assessment_type or not difficulty or not status:
+                    messagebox.showerror("Validation Error", "Please fill in all required fields.")
+                    return
+
+                try:
+                    total_marks = int(total_marks_entry.get().strip())
+                    if total_marks <= 0:
+                        raise ValueError()
+                except ValueError:
+                    messagebox.showerror("Validation Error", "Total marks must be a positive whole number.")
+                    return
+
+                if due_date:
+                    try:
+                        datetime.strptime(due_date, '%Y-%m-%d')
+                    except ValueError:
+                        messagebox.showerror("Validation Error", "Due date must be in YYYY-MM-DD format.")
+                        return
+
+                is_published = 1 if status == 'Published' else 0
+
+                try:
+                    self.cursor.execute('''
+                        UPDATE ai_assessments
+                        SET assessment_name = ?,
+                            subject = ?,
+                            assessment_type = ?,
+                            total_marks = ?,
+                            difficulty_level = ?,
+                            description = ?,
+                            due_date = ?,
+                            status = ?,
+                            is_published = ?
+                        WHERE id = ?
+                    ''', (
+                        name,
+                        subject,
+                        assessment_type,
+                        total_marks,
+                        difficulty,
+                        description if description else None,
+                        due_date if due_date else None,
+                        status,
+                        is_published,
+                        assessment_id
+                    ))
+
+                    self.conn.commit()
+                    messagebox.showinfo("Success", "Assessment updated successfully.")
+                    dialog.destroy()
+                    self.show_ai_assessment_management()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to update assessment: {str(e)}")
+
+            tk.Button(button_frame, text="Save Changes", command=save_assessment_changes,
+                     font=('Segoe UI', 11, 'bold'), bg='#27ae60', fg='white',
+                     relief='flat', bd=0, padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT, padx=(0, 10))
+
+            tk.Button(button_frame, text="Cancel", command=dialog.destroy,
+                     font=('Segoe UI', 11, 'bold'), bg='#95a5a6', fg='white',
+                     relief='flat', bd=0, padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load assessment for editing: {str(e)}")
+
+    def show_assessment_questions_editor(self, assessment_id):
+        """Open question editor for a specific assessment"""
+        try:
+            self.cursor.execute('SELECT assessment_name FROM ai_assessments WHERE id = ?', (assessment_id,))
+            assessment = self.cursor.fetchone()
+            if not assessment:
+                messagebox.showerror("Error", "Assessment not found.")
+                return
+
+            editor = tk.Toplevel(self.root)
+            editor.title(f"Question Editor - {assessment[0]}")
+            editor.geometry("980x620")
+
+            main = tk.Frame(editor, bg='white')
+            main.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+
+            tk.Label(main, text=f"Question Editor: {assessment[0]}",
+                    font=('Segoe UI', 14, 'bold'), bg='white', fg='#2c3e50').pack(anchor='w', pady=(0, 10))
+
+            toolbar = tk.Frame(main, bg='white')
+            toolbar.pack(fill=tk.X, pady=(0, 10))
+
+            tree_frame = tk.Frame(main, bg='white')
+            tree_frame.pack(fill=tk.BOTH, expand=True)
+
+            tree_scroll = ttk.Scrollbar(tree_frame)
+            tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+            columns = ('ID', 'Question', 'Type', 'Marks', 'Difficulty')
+            questions_tree = ttk.Treeview(
+                tree_frame,
+                columns=columns,
+                show='headings',
+                yscrollcommand=tree_scroll.set,
+                height=18
+            )
+            questions_tree.pack(fill=tk.BOTH, expand=True)
+            tree_scroll.config(command=questions_tree.yview)
+
+            questions_tree.heading('ID', text='ID')
+            questions_tree.heading('Question', text='Question')
+            questions_tree.heading('Type', text='Type')
+            questions_tree.heading('Marks', text='Marks')
+            questions_tree.heading('Difficulty', text='Difficulty')
+
+            questions_tree.column('ID', width=60, anchor='center')
+            questions_tree.column('Question', width=560)
+            questions_tree.column('Type', width=140, anchor='center')
+            questions_tree.column('Marks', width=80, anchor='center')
+            questions_tree.column('Difficulty', width=120, anchor='center')
+
+            def refresh_questions():
+                for item in questions_tree.get_children():
+                    questions_tree.delete(item)
+
+                self.cursor.execute('''
+                    SELECT id, question_text, question_type, marks, difficulty_level
+                    FROM ai_assessment_questions
+                    WHERE assessment_id = ?
+                    ORDER BY id
+                ''', (assessment_id,))
+                rows = self.cursor.fetchall()
+
+                for row in rows:
+                    qid, qtext, qtype, qmarks, qdifficulty = row
+                    display_text = (qtext[:90] + '...') if qtext and len(qtext) > 93 else (qtext or '')
+                    questions_tree.insert('', tk.END, values=(qid, display_text, qtype or 'N/A', qmarks or 1, qdifficulty or 'N/A'))
+
+            def get_selected_question_id():
+                selected = questions_tree.selection()
+                if not selected:
+                    return None
+                values = questions_tree.item(selected[0], 'values')
+                if not values:
+                    return None
+                try:
+                    return int(values[0])
+                except (TypeError, ValueError):
+                    return None
+
+            def open_question_form(question_id=None):
+                existing = None
+                if question_id:
+                    self.cursor.execute('''
+                        SELECT question_text, question_type, marks, difficulty_level,
+                               options, correct_answer, explanation
+                        FROM ai_assessment_questions
+                        WHERE id = ? AND assessment_id = ?
+                    ''', (question_id, assessment_id))
+                    existing = self.cursor.fetchone()
+                    if not existing:
+                        messagebox.showerror("Error", "Selected question was not found.")
+                        return
+
+                form = tk.Toplevel(editor)
+                form.title("Edit Question" if question_id else "Add Question")
+                form.geometry("760x760")
+                form.resizable(True, True)
+
+                form_scrollable = ScrollableFrame(form, bg='#f8f9fa')
+                form_scrollable.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
+                form_content = form_scrollable.scrollable_frame
+
+                tk.Label(form_content, text="Question Text:", font=('Segoe UI', 10, 'bold'),
+                        bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+                question_text = tk.Text(form_content, height=6, width=78, font=('Segoe UI', 10), relief=tk.SOLID, bd=1)
+                question_text.pack(anchor='w', pady=(4, 12))
+
+                info_row = tk.Frame(form_content, bg='#f8f9fa')
+                info_row.pack(fill=tk.X, pady=(0, 12))
+
+                type_col = tk.Frame(info_row, bg='#f8f9fa')
+                type_col.pack(side=tk.LEFT, padx=(0, 12))
+                tk.Label(type_col, text="Question Type:", font=('Segoe UI', 10, 'bold'),
+                        bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+                qtype_var = tk.StringVar(value='Multiple Choice')
+                qtype_combo = ttk.Combobox(type_col, textvariable=qtype_var,
+                                          values=['Multiple Choice', 'Short Answer', 'Essay', 'True/False'],
+                                          state='readonly', width=18, font=('Segoe UI', 10))
+                qtype_combo.pack(anchor='w', pady=(4, 0))
+
+                marks_col = tk.Frame(info_row, bg='#f8f9fa')
+                marks_col.pack(side=tk.LEFT, padx=(0, 12))
+                tk.Label(marks_col, text="Marks:", font=('Segoe UI', 10, 'bold'),
+                        bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+                marks_entry = tk.Entry(marks_col, width=10, font=('Segoe UI', 10))
+                marks_entry.pack(anchor='w', pady=(4, 0))
+
+                difficulty_col = tk.Frame(info_row, bg='#f8f9fa')
+                difficulty_col.pack(side=tk.LEFT)
+                tk.Label(difficulty_col, text="Difficulty:", font=('Segoe UI', 10, 'bold'),
+                        bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+                qdifficulty_var = tk.StringVar(value='Medium')
+                qdifficulty_combo = ttk.Combobox(difficulty_col, textvariable=qdifficulty_var,
+                                                values=['Easy', 'Medium', 'Hard'],
+                                                state='readonly', width=12, font=('Segoe UI', 10))
+                qdifficulty_combo.pack(anchor='w', pady=(4, 0))
+
+                tk.Label(form_content, text="Answer Options (optional JSON/text):", font=('Segoe UI', 10, 'bold'),
+                        bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+                options_text = tk.Text(form_content, height=4, width=78, font=('Segoe UI', 10), relief=tk.SOLID, bd=1)
+                options_text.pack(anchor='w', pady=(4, 12))
+
+                tk.Label(form_content, text="Correct Answer (optional):", font=('Segoe UI', 10, 'bold'),
+                        bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+                answer_entry = tk.Entry(form_content, width=80, font=('Segoe UI', 10))
+                answer_entry.pack(anchor='w', pady=(4, 12))
+
+                tk.Label(form_content, text="Explanation (optional):", font=('Segoe UI', 10, 'bold'),
+                        bg='#f8f9fa', fg='#2c3e50').pack(anchor='w')
+                explanation_text = tk.Text(form_content, height=5, width=78, font=('Segoe UI', 10), relief=tk.SOLID, bd=1)
+                explanation_text.pack(anchor='w', pady=(4, 14))
+
+                if existing:
+                    question_text.insert('1.0', existing[0] or '')
+                    qtype_var.set(existing[1] or 'Multiple Choice')
+                    marks_entry.insert(0, str(existing[2] if existing[2] is not None else 1))
+                    qdifficulty_var.set(existing[3] or 'Medium')
+                    options_text.insert('1.0', existing[4] or '')
+                    answer_entry.insert(0, existing[5] or '')
+                    explanation_text.insert('1.0', existing[6] or '')
+                else:
+                    marks_entry.insert(0, '1')
+
+                buttons = tk.Frame(form_content, bg='#f8f9fa')
+                buttons.pack(anchor='e')
+
+                def save_question():
+                    qtext = question_text.get('1.0', tk.END).strip()
+                    qtype = qtype_var.get().strip()
+                    qdifficulty = qdifficulty_var.get().strip()
+                    qoptions = options_text.get('1.0', tk.END).strip()
+                    correct_answer = answer_entry.get().strip()
+                    explanation = explanation_text.get('1.0', tk.END).strip()
+
+                    if not qtext:
+                        messagebox.showerror("Validation Error", "Question text is required.")
+                        return
+
+                    try:
+                        marks = int(marks_entry.get().strip())
+                        if marks <= 0:
+                            raise ValueError()
+                    except ValueError:
+                        messagebox.showerror("Validation Error", "Marks must be a positive whole number.")
+                        return
+
+                    try:
+                        if question_id:
+                            self.cursor.execute('''
+                                UPDATE ai_assessment_questions
+                                SET question_text = ?,
+                                    question_type = ?,
+                                    marks = ?,
+                                    difficulty_level = ?,
+                                    options = ?,
+                                    correct_answer = ?,
+                                    explanation = ?
+                                WHERE id = ? AND assessment_id = ?
+                            ''', (
+                                qtext,
+                                qtype,
+                                marks,
+                                qdifficulty,
+                                qoptions if qoptions else None,
+                                correct_answer if correct_answer else None,
+                                explanation if explanation else None,
+                                question_id,
+                                assessment_id
+                            ))
+                        else:
+                            self.cursor.execute('''
+                                INSERT INTO ai_assessment_questions
+                                (assessment_id, question_text, question_type, marks,
+                                 difficulty_level, options, correct_answer, explanation)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                                assessment_id,
+                                qtext,
+                                qtype,
+                                marks,
+                                qdifficulty,
+                                qoptions if qoptions else None,
+                                correct_answer if correct_answer else None,
+                                explanation if explanation else None
+                            ))
+
+                        self.cursor.execute('''
+                            UPDATE ai_assessments
+                            SET total_marks = COALESCE((
+                                SELECT SUM(COALESCE(marks, 0))
+                                FROM ai_assessment_questions
+                                WHERE assessment_id = ?
+                            ), 0)
+                            WHERE id = ?
+                        ''', (assessment_id, assessment_id))
+
+                        self.conn.commit()
+                        form.destroy()
+                        refresh_questions()
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Failed to save question: {str(e)}")
+
+                tk.Button(buttons, text="Save", command=save_question,
+                         font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
+                         relief='flat', bd=0, padx=16, pady=7, cursor='hand2').pack(side=tk.LEFT, padx=(0, 8))
+
+                tk.Button(buttons, text="Cancel", command=form.destroy,
+                         font=('Segoe UI', 10, 'bold'), bg='#95a5a6', fg='white',
+                         relief='flat', bd=0, padx=16, pady=7, cursor='hand2').pack(side=tk.LEFT)
+
+            def add_question():
+                open_question_form()
+
+            def edit_selected_question():
+                qid = get_selected_question_id()
+                if not qid:
+                    messagebox.showwarning("No Selection", "Please select a question to edit.")
+                    return
+                open_question_form(qid)
+
+            def delete_selected_question():
+                qid = get_selected_question_id()
+                if not qid:
+                    messagebox.showwarning("No Selection", "Please select a question to delete.")
+                    return
+
+                if not messagebox.askyesno("Confirm Delete", "Delete selected question?"):
+                    return
+
+                try:
+                    self.cursor.execute(
+                        'DELETE FROM ai_assessment_questions WHERE id = ? AND assessment_id = ?',
+                        (qid, assessment_id)
+                    )
+
+                    self.cursor.execute('''
+                        UPDATE ai_assessments
+                        SET total_marks = COALESCE((
+                            SELECT SUM(COALESCE(marks, 0))
+                            FROM ai_assessment_questions
+                            WHERE assessment_id = ?
+                        ), 0)
+                        WHERE id = ?
+                    ''', (assessment_id, assessment_id))
+
+                    self.conn.commit()
+                    refresh_questions()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to delete question: {str(e)}")
+
+            tk.Button(toolbar, text="Add Question", command=add_question,
+                     font=('Segoe UI', 10, 'bold'), bg='#27ae60', fg='white',
+                     relief='flat', bd=0, padx=14, pady=7, cursor='hand2').pack(side=tk.LEFT, padx=(0, 8))
+
+            tk.Button(toolbar, text="Edit Selected", command=edit_selected_question,
+                     font=('Segoe UI', 10, 'bold'), bg='#f39c12', fg='white',
+                     relief='flat', bd=0, padx=14, pady=7, cursor='hand2').pack(side=tk.LEFT, padx=(0, 8))
+
+            tk.Button(toolbar, text="Delete Selected", command=delete_selected_question,
+                     font=('Segoe UI', 10, 'bold'), bg='#e74c3c', fg='white',
+                     relief='flat', bd=0, padx=14, pady=7, cursor='hand2').pack(side=tk.LEFT, padx=(0, 8))
+
+            tk.Button(toolbar, text="Refresh", command=refresh_questions,
+                     font=('Segoe UI', 10, 'bold'), bg='#3498db', fg='white',
+                     relief='flat', bd=0, padx=14, pady=7, cursor='hand2').pack(side=tk.LEFT)
+
+            refresh_questions()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open question editor: {str(e)}")
     
     def delete_assessment(self, assessment_id):
         """Delete an assessment and its associated data"""
@@ -26509,6 +28670,12 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                               font=('Arial', 10, 'bold'), bg='#9b59b6', fg='white',
                               relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
         lesson_btn.pack(pady=(10, 0))
+
+        resources_btn = tk.Button(lesson_frame, text="Open Resource Library",
+                     command=self._open_student_learning_resources,
+                     font=('Arial', 9, 'bold'), bg='#34495e', fg='white',
+                     relief=tk.FLAT, padx=12, pady=8, cursor='hand2')
+        resources_btn.pack(pady=(8, 0))
         
         # Quiz practice feature
         quiz_frame = self._create_feature_card(parent, "❓ Practice Quizzes",
@@ -26566,6 +28733,18 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                                   font=('Arial', 10, 'bold'), bg='#2c3e50', fg='white',
                                   relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
         curriculum_btn.pack(pady=(10, 0))
+
+        # Admin-only monitoring context control for teacher-targeted learning tools.
+        if self.current_user.get('role') == 'admin':
+            monitor_frame = self._create_feature_card(parent, "🎯 Monitoring Context",
+                                                     "Select or switch the teacher profile used for Learning Support monitoring.\n"
+                                                     "All teacher tools will run under this selected context.",
+                                                     "#8e44ad")
+            monitor_btn = tk.Button(monitor_frame, text="Change Monitoring Teacher",
+                                   command=self._change_admin_monitor_teacher_context,
+                                   font=('Arial', 10, 'bold'), bg='#8e44ad', fg='white',
+                                   relief=tk.FLAT, padx=15, pady=10, cursor='hand2')
+            monitor_btn.pack(pady=(10, 0))
     
     def _create_feature_card(self, parent, title, description, color):
         """Create a feature card with title and description"""
@@ -26796,30 +28975,81 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
                     lessons_by_subject[item.subject] = []
                 lessons_by_subject[item.subject].append(item)
             
-            # Display by subject
+            # Display text-based materials by subject
             for subject, lessons in lessons_by_subject.items():
                 subject_frame = tk.Frame(content, bg='white', relief=tk.SOLID, bd=1)
                 subject_frame.pack(fill=tk.X, padx=20, pady=10)
-                
+
                 subject_title = tk.Label(subject_frame, text=f"📚 {subject}",
                                         font=('Arial', 12, 'bold'), bg='#3498db', fg='white')
                 subject_title.pack(fill=tk.X, padx=10, pady=10)
-                
+
                 for lesson in lessons:
                     lesson_frame = tk.Frame(subject_frame, bg='#f8f9fa', relief=tk.SOLID, bd=1)
                     lesson_frame.pack(fill=tk.X, padx=10, pady=5)
-                    
+
                     lesson_content = tk.Frame(lesson_frame, bg='#f8f9fa')
                     lesson_content.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-                    
+
                     tk.Label(lesson_content, text=f"Topic: {lesson.topic}",
                             font=('Arial', 10, 'bold'), bg='#f8f9fa').pack(anchor=tk.W)
-                    
+
                     tk.Label(lesson_content, text=f"Grade: {lesson.grade_level}",
                             font=('Arial', 9), bg='#f8f9fa', fg='#666').pack(anchor=tk.W)
-                    
-                    tk.Label(lesson_content, text=lesson.content[:200] + "..." if len(lesson.content) > 200 else lesson.content,
-                            font=('Arial', 9), bg='#f8f9fa', fg='#333', justify=tk.LEFT, wraplength=600).pack(anchor=tk.W, pady=(5, 0), fill=tk.X)
+
+                    tk.Label(lesson_content,
+                            text=lesson.content[:200] + "..." if len(lesson.content) > 200 else lesson.content,
+                            font=('Arial', 9), bg='#f8f9fa', fg='#333', justify=tk.LEFT,
+                            wraplength=600).pack(anchor=tk.W, pady=(5, 0), fill=tk.X)
+
+            # Uploaded curriculum/lesson/resource files for the student's assigned class teacher.
+            teacher_id = self._get_current_student_assigned_teacher_id()
+            if teacher_id and TEACHER_LEARNING_SYNC_AVAILABLE:
+                try:
+                    teacher_sync = get_teacher_learning_sync_db()
+                    resources = teacher_sync.get_teacher_resources(
+                        teacher_id,
+                        resource_types=['curriculum', 'lesson_note', 'learning_material']
+                    )
+
+                    section = tk.Frame(content, bg='#ffffff', relief=tk.SOLID, bd=1)
+                    section.pack(fill=tk.X, padx=20, pady=(15, 10))
+
+                    tk.Label(section, text="📂 Uploaded Learning Files", font=('Arial', 12, 'bold'),
+                            bg='#2c3e50', fg='white').pack(fill=tk.X, padx=10, pady=10)
+
+                    body = tk.Frame(section, bg='#ffffff')
+                    body.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+                    if not resources:
+                        tk.Label(body, text="No uploaded files available yet.",
+                                font=('Arial', 10), bg='#ffffff', fg='#777').pack(anchor=tk.W)
+                    else:
+                        for resource in resources:
+                            row = tk.Frame(body, bg='#f8f9fa', relief=tk.SOLID, bd=1)
+                            row.pack(fill=tk.X, pady=5)
+
+                            name = getattr(resource, 'resource_name', 'Untitled Resource')
+                            rtype = str(getattr(resource, 'resource_type', 'learning_material')).replace('_', ' ').title()
+                            subject = getattr(resource, 'subject', 'General')
+                            path = getattr(resource, 'resource_path', '')
+
+                            info = tk.Frame(row, bg='#f8f9fa')
+                            info.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=8)
+
+                            tk.Label(info, text=name, font=('Arial', 10, 'bold'),
+                                    bg='#f8f9fa', fg='#2c3e50').pack(anchor=tk.W)
+                            tk.Label(info, text=f"{rtype} | {subject}", font=('Arial', 9),
+                                    bg='#f8f9fa', fg='#666').pack(anchor=tk.W)
+                            tk.Label(info, text=os.path.basename(path) if path else 'No file', font=('Arial', 8),
+                                    bg='#f8f9fa', fg='#888').pack(anchor=tk.W)
+
+                            tk.Button(row, text="📖 Open", command=lambda p=path: self._open_learning_resource_file(p),
+                                     bg='#3498db', fg='white', relief=tk.FLAT,
+                                     font=('Arial', 9, 'bold'), padx=10, pady=6).pack(side=tk.RIGHT, padx=10, pady=8)
+                except Exception as ex:
+                    tk.Label(content, text=f"Could not load uploaded files: {str(ex)}",
+                            font=('Arial', 9), bg='#f8f9fa', fg='#999').pack(padx=20, pady=8, anchor='w')
         
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load lesson materials: {str(e)}")
@@ -26875,6 +29105,28 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
         
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load quizzes: {str(e)}")
+
+    def _change_admin_monitor_teacher_context(self):
+        """Allow admin to explicitly switch the teacher monitoring context"""
+        if not self.current_user or self.current_user.get('role') != 'admin':
+            messagebox.showerror("Access Denied", "Only admin can change monitoring teacher context.")
+            return
+
+        if hasattr(self, 'admin_monitor_teacher_id'):
+            delattr(self, 'admin_monitor_teacher_id')
+
+        teacher_id = self._get_current_teacher_id()
+        if not teacher_id:
+            return
+
+        try:
+            self.cursor.execute('SELECT name FROM teachers WHERE id = ?', (teacher_id,))
+            row = self.cursor.fetchone()
+            teacher_name = row[0] if row else f"ID {teacher_id}"
+            self.update_status(f"Admin monitoring context switched to: {teacher_name}")
+            messagebox.showinfo("Monitoring Context Updated", f"Now monitoring teacher: {teacher_name}")
+        except Exception:
+            self.update_status(f"Admin monitoring context switched to teacher ID {teacher_id}")
     
     def _get_current_student_id(self):
         """Get current logged-in student ID"""
@@ -26892,20 +29144,119 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
             return user_id if user_id else username
         except:
             return None
+
+    def _get_current_student_assigned_teacher_id(self):
+        """Get the class teacher ID for the logged-in student"""
+        if not self.current_user or self.current_user.get('role') != 'student':
+            return None
+
+        try:
+            student_db_id = self.current_user.get('id')
+            if not student_db_id:
+                return None
+
+            self.cursor.execute('''
+                SELECT c.class_teacher_id
+                FROM students s
+                LEFT JOIN classes c ON c.id = s.class_id
+                WHERE s.id = ?
+                LIMIT 1
+            ''', (student_db_id,))
+            row = self.cursor.fetchone()
+            return row[0] if row and row[0] else None
+        except Exception:
+            return None
     
     def _get_current_teacher_id(self):
         """Get current logged-in teacher ID"""
-        if self.current_user.get('role') != 'teacher':
-            return None
-        
-        try:
-            # Get teacher ID by name
-            full_name = self.current_user.get('full_name')
-            self.cursor.execute('SELECT id FROM teachers WHERE name = ?', (full_name,))
-            result = self.cursor.fetchone()
-            return result[0] if result else None
-        except:
-            return None
+        user_role = self.current_user.get('role') if self.current_user else None
+
+        # Standard teacher context: resolve by logged-in teacher name.
+        if user_role == 'teacher':
+            try:
+                full_name = self.current_user.get('full_name')
+                self.cursor.execute('SELECT id FROM teachers WHERE name = ?', (full_name,))
+                result = self.cursor.fetchone()
+                return result[0] if result else None
+            except Exception:
+                return None
+
+        # Admin monitoring context: allow choosing a teacher profile to monitor.
+        if user_role == 'admin':
+            try:
+                self.cursor.execute('SELECT id, name FROM teachers ORDER BY name')
+                teachers = self.cursor.fetchall()
+                if not teachers:
+                    messagebox.showwarning("No Teacher Profiles", "No teacher profiles were found for monitoring.")
+                    return None
+
+                # Reuse previously selected monitoring target when available.
+                cached_id = getattr(self, 'admin_monitor_teacher_id', None)
+                if cached_id:
+                    for tid, _ in teachers:
+                        if tid == cached_id:
+                            return tid
+
+                if len(teachers) == 1:
+                    self.admin_monitor_teacher_id = teachers[0][0]
+                    return teachers[0][0]
+
+                selector = tk.Toplevel(self.root)
+                selector.title("Select Teacher To Monitor")
+                selector.geometry("460x210")
+                selector.configure(bg='#ffffff')
+                selector.transient(self.root)
+                selector.grab_set()
+
+                frame = tk.Frame(selector, bg='#ffffff')
+                frame.pack(fill='both', expand=True, padx=20, pady=20)
+
+                tk.Label(frame, text="Admin Monitoring Context", font=('Segoe UI', 12, 'bold'),
+                        bg='#ffffff', fg='#2c3e50').pack(anchor='w')
+                tk.Label(frame, text="Choose a teacher profile for this learning-support action.",
+                        font=('Segoe UI', 9), bg='#ffffff', fg='#6c757d').pack(anchor='w', pady=(4, 12))
+
+                display_to_id = {}
+                display_values = []
+                for tid, tname in teachers:
+                    label = f"{tname} (ID: {tid})"
+                    display_values.append(label)
+                    display_to_id[label] = tid
+
+                selected_label = tk.StringVar(value=display_values[0])
+                teacher_cb = ttk.Combobox(frame, textvariable=selected_label, values=display_values,
+                                          state='readonly', width=46)
+                teacher_cb.pack(anchor='w')
+
+                selection = {'teacher_id': None}
+
+                def confirm_selection():
+                    picked = selected_label.get()
+                    selection['teacher_id'] = display_to_id.get(picked)
+                    selector.destroy()
+
+                def cancel_selection():
+                    selector.destroy()
+
+                btns = tk.Frame(frame, bg='#ffffff')
+                btns.pack(fill='x', pady=(16, 0))
+
+                tk.Button(btns, text="Use Selected", command=confirm_selection,
+                         font=('Segoe UI', 9, 'bold'), bg='#27ae60', fg='white',
+                         relief='flat', padx=12, pady=6, cursor='hand2').pack(side='left')
+                tk.Button(btns, text="Cancel", command=cancel_selection,
+                         font=('Segoe UI', 9, 'bold'), bg='#95a5a6', fg='white',
+                         relief='flat', padx=12, pady=6, cursor='hand2').pack(side='left', padx=(10, 0))
+
+                selector.wait_window()
+
+                if selection['teacher_id']:
+                    self.admin_monitor_teacher_id = selection['teacher_id']
+                return selection['teacher_id']
+            except Exception:
+                return None
+
+        return None
     
     def show_hr_manager(self):
         """Display HR Manager interface"""
@@ -26929,6 +29280,18 @@ Outstanding Arrears: GHS {fee['total_arrears']:.2f}
 
 def start_application():
     """Start the application with login window"""
+    try:
+        from error_handling import setup_application_logging
+        setup_application_logging()
+    except Exception:
+        os.makedirs('logs', exist_ok=True)
+        if not logging.getLogger().handlers:
+            logging.basicConfig(
+                filename=os.path.join('logs', 'sms_application.log'),
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+
     root = tk.Tk()
     
     # Initialize the main app but don't show it yet
