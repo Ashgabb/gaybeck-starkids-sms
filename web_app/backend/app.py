@@ -4,11 +4,23 @@ Main application entry point
 """
 from flask import Flask, jsonify
 from flask_cors import CORS
-from config import Config
+from config import DevelopmentConfig, ProductionConfig, TestingConfig
 import os
 
 app = Flask(__name__)
-app.config.from_object(Config)
+
+
+def get_config_class():
+    """Resolve Flask configuration class from environment."""
+    env = os.getenv('FLASK_ENV', 'production').strip().lower()
+    if env == 'development':
+        return DevelopmentConfig
+    if env == 'testing':
+        return TestingConfig
+    return ProductionConfig
+
+
+app.config.from_object(get_config_class())
 CORS(app)
 
 # Import blueprints
@@ -39,4 +51,4 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=os.getenv('FLASK_ENV') == 'development', host='0.0.0.0', port=5000)
+    app.run(debug=bool(app.config.get('DEBUG', False)), host='0.0.0.0', port=5000)

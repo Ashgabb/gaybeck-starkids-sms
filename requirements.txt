@@ -1,5 +1,5 @@
 # School Management System Requirements
-# Version 2.0.0 - November 2025
+# Version 2.0.5 - July 2026
 
 # ===== REQUIRED PACKAGES =====
 # These packages are essential for core functionality
@@ -13,7 +13,13 @@ Pillow>=10.0.0
 # Windows shortcut creation (for installation only)
 pywin32>=306
 
+# Job scheduling for automated backups
+schedule>=1.2.0
+
 # ===== OPTIONAL PACKAGES (For enhanced features) =====
+
+# Excel export functionality (for student/financial reports)
+openpyxl>=3.10.0
 
 # Biometric authentication (facial recognition & fingerprint)
 # NOTE: Must use opencv-contrib-python (not opencv-python) for face recognition features
@@ -30,10 +36,11 @@ scikit-learn>=1.3.0
 # sys           - System parameters
 # threading     - Thread-based parallelism
 # pathlib       - Object-oriented filesystem paths
+# logging       - Application logging
 
 # ===== INSTALLATION =====
 # Install all packages:
 #   pip install -r requirements.txt
 #
-# Or install manually:
-#   pip install tkcalendar Pillow pywin32
+# Or install core packages with Excel support:
+#   pip install tkcalendar Pillow pywin32 schedule openpyxl

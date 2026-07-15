@@ -11,6 +11,9 @@ from datetime import datetime
 import json
 import threading
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RealTimeSyncManager:
     """Manages real-time synchronization and activity logging"""
@@ -19,10 +22,35 @@ class RealTimeSyncManager:
         self.db_path = db_path
         self.is_monitoring = False
         self.monitor_thread = None
+
+    def _record_metric(self, operation, started_at, status='success'):
+        """Store operation duration in performance_metrics."""
+        duration_ms = (time.perf_counter() - started_at) * 1000
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS performance_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    operation TEXT NOT NULL,
+                    duration_ms REAL NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT DEFAULT 'success'
+                )
+            ''')
+            cursor.execute(
+                "INSERT INTO performance_metrics (operation, duration_ms, status) VALUES (?, ?, ?)",
+                (operation, duration_ms, status)
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error("Failed to record performance metric for %s: %s", operation, str(e))
         
     def log_user_activity(self, username, action_type, table_affected, record_id=None, 
                          old_values=None, new_values=None, details=None):
         """Log user activity for audit trail"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -41,13 +69,16 @@ class RealTimeSyncManager:
             
             conn.commit()
             conn.close()
+            self._record_metric('log_user_activity', started_at, 'success')
             
         except Exception as e:
-            print(f"Error logging activity: {str(e)}")
+            self._record_metric('log_user_activity', started_at, 'error')
+            logger.error("Error logging activity: %s", str(e), exc_info=True)
     
     def create_system_notification(self, title, message, notification_type='info', 
                                  user_id=None, action_url=None, priority=1):
         """Create a system notification"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -61,12 +92,15 @@ class RealTimeSyncManager:
             
             conn.commit()
             conn.close()
+            self._record_metric('create_system_notification', started_at, 'success')
             
         except Exception as e:
-            print(f"Error creating notification: {str(e)}")
+            self._record_metric('create_system_notification', started_at, 'error')
+            logger.error("Error creating notification: %s", str(e), exc_info=True)
     
     def update_statistics_cache(self, metric_name, metric_value, metric_data=None, category='general'):
         """Update cached statistics for performance"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -79,12 +113,15 @@ class RealTimeSyncManager:
             
             conn.commit()
             conn.close()
+            self._record_metric('update_statistics_cache', started_at, 'success')
             
         except Exception as e:
-            print(f"Error updating statistics: {str(e)}")
+            self._record_metric('update_statistics_cache', started_at, 'error')
+            logger.error("Error updating statistics: %s", str(e), exc_info=True)
     
     def get_real_time_dashboard_data(self):
         """Get real-time dashboard statistics"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -136,19 +173,23 @@ class RealTimeSyncManager:
             
             conn.close()
             
-            return {
+            result = {
                 'dashboard_data': dashboard_data,
                 'recent_activities': recent_activities,
                 'notifications': notifications,
                 'last_updated': datetime.now().isoformat()
             }
+            self._record_metric('get_real_time_dashboard_data', started_at, 'success')
+            return result
             
         except Exception as e:
-            print(f"Error getting dashboard data: {str(e)}")
+            self._record_metric('get_real_time_dashboard_data', started_at, 'error')
+            logger.error("Error getting dashboard data: %s", str(e), exc_info=True)
             return {}
     
     def get_student_performance_data(self, student_id=None):
         """Get comprehensive student performance data"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -158,21 +199,25 @@ class RealTimeSyncManager:
                 data = cursor.fetchone()
                 if data:
                     columns = [desc[0] for desc in cursor.description]
+                    self._record_metric('get_student_performance_data', started_at, 'success')
                     return dict(zip(columns, data))
             else:
                 cursor.execute("SELECT * FROM student_performance ORDER BY attendance_percentage DESC")
                 data = cursor.fetchall()
                 columns = [desc[0] for desc in cursor.description]
+                self._record_metric('get_student_performance_data', started_at, 'success')
                 return [dict(zip(columns, row)) for row in data]
             
             conn.close()
             
         except Exception as e:
-            print(f"Error getting student performance data: {str(e)}")
+            self._record_metric('get_student_performance_data', started_at, 'error')
+            logger.error("Error getting student performance data: %s", str(e), exc_info=True)
             return []
     
     def get_financial_summary_data(self):
         """Get financial summary and analytics"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -182,14 +227,17 @@ class RealTimeSyncManager:
             columns = [desc[0] for desc in cursor.description]
             
             conn.close()
+            self._record_metric('get_financial_summary_data', started_at, 'success')
             return [dict(zip(columns, row)) for row in data]
             
         except Exception as e:
-            print(f"Error getting financial summary: {str(e)}")
+            self._record_metric('get_financial_summary_data', started_at, 'error')
+            logger.error("Error getting financial summary: %s", str(e), exc_info=True)
             return []
     
     def get_class_analytics_data(self):
         """Get class analytics and performance data"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -199,14 +247,17 @@ class RealTimeSyncManager:
             columns = [desc[0] for desc in cursor.description]
             
             conn.close()
+            self._record_metric('get_class_analytics_data', started_at, 'success')
             return [dict(zip(columns, row)) for row in data]
             
         except Exception as e:
-            print(f"Error getting class analytics: {str(e)}")
+            self._record_metric('get_class_analytics_data', started_at, 'error')
+            logger.error("Error getting class analytics: %s", str(e), exc_info=True)
             return []
     
     def mark_notification_as_read(self, notification_id):
         """Mark a notification as read"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -219,12 +270,15 @@ class RealTimeSyncManager:
             
             conn.commit()
             conn.close()
+            self._record_metric('mark_notification_as_read', started_at, 'success')
             
         except Exception as e:
-            print(f"Error marking notification as read: {str(e)}")
+            self._record_metric('mark_notification_as_read', started_at, 'error')
+            logger.error("Error marking notification as read: %s", str(e), exc_info=True)
     
     def cleanup_old_data(self, days_to_keep=90):
         """Clean up old activity logs and notifications"""
+        started_at = time.perf_counter()
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -262,11 +316,15 @@ class RealTimeSyncManager:
             }
             
         except Exception as e:
-            print(f"Error cleaning up data: {str(e)}")
+            logger.error("Error cleaning up data: %s", str(e), exc_info=True)
             return {}
+        finally:
+            status = 'success' if 'logs_deleted' in locals() else 'error'
+            self._record_metric('cleanup_old_data', started_at, status)
     
     def refresh_all_statistics(self):
         """Refresh all cached statistics"""
+        started_at = time.perf_counter()
         try:
             # Get fresh statistics
             dashboard_data = self.get_real_time_dashboard_data()
@@ -277,11 +335,13 @@ class RealTimeSyncManager:
             
             # Calculate additional metrics
             self._calculate_performance_metrics()
+            self._record_metric('refresh_all_statistics', started_at, 'success')
             
             return True
             
         except Exception as e:
-            print(f"Error refreshing statistics: {str(e)}")
+            self._record_metric('refresh_all_statistics', started_at, 'error')
+            logger.error("Error refreshing statistics: %s", str(e), exc_info=True)
             return False
     
     def _calculate_performance_metrics(self):
@@ -358,7 +418,7 @@ class RealTimeSyncManager:
             conn.close()
             
         except Exception as e:
-            print(f"Error calculating performance metrics: {str(e)}")
+            logger.error("Error calculating performance metrics: %s", str(e), exc_info=True)
     
     def start_background_monitoring(self):
         """Start background monitoring for real-time updates"""
@@ -390,7 +450,7 @@ class RealTimeSyncManager:
                 time.sleep(300)
                 
             except Exception as e:
-                print(f"Error in background monitoring: {str(e)}")
+                logger.error("Error in background monitoring: %s", str(e), exc_info=True)
                 time.sleep(60)  # Wait 1 minute on error
 
 # Global sync manager instance

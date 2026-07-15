@@ -96,9 +96,21 @@ except Exception as e:
 
 # Test 4: Database
 print("\n[4] Verifying Database...")
+def find_database():
+    """Find the database using the same logic as sms.py"""
+    paths_to_try = [
+        'school_management.db',
+        os.path.join('database', 'school_management.db'),
+    ]
+    for path in paths_to_try:
+        if os.path.exists(path):
+            return path
+    return None
+
 try:
-    if os.path.exists('database/school_management.db'):
-        conn = sqlite3.connect('database/school_management.db')
+    db_path = find_database()
+    if db_path:
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")
         table_count = cursor.fetchone()[0]
