@@ -19,7 +19,7 @@ schedule>=1.2.0
 # ===== OPTIONAL PACKAGES (For enhanced features) =====
 
 # Excel export functionality (for student/financial reports)
-openpyxl>=3.10.0
+openpyxl>=3.1.0
 
 # Biometric authentication (facial recognition & fingerprint)
 # NOTE: Must use opencv-contrib-python (not opencv-python) for face recognition features

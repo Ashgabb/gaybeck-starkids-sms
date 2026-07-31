@@ -19,7 +19,6 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import threading
-import requests
 import zipfile
 import io
 
@@ -49,7 +48,7 @@ REQUIRED_PACKAGES = [
     'numpy',
     'scikit-learn',
     'tkcalendar',
-    'opencv-python',
+    'opencv-contrib-python',
 ]
 
 PACKAGE_IMPORT_MAP = {
@@ -387,11 +386,14 @@ class InstallerGUI:
         try:
             source_dir = Path(__file__).parent
             target_dir = Path(self.install_dir)
+            critical_missing = []
             
             # List of directories and files to copy
             items_to_copy = [
                 'sms.py',
                 'requirements.txt',
+                'logo.png',
+                'sms_icon.ico',
                 'database',
                 'docs',
                 'backups',
@@ -409,6 +411,7 @@ class InstallerGUI:
                 'ai_learning_support.py',
                 'ai_learning_ui.py',
                 'ai_tutor_service.py',
+                'promotion_manager.py',
                 'biometric_auth.py',
                 'biometric_ui.py',
                 'enhanced_ews.py',
@@ -423,12 +426,26 @@ class InstallerGUI:
                 'setup.bat',
                 'setup_portable.py',
             ]
+
+            critical_items = {
+                'sms.py',
+                'requirements.txt',
+                'ui_components.py',
+                'ai_learning_support.py',
+                'ai_assessment_grading.py',
+                'hr_manager.py',
+                'promotion_manager.py',
+                'biometric_auth.py',
+                'run_app.bat',
+            }
             
             copied_count = 0
             for item in items_to_copy:
                 source = source_dir / item
                 if not source.exists():
                     self.log_message(f"  ⚠ Warning: {item} not found in source")
+                    if item in critical_items:
+                        critical_missing.append(item)
                     continue
                 
                 target = target_dir / item
@@ -447,6 +464,13 @@ class InstallerGUI:
                 except Exception as e:
                     self.log_message(f"  ✗ Failed to copy {item}: {str(e)}", "ERROR")
                     return False
+
+            if critical_missing:
+                self.log_message(
+                    f"Critical installation files missing from installer payload: {', '.join(critical_missing)}",
+                    "ERROR"
+                )
+                return False
             
             self.log_message(f"Successfully copied {copied_count} files/folders")
             return True
@@ -465,13 +489,18 @@ class InstallerGUI:
                 return True
             
             self.log_message("Installing Python packages (this may take 2-5 minutes)...")
+
+            python_cmd = self._get_python_command()
+            if not python_cmd:
+                self.log_message("Python launcher not found for pip installation", "ERROR")
+                return False
             
-            cmd = [sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip']
+            cmd = python_cmd + ['-m', 'pip', 'install', '--no-cache-dir', '--upgrade', 'pip']
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
                 self.log_message(f"pip upgrade warning: {result.stderr}", "WARNING")
             
-            cmd = [sys.executable, '-m', 'pip', 'install', '--upgrade', '-r', str(req_file)]
+            cmd = python_cmd + ['-m', 'pip', 'install', '--no-cache-dir', '--upgrade', '-r', str(req_file)]
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
@@ -494,7 +523,12 @@ class InstallerGUI:
                 return True
 
             packages = self._parse_requirements(req_file)
-            missing = self._get_missing_packages(packages)
+            python_cmd = self._get_python_command()
+            if not python_cmd:
+                self.log_message("Python launcher not found for runtime verification", "ERROR")
+                return False
+
+            missing = self._get_missing_packages(packages, python_cmd)
 
             if not missing:
                 self.log_message("✓ Runtime requirement verification passed")
@@ -503,13 +537,13 @@ class InstallerGUI:
             self.log_message(f"Missing runtime packages detected: {', '.join(missing)}", "WARNING")
             self.log_message("Attempting remediation installation for missing packages...")
 
-            cmd = [sys.executable, '-m', 'pip', 'install'] + missing
+            cmd = python_cmd + ['-m', 'pip', 'install', '--no-cache-dir'] + missing
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
                 self.log_message(f"Runtime package remediation failed: {result.stderr}", "ERROR")
                 return False
 
-            still_missing = self._get_missing_packages(packages)
+            still_missing = self._get_missing_packages(packages, python_cmd)
             if still_missing:
                 self.log_message(f"Still missing after remediation: {', '.join(still_missing)}", "ERROR")
                 return False
@@ -519,6 +553,18 @@ class InstallerGUI:
         except Exception as e:
             self.log_message(f"Runtime verification error: {str(e)}", "ERROR")
             return False
+
+    def _get_python_command(self):
+        """Resolve a Python launcher suitable for invoking pip from the installer."""
+        if not getattr(sys, "frozen", False) and Path(sys.executable).name.lower().startswith("python"):
+            return [sys.executable]
+
+        for candidate in ("python", "py"):
+            candidate_path = shutil.which(candidate)
+            if candidate_path:
+                return [candidate_path, "-3"] if candidate == "py" else [candidate_path]
+
+        return None
 
     def _parse_requirements(self, req_file):
         """Parse installable package names from requirements.txt"""
@@ -539,12 +585,14 @@ class InstallerGUI:
                     packages.append(normalized.lower())
         return packages
 
-    def _get_missing_packages(self, packages):
-        """Return package names whose mapped import cannot be resolved"""
+    def _get_missing_packages(self, packages, python_cmd):
+        """Return package names whose mapped import cannot be resolved in the target Python."""
         missing = []
         for package in packages:
             module_name = PACKAGE_IMPORT_MAP.get(package, package.replace('-', '_'))
-            if importlib.util.find_spec(module_name) is None:
+            cmd = python_cmd + ['-c', f"import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('{module_name}') else 1)"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
                 missing.append(package)
         return missing
     

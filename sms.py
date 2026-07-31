@@ -27,6 +27,11 @@ import shutil
 import io
 import csv
 import logging
+import time
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 logger = logging.getLogger(__name__)
 
@@ -2119,8 +2124,45 @@ class LoginWindow:
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
+        self._ensure_login_schema()
         
         self.setup_login_window()
+
+    def _ensure_login_schema(self):
+        """Ensure login-critical tables and default users exist for first-run installs."""
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'viewer',
+                email TEXT,
+                phone TEXT,
+                permissions TEXT,
+                is_active BOOLEAN DEFAULT 1,
+                created_date DATE DEFAULT CURRENT_DATE,
+                last_login DATE
+            )
+        ''')
+
+        self.cursor.execute("SELECT COUNT(*) FROM users")
+        if self.cursor.fetchone()[0] == 0:
+            default_users = [
+                ('admin', 'admin123', 'System Administrator', 'admin', 'admin@school.com', 'all_permissions'),
+                ('accountant1', 'account123', 'Sample Accountant', 'accountant', 'accountant@school.com', 'dashboard,financial_management,fees,reports'),
+                ('teacher1', 'teacher123', 'Sample Teacher', 'teacher', 'teacher@school.com', ''),
+                ('staff1', 'staff123', 'Sample Staff', 'staff', 'staff@school.com', ''),
+            ]
+            self.cursor.executemany(
+                '''
+                INSERT OR IGNORE INTO users (username, password, full_name, role, email, permissions)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                default_users,
+            )
+
+        self.conn.commit()
     
     def setup_login_window(self):
         # Hide main window
@@ -2133,8 +2175,11 @@ class LoginWindow:
         # Set window icon
         icon_locations = [
             'icon.ico',  # Current directory
+            'sms_icon.ico',  # Current directory fallback
             os.path.join(os.environ.get('APPDATA', ''), 'GaybeckStarkidsSMS', 'icon.ico'),  # AppData
+            os.path.join(os.environ.get('APPDATA', ''), 'GaybeckStarkidsSMS', 'sms_icon.ico'),  # AppData fallback
             os.path.join(os.path.dirname(__file__), 'icon.ico'),  # Script directory
+            os.path.join(os.path.dirname(__file__), 'sms_icon.ico'),  # Script directory fallback
         ]
         
         try:
@@ -2422,8 +2467,11 @@ class SchoolManagementSystem:
         # Check multiple locations for icon.ico
         icon_locations = [
             resource_path('icon.ico'),  # Current directory or PyInstaller bundle
+            resource_path('sms_icon.ico'),  # Current directory or PyInstaller bundle fallback
             os.path.join(os.environ.get('APPDATA', ''), 'GaybeckStarkidsSMS', 'icon.ico'),  # AppData
+            os.path.join(os.environ.get('APPDATA', ''), 'GaybeckStarkidsSMS', 'sms_icon.ico'),  # AppData fallback
             os.path.join(os.path.dirname(__file__), 'icon.ico'),  # Script directory
+            os.path.join(os.path.dirname(__file__), 'sms_icon.ico'),  # Script directory fallback
         ]
         
         try:
@@ -2493,6 +2541,7 @@ class SchoolManagementSystem:
         self.root.option_add('*TCombobox*Listbox.selectBackground', '#3498db')
         self.root.option_add('*Frame.relief', 'flat')
         self.root.option_add('*Frame.bd', '0')
+        self._configure_modern_ui_styles()
         
         # Initialize database
         self.init_database()
@@ -2573,6 +2622,143 @@ class SchoolManagementSystem:
         
         # Load initial dashboard data
         self.update_dashboard()
+
+    def _configure_modern_ui_styles(self):
+        """Centralized ttk styling for a cleaner and more consistent UI."""
+        try:
+            style = ttk.Style(self.root)
+            try:
+                style.theme_use('clam')
+            except Exception:
+                pass
+
+            base_font = ('Segoe UI', 10)
+            heading_font = ('Segoe UI', 10, 'bold')
+
+            style.configure('.', font=base_font)
+            style.configure('TLabel', background='#ffffff', foreground='#2c3e50')
+            style.configure('TFrame', background='#ffffff')
+            style.configure('TButton', padding=(10, 6), font=heading_font)
+            style.configure('TCombobox', padding=4)
+            style.configure('TNotebook', background='#f8f9fa', borderwidth=0)
+            style.configure('TNotebook.Tab', padding=(12, 7), font=heading_font)
+            style.map('TNotebook.Tab',
+                      background=[('selected', '#ffffff'), ('!selected', '#e9eef3')],
+                      foreground=[('selected', '#1f2937'), ('!selected', '#475569')])
+            style.configure('Treeview',
+                            rowheight=28,
+                            font=base_font,
+                            fieldbackground='#ffffff',
+                            background='#ffffff')
+            style.configure('Treeview.Heading',
+                            font=heading_font,
+                            background='#ecf0f1',
+                            foreground='#2c3e50')
+        except Exception as e:
+            logger.warning("Could not configure modern UI styles: %s", e)
+
+    def _compact_padding_value(self, value):
+        """Reduce excessive spacing values while preserving intentional small spacing."""
+        if isinstance(value, str):
+            parts = value.split()
+            if len(parts) == 1:
+                try:
+                    value = int(parts[0])
+                except ValueError:
+                    return value
+            else:
+                compacted = []
+                for part in parts:
+                    try:
+                        compacted.append(str(self._compact_padding_value(int(part))))
+                    except ValueError:
+                        compacted.append(part)
+                return " ".join(compacted)
+
+        if isinstance(value, tuple):
+            return tuple(self._compact_padding_value(v) for v in value)
+
+        if isinstance(value, int):
+            if value <= 0:
+                return value
+            if value <= 8:
+                return value
+            # Trim larger spacing blocks for denser, cleaner layouts.
+            return min(int(round(value * 0.75)), 20)
+
+        return value
+
+    def _normalize_ui_spacing(self, root_widget):
+        """Normalize widget spacing recursively for a cleaner UI with less dead space."""
+        if not root_widget or not root_widget.winfo_exists():
+            return
+
+        queue = [root_widget]
+        while queue:
+            widget = queue.pop(0)
+            queue.extend(widget.winfo_children())
+
+            manager = widget.winfo_manager()
+            if manager == 'pack':
+                try:
+                    info = widget.pack_info()
+                    updates = {}
+                    if 'padx' in info:
+                        updates['padx'] = self._compact_padding_value(info['padx'])
+                    if 'pady' in info:
+                        updates['pady'] = self._compact_padding_value(info['pady'])
+                    if updates:
+                        widget.pack_configure(**updates)
+                except Exception:
+                    pass
+            elif manager == 'grid':
+                try:
+                    info = widget.grid_info()
+                    updates = {}
+                    if 'padx' in info:
+                        updates['padx'] = self._compact_padding_value(info['padx'])
+                    if 'pady' in info:
+                        updates['pady'] = self._compact_padding_value(info['pady'])
+                    if updates:
+                        widget.grid_configure(**updates)
+                except Exception:
+                    pass
+
+    def _apply_smooth_reveal(self, container):
+        """Lightweight staged reveal to soften view transitions without heavy animations."""
+        if not container or not container.winfo_exists():
+            return
+
+        pack_children = [w for w in container.winfo_children() if w.winfo_manager() == 'pack']
+        if not pack_children or len(pack_children) > 7:
+            return
+
+        packed_widgets = []
+        for child in pack_children:
+            try:
+                packed_widgets.append((child, child.pack_info()))
+                child.pack_forget()
+            except Exception:
+                return
+
+        def _show_next(index=0):
+            if index >= len(packed_widgets):
+                return
+            widget, info = packed_widgets[index]
+            if widget.winfo_exists():
+                widget.pack(**info)
+            self.root.after(16, lambda: _show_next(index + 1))
+
+        _show_next(0)
+
+    def _post_render_ui_polish(self):
+        """Run compact-spacing and transition polish after a screen render."""
+        if not hasattr(self, 'content_frame') or not self.content_frame.winfo_exists():
+            return
+
+        self.root.update_idletasks()
+        self._normalize_ui_spacing(self.content_frame)
+        self._apply_smooth_reveal(self.content_frame)
         
     def get_data_directory(self, subfolder=''):
         """
@@ -3539,6 +3725,8 @@ class SchoolManagementSystem:
             self.show_dashboard()
         else:
             self.show_no_access_screen()
+
+        self._post_render_ui_polish()
     
     def create_header(self):
         # Modern gradient-style header with responsive sizing
@@ -4089,8 +4277,13 @@ class SchoolManagementSystem:
         if command in status_messages and hasattr(self, 'update_status'):
             self.update_status(status_messages[command])
         
-        # Execute the command
+        # Execute command and apply post-render polish for cleaner spacing and smoother transitions.
+        start_ts = time.perf_counter()
         command()
+        self._post_render_ui_polish()
+        render_ms = (time.perf_counter() - start_ts) * 1000
+        if render_ms > 250:
+            logger.info("Rendered %s in %.1f ms", getattr(command, '__name__', 'view'), render_ms)
     
     def show_no_access_screen(self):
         """Show access denied screen for users without permissions"""
@@ -14384,8 +14577,7 @@ Collection Rate: {class_data_item['collection_rate']:.1f}%  |  Students Paid: {c
         # Tab 3: Promotion History
         self.create_promotion_history_tab(notebook)
         
-        # Tab 4: Academic Year Settings
-        self.create_academic_year_tab(notebook)
+        # Academic year configuration is available under Main Settings.
 
     def create_single_promotion_tab(self, parent_notebook):
         """Create tab for single student promotion with live search"""
@@ -14827,6 +15019,13 @@ Status: {student['status'] or 'Active'}
 
     def create_academic_year_tab(self, parent_notebook):
         """Create tab for academic year settings"""
+        if not PROMOTION_AVAILABLE:
+            return
+
+        # Ensure promotion manager is available when this tab is opened from Settings.
+        if not hasattr(self, 'promotion_manager') or self.promotion_manager is None:
+            self.promotion_manager = PromotionManager('school_management.db')
+
         tab = tk.Frame(parent_notebook, bg='#f8f9fa')
         parent_notebook.add(tab, text="📅 Academic Year Settings")
         
@@ -17636,7 +17835,9 @@ Status: {student['status'] or 'Active'}
         self.db_table_cb.pack(side=tk.LEFT, padx=5)
         tk.Button(top, text="Load", command=self.load_db_table, bg='#0066cc', fg='white').pack(side=tk.LEFT, padx=5)
 
-        self.db_tree_frame = tk.Frame(database_main_frame, bg='#ffffff'); self.db_tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        self.db_tree_frame = tk.Frame(database_main_frame, bg='#ffffff', relief=tk.SOLID, bd=1, height=560)
+        self.db_tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        self.db_tree_frame.pack_propagate(False)
         
         # Ensure scrollable frame is properly updated
         scrollable_database.update_scrollregion()
@@ -17649,12 +17850,26 @@ Status: {student['status'] or 'Active'}
         try:
             self.cursor.execute(f"PRAGMA table_info({table})")
             cols = [c[1] for c in self.cursor.fetchall()]
-            tree = ttk.Treeview(self.db_tree_frame, columns=cols, show='headings')
+
+            table_container = tk.Frame(self.db_tree_frame, bg='#ffffff')
+            table_container.pack(fill=tk.BOTH, expand=True)
+
+            tree = ttk.Treeview(table_container, columns=cols, show='headings', height=24)
             for c in cols:
-                tree.heading(c, text=c); tree.column(c, width=120)
-            vs = ttk.Scrollbar(self.db_tree_frame, orient=tk.VERTICAL, command=tree.yview)
-            tree.configure(yscrollcommand=vs.set)
-            tree.pack(fill=tk.BOTH, expand=True, side=tk.LEFT); vs.pack(side=tk.LEFT, fill=tk.Y)
+                tree.heading(c, text=c)
+                tree.column(c, width=150, minwidth=100, anchor=tk.W)
+
+            vs = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=tree.yview)
+            hs = ttk.Scrollbar(table_container, orient=tk.HORIZONTAL, command=tree.xview)
+            tree.configure(yscrollcommand=vs.set, xscrollcommand=hs.set)
+
+            tree.grid(row=0, column=0, sticky='nsew')
+            vs.grid(row=0, column=1, sticky='ns')
+            hs.grid(row=1, column=0, sticky='ew')
+
+            table_container.grid_rowconfigure(0, weight=1)
+            table_container.grid_columnconfigure(0, weight=1)
+
             self.cursor.execute(f"SELECT * FROM {table} LIMIT 500")
             for r in self.cursor.fetchall():
                 tree.insert('', tk.END, values=r)
@@ -24576,6 +24791,9 @@ Financial Summary:
         backup_tab = tk.Frame(notebook, bg='white')
         notebook.add(backup_tab, text="🔄 Backup & Restore")
         self.create_backup_restore_tab(backup_tab)
+
+        # Tab 6: Academic Year Settings
+        self.create_academic_year_tab(notebook)
     
     def create_data_management_tab(self, parent):
         """Create data management tab content"""

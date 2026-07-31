@@ -17,16 +17,16 @@ class NotificationCenterFrame(ttk.Frame):
     
     def create_widgets(self):
         """Create UI widgets"""
-        header = ttk.Label(self, text="Notification Center", font=("Arial", 12, "bold"))
-        header.pack(pady=10)
+        header = ttk.Label(self, text="Notification Center", font=("Segoe UI", 11, "bold"))
+        header.pack(pady=8)
         
         # Notification list
         self.notification_listbox = tk.Listbox(self, height=10)
-        self.notification_listbox.pack(fill="both", expand=True, padx=10, pady=5)
+        self.notification_listbox.pack(fill="both", expand=True, padx=8, pady=4)
         
         # Button frame
         button_frame = ttk.Frame(self)
-        button_frame.pack(fill="x", padx=10, pady=5)
+        button_frame.pack(fill="x", padx=8, pady=4)
         
         ttk.Button(button_frame, text="Clear All", command=self.clear_all).pack(side="left", padx=5)
         ttk.Button(button_frame, text="Mark as Read", command=self.mark_read).pack(side="left", padx=5)
@@ -79,16 +79,16 @@ class AITutorChatFrame(ttk.Frame):
     
     def create_widgets(self):
         """Create UI widgets"""
-        header = ttk.Label(self, text="AI Tutor Chat", font=("Arial", 12, "bold"))
-        header.pack(pady=10)
+        header = ttk.Label(self, text="AI Tutor Chat", font=("Segoe UI", 11, "bold"))
+        header.pack(pady=8)
         
         # Chat display
         self.chat_text = tk.Text(self, height=15, state="disabled")
-        self.chat_text.pack(fill="both", expand=True, padx=10, pady=5)
+        self.chat_text.pack(fill="both", expand=True, padx=8, pady=4)
         
         # Input area
         input_frame = ttk.Frame(self)
-        input_frame.pack(fill="x", padx=10, pady=5)
+        input_frame.pack(fill="x", padx=8, pady=4)
         
         self.input_text = ttk.Entry(input_frame)
         self.input_text.pack(side="left", fill="x", expand=True, padx=5)
@@ -129,22 +129,22 @@ class EWSDashboardFrame(ttk.Frame):
     
     def create_widgets(self):
         """Create UI widgets"""
-        header = ttk.Label(self, text="Early Warning System Dashboard", font=("Arial", 12, "bold"))
-        header.pack(pady=10)
+        header = ttk.Label(self, text="Early Warning System Dashboard", font=("Segoe UI", 11, "bold"))
+        header.pack(pady=8)
         
         # Risk levels summary
         summary_frame = ttk.Frame(self)
-        summary_frame.pack(fill="x", padx=10, pady=5)
+        summary_frame.pack(fill="x", padx=8, pady=4)
         
-        ttk.Label(summary_frame, text="High Risk: 5", foreground="red", font=("Arial", 10, "bold")).pack(side="left", padx=20)
-        ttk.Label(summary_frame, text="Medium Risk: 12", foreground="orange", font=("Arial", 10, "bold")).pack(side="left", padx=20)
-        ttk.Label(summary_frame, text="Low Risk: 83", foreground="green", font=("Arial", 10, "bold")).pack(side="left", padx=20)
+        ttk.Label(summary_frame, text="High Risk: 5", foreground="red", font=("Segoe UI", 10, "bold")).pack(side="left", padx=12)
+        ttk.Label(summary_frame, text="Medium Risk: 12", foreground="orange", font=("Segoe UI", 10, "bold")).pack(side="left", padx=12)
+        ttk.Label(summary_frame, text="Low Risk: 83", foreground="green", font=("Segoe UI", 10, "bold")).pack(side="left", padx=12)
         
         # At-risk students list
-        ttk.Label(self, text="At-Risk Students:").pack(anchor="w", padx=10, pady=(10, 0))
+        ttk.Label(self, text="At-Risk Students:").pack(anchor="w", padx=8, pady=(8, 0))
         
         self.students_listbox = tk.Listbox(self, height=10)
-        self.students_listbox.pack(fill="both", expand=True, padx=10, pady=5)
+        self.students_listbox.pack(fill="both", expand=True, padx=8, pady=4)
         
         # Add sample data
         self.students_listbox.insert(tk.END, "Student 1 - High Risk (Attendance: 65%)")
@@ -162,30 +162,30 @@ class NotificationSettingsFrame(ttk.Frame):
     
     def create_widgets(self):
         """Create UI widgets"""
-        header = ttk.Label(self, text="Notification Settings", font=("Arial", 12, "bold"))
-        header.pack(pady=10)
+        header = ttk.Label(self, text="Notification Settings", font=("Segoe UI", 11, "bold"))
+        header.pack(pady=8)
         
         # Enable/disable notifications
         self.enable_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self, text="Enable Notifications", variable=self.enable_var).pack(anchor="w", padx=10, pady=5)
+        ttk.Checkbutton(self, text="Enable Notifications", variable=self.enable_var).pack(anchor="w", padx=8, pady=4)
         
         # Notification types
-        ttk.Label(self, text="Notification Types:").pack(anchor="w", padx=10, pady=(10, 0))
+        ttk.Label(self, text="Notification Types:").pack(anchor="w", padx=8, pady=(8, 0))
         
         self.assessment_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self, text="Assessment Notifications", variable=self.assessment_var).pack(anchor="w", padx=20, pady=2)
+        ttk.Checkbutton(self, text="Assessment Notifications", variable=self.assessment_var).pack(anchor="w", padx=16, pady=2)
         
         self.attendance_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self, text="Attendance Alerts", variable=self.attendance_var).pack(anchor="w", padx=20, pady=2)
+        ttk.Checkbutton(self, text="Attendance Alerts", variable=self.attendance_var).pack(anchor="w", padx=16, pady=2)
         
         self.grade_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self, text="Grade Updates", variable=self.grade_var).pack(anchor="w", padx=20, pady=2)
+        ttk.Checkbutton(self, text="Grade Updates", variable=self.grade_var).pack(anchor="w", padx=16, pady=2)
         
         self.ews_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self, text="EWS Alerts", variable=self.ews_var).pack(anchor="w", padx=20, pady=2)
+        ttk.Checkbutton(self, text="EWS Alerts", variable=self.ews_var).pack(anchor="w", padx=16, pady=2)
         
         # Save button
-        ttk.Button(self, text="Save Settings", command=self.save_settings).pack(pady=20)
+        ttk.Button(self, text="Save Settings", command=self.save_settings).pack(pady=14)
     
     def save_settings(self):
         """Save notification settings"""
